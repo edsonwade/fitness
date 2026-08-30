@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#08090b">
+<meta name="description" content="Vanilson Workout — a six-day hypertrophy training app with technique guidance, load logging, goals and trainers.">
+<title>Vanilson Workout</title>
+
+<!-- Design system first, then components, then the gate (scoped separately). -->
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/gate.css">
+
+<link rel="preload" href="fonts/anton.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+
+<!-- The only external code. Both are optional at runtime: the app guards with
+     window.supabase / window.Chart checks. With no internet the sign-in gate
+     cannot authenticate, so the app stays behind it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+
+<!-- =====================================================================
+     GATE — sign in / register.
+     Layout, copy, field ids and validation classes are unchanged from before
+     the redesign; only the accent colour and the background differ. Handlers
+     go through the same data-act / data-inp / data-submit delegation as the
+     rest of the app.
+     ===================================================================== -->
+<div id="gate" class="gate">
+  <div class="gfig">
+    <img src="img/onboard-welcome.jpg" alt="">
+  </div>
+  <div class="glang" role="group" data-i18n-aria="a_lang" aria-label="Language">
+    <button type="button" id="lgPT" data-act="lang" data-a1="pt">PT</button>
+    <button type="button" id="lgEN" data-act="lang" data-a1="en">EN</button>
+  </div>
+
+  <div class="auth" data-view="login">
+    <div class="gmark"><div class="m2"><b>Vanilson Workout</b></div></div>
+
+    <div class="auth-toggle" role="tablist">
+      <button class="atg on" id="tgLogin" type="button" role="tab" aria-selected="true"
+        data-act="setauth" data-a1="login" data-i18n="signin">Sign in</button>
+      <button class="atg" id="tgReg" type="button" role="tab" aria-selected="false"
+        data-act="setauth" data-a1="register" data-i18n="signup">Sign up</button>
+    </div>
+
+    <form class="apanel ap-login" data-submit="authin">
+      <div class="fld" id="fLE">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M4 8.5l8 5.5 8-5.5"/></svg>
+          <input id="emIn" type="email" autocomplete="username" data-i18n-ph="ph_email" placeholder="Your email" data-inp="gclr" data-a1="fLE">
+        </div>
+        <div class="ferr" data-i18n="e_email">Enter a valid email.</div>
+      </div>
+      <div class="fld" id="fLP">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+          <input id="pwIn" type="password" autocomplete="current-password" data-i18n-ph="ph_pw" placeholder="Password" data-inp="gclr" data-a1="fLP">
+          <button class="eye" type="button" data-i18n-aria="a_eye" aria-label="Show password" data-act="geye" data-a1="pwIn"></button>
+        </div>
+        <div class="ferr" data-i18n="e_pwreq">Enter your password.</div>
+      </div>
+      <button class="acta" type="submit" data-i18n="signin">Sign in</button>
+      <div class="ghelp">
+        <div class="h"><a data-act="authreset" data-i18n="forgot">Forgot your password?</a></div>
+        <div class="h dim"><span data-i18n="noacc">Don't have an account?</span>
+          <a data-act="setauth" data-a1="register" data-i18n="signup">Sign up</a></div>
+      </div>
+    </form>
+
+    <form class="apanel ap-reg" data-submit="authup">
+      <div class="fld" id="fRN">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c0-4 3.6-6.2 7.2-6.2S19.2 16 19.2 20"/></svg>
+          <input id="rgName" type="text" autocomplete="name" data-i18n-ph="ph_name" placeholder="Your name" data-inp="gclr" data-a1="fRN">
+        </div>
+        <div class="ferr" data-i18n="e_name">Enter your name.</div>
+      </div>
+      <div class="fld" id="fRE">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M4 8.5l8 5.5 8-5.5"/></svg>
+          <input id="rgEmail" type="email" autocomplete="email" data-i18n-ph="ph_email" placeholder="Your email" data-inp="gclr" data-a1="fRE">
+        </div>
+        <div class="ferr" id="rgEmailErr" data-i18n="e_email">Enter a valid email.</div>
+      </div>
+      <div class="fld" id="fRP">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+          <input id="rgPw" type="password" autocomplete="new-password" data-i18n-ph="ph_pw" placeholder="Password" data-inp="gpw">
+          <button class="eye" type="button" data-i18n-aria="a_eye" aria-label="Show password" data-act="geye" data-a1="rgPw"></button>
+        </div>
+        <div class="ferr" id="rgPwErr" data-i18n="e_pwrule">Min. 8 characters, with a letter, a number and a symbol.</div>
+      </div>
+      <div class="pwstr" id="pwStr" data-lv="0"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-hint" data-i18n="e_pwrule">Min. 8 characters, with a letter, a number and a symbol.</div>
+      <div class="fld" id="fRP2">
+        <div class="ii">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><path d="M10 15.2l1.6 1.6 2.8-2.8"/></svg>
+          <input id="rgPw2" type="password" autocomplete="new-password" data-i18n-ph="ph_pw2" placeholder="Confirm password" data-inp="gclr" data-a1="fRP2">
+        </div>
+        <div class="ferr" data-i18n="e_match">Passwords do not match.</div>
+      </div>
+      <button class="acta" type="submit" data-i18n="createacc">Create account</button>
+      <div class="ghelp">
+        <div class="h dim"><span data-i18n="haveacc">Already have an account?</span>
+          <a data-act="setauth" data-a1="login" data-i18n="signin">Sign in</a></div>
+      </div>
+    </form>
+
+    <div id="gateMsg" class="gate-msg"></div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     ONBOARDING — filled by renderOnboarding(); hidden once completed.
+     ===================================================================== -->
+<div id="onboard" class="ob hidden"></div>
+
+<!-- =====================================================================
+     APP — #view is rewritten wholesale by the renderers in ui.js.
+     ===================================================================== -->
+<main class="app" id="app">
+  <div id="view"></div>
+</main>
+
+<!-- Bottom navigation. data-a1 doubles as the view id, which is what
+     rerender() compares against to set the active tab. -->
+<nav class="tabs" aria-label="Main">
+  <button class="tab is-on" data-act="nav" data-a1="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.2 12 5l8 6.2V19a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg>
+    <span data-i18n="nav_home">Home</span><i class="tab__dot"></i>
+  </button>
+  <button class="tab" data-act="nav" data-a1="train">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M6.5 12h11"/></svg>
+    <span data-i18n="nav_train">Train</span><i class="tab__dot"></i>
+  </button>
+  <button class="tab" data-act="nav" data-a1="goals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/></svg>
+    <span data-i18n="nav_goals">Goals</span><i class="tab__dot"></i>
+  </button>
+  <button class="tab" data-act="nav" data-a1="profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.9-3.6 3.7-5.5 7-5.5s6.1 1.9 7 5.5"/></svg>
+    <span data-i18n="nav_profile">Profile</span><i class="tab__dot"></i>
+  </button>
+</nav>
+
+<!-- One sheet container serves every form: add/edit exercise, goal, trainer,
+     trainer session and profile. openSheet() fills it. -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="sheet__card" id="sheetBody"></div>
+</div>
+
+<!-- Hidden input behind the Import setting -->
+<input type="file" id="importFile" accept="application/json" class="hidden" data-inp="importfile">
+
+<!-- Classic scripts in dependency order. NOT modules: ES modules are fetched
+     under CORS rules and are blocked on file://, which would stop the app from
+     running when index.html is opened directly. -->
+<script src="js/data.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/store.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/community.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
