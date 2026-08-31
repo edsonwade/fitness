@@ -1,0 +1,492 @@
+/**
+ * Vanilson Workout: design tokens.
+ *
+ * BRIEF-PINNED WORLD, and this pin is the STANDING REFERENCE. The user pinned it on
+ * 2026-08-31 and asked that every screen be checked against it:
+ *
+ *   Warm sand ground, white cards on top of it, a peach wash bleeding down from the
+ *   status bar, vivid orange as the primary accent, magenta as the second data
+ *   colour, photography inside heavily rounded cards, pill-shaped everything, soft
+ *   geometric sans in sentence case, dark text.
+ *
+ * impeccable SKILL.md: "The brief wins." A pinned direction beats the roll, always.
+ * The mint world and the lime world before it are replaced in full, not blended.
+ *
+ * LIGHT AND DARK ARE BOTH REQUIRED, and THEY ARE TWO SEPARATE PINS. Light follows
+ * the sand-and-orange reference above. Dark follows a second image the user pinned
+ * on 2026-08-31 and asked to be matched exactly: the dark Sportio screens, cool
+ * near-black with a pale mint primary. Dark is therefore NOT the light world after
+ * sundown, and the accent DOES change hue between modes. That was a deliberate
+ * instruction, overriding the earlier note here that said it must not. The dark
+ * block carries the full reasoning.
+ *
+ * Every pairing is measured by scripts/contrast.mjs against WCAG 2.2 AA in BOTH
+ * modes. Change a value, re-run it.
+ */
+
+/* ---------- faces ---------------------------------------------------------- */
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ---------- light, the reference ------------------------------------------- */
+
+:root {
+  /* Sampled directly from the pinned reference, not estimated by eye. */
+  /*
+   * The browser page background, sampled from the reference at #D7CEC9. The app
+   * itself sits centred on top of it like the phone in the mockup, so on a wide
+   * window this colour is what frames it. Explicitly requested.
+   */
+  --ui-page: #d7cec9;
+  --ui-ground: #f4f3f1;
+  --ui-surface: #ffffff;
+  --ui-surface-raised: #faf9f7;
+  --ui-surface-sunken: #e4e2df;
+
+  /* The peach wash bleeding down from the top of every screen. */
+  --ui-wash-from: #f0c9a1;
+  --ui-wash-to: #f4f3f1;
+
+  --ui-text: #1f1b19;
+  --ui-text-muted: #5f5651;
+  --ui-text-on-photo: #ffffff;
+
+  /*
+   * The orange, exactly as sampled: #EE8F33. Its ink is dark, not white. The
+   * reference sets white on this orange, which measures 2.4:1 and fails the AA gate
+   * PRODUCT.md commits to. Dark ink on the same vivid fill measures 7.4:1.
+   */
+  --ui-accent: #ee8f33;
+  --ui-accent-ink: #1f1508;
+  --ui-accent-soft: #fbe3c9;
+  /*
+   * A deeper orange for thin strokes only: progress arcs, focus rings, 1px marks.
+   * The vivid fill cannot reach 3:1 as a hairline on a light surface, and thinning
+   * the brand colour is not an option, so strokes get their own token.
+   */
+  --ui-accent-line: #a85700;
+
+  /* Second data colour, sampled from the chart bars. Magenta, not green. */
+  --ui-accent-2: #b7275c;
+  --ui-accent-2-ink: #ffffff;
+  --ui-accent-2-soft: #f7dce6;
+
+  --ui-edge: #6e645e;
+  --ui-rule: #e7e4e0;
+
+  --ui-danger: #b3261e;
+  --ui-danger-ink: #ffffff;
+
+  --ui-shadow-card: 0 6px 20px -8px rgb(70 55 45 / 0.22), 0 2px 6px -2px rgb(70 55 45 / 0.14);
+  --ui-shadow-float: 0 14px 34px -10px rgb(70 55 45 / 0.3), 0 4px 10px -4px rgb(70 55 45 / 0.2);
+
+  /*
+   * Filter chips, named as their own role rather than assembled at the call site,
+   * because the dark reference styles them completely differently: see the dark
+   * block. Here the selected chip is the orange fill from the reference.
+   */
+  --ui-chip: #d7cec9;
+  --ui-chip-ink: #1f1b19;
+  --ui-chip-selected: #ee8f33;
+  --ui-chip-selected-ink: #1f1508;
+
+  /* The small circular action on a card: near-black disc, white icon. */
+  --ui-control: #1f1b19;
+  --ui-control-ink: #ffffff;
+
+  /* Pointer hover on the primary fill. Was a stray lime left over from the old world. */
+  --ui-accent-hover: #e07f22;
+
+  color-scheme: light;
+}
+
+/* ---------- dark, the pinned dark reference -------------------------------- */
+
+/*
+ * SECOND BRIEF-PINNED WORLD, pinned 2026-08-31 alongside the light one: the dark
+ * Sportio screens. Every value below is sampled from that image, not estimated.
+ *
+ *   Cool near-black ground, one step up to a flat card, no wash, no shadow doing
+ *   the separating, white text on grey-green muted text, and a pale mint pill as
+ *   the primary action with near-black ink in it.
+ *
+ * The two rules below MUST carry identical declarations: one serves the user who
+ * never chose a theme and whose OS is dark, the other the user who chose dark
+ * explicitly. CSS cannot share a declaration block across a media query, so they
+ * are duplicated on purpose. Change one, change the other.
+ */
+
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    /*
+     * Ground and card, sampled at #151919 and #282D2D. Cool near-black with a faint
+     * teal cast, not the warm espresso this used to be: the reference is decidedly
+     * cool and the two do not read alike side by side.
+     */
+    --ui-page: #0b0e0e;
+    --ui-ground: #151919;
+    --ui-surface: #282d2d;
+    --ui-surface-raised: #333939;
+    --ui-surface-sunken: #0b0e0e;
+
+    /*
+     * Flat. The reference's dark screens carry no wash under the status bar at all,
+     * so the gradient that defines the light screens resolves to a single colour
+     * here rather than being softened. Same element, no glow.
+     */
+    --ui-wash-from: #151919;
+    --ui-wash-to: #151919;
+
+    --ui-text: #ecefef;
+    /*
+     * Sampled at #8D8F8F, lifted to #A2A7A7. The sampled value measures 4.30:1 on
+     * the card and 3.62:1 on a raised chip, both under AA; the lift clears 4.5:1 on
+     * ground, card and chip alike and is imperceptible beside the original.
+     */
+    --ui-text-muted: #a2a7a7;
+    --ui-text-on-photo: #ffffff;
+
+    /*
+     * THE ONE DELIBERATE BRAND MOVE. The light reference is an orange product; the
+     * dark reference is a mint one, and every primary pill in it — Get Started,
+     * Start workout, Edit Profile — is #D7F2F4 with near-black ink. Matching the
+     * reference exactly means the primary accent changes hue between modes, which
+     * the previous note in this file explicitly ruled out. The user overrode that on
+     * 2026-08-31: the dark screens must look exactly like the pinned dark image.
+     * Ink measures 15.10:1 on the mint, so the fill needs no compromise here.
+     */
+    --ui-accent: #d7f2f4;
+    --ui-accent-ink: #151919;
+    --ui-accent-hover: #c2e4e7;
+    /* The ring track, sampled from the arcs' unfilled remainder. */
+    --ui-accent-soft: #2e3a3b;
+    /* Mint reads 11.90:1 as a hairline on the card, so strokes reuse the fill. */
+    --ui-accent-line: #d7f2f4;
+
+    /*
+     * The orange survives as the second colour, exactly as the reference uses it:
+     * the chart line, the flame, the Premium tag. It is no longer the primary, so
+     * it takes the accent-2 slot that magenta holds in light.
+     */
+    --ui-accent-2: #ec9933;
+    --ui-accent-2-ink: #1f1508;
+    --ui-accent-2-soft: #3a2a16;
+
+    --ui-edge: #8e9494;
+    --ui-rule: #2e3434;
+
+    --ui-danger: #ff8577;
+    --ui-danger-ink: #1f0a08;
+
+    /*
+     * Filter chips. The reference's dark segmented control does not use the accent
+     * at all: the selected chip is a raised card-coloured pill with full-strength
+     * text, the rest sit bare on the ground in muted text. In light the same chip is
+     * an orange fill. State also reaches assistive tech through aria-selected, which
+     * is what carries it when the fills are this close.
+     */
+    --ui-chip: #151919;
+    --ui-chip-ink: #a2a7a7;
+    --ui-chip-selected: #282d2d;
+    --ui-chip-selected-ink: #ecefef;
+
+    /*
+     * The small circular action sitting on a card. The reference sinks it to the
+     * ground colour and strokes the icon in mint; light does the inverse, a
+     * near-black disc with a white icon. Both are the same idea: the disc reverses
+     * against whatever it sits on.
+     */
+    --ui-control: #151919;
+    --ui-control-ink: #d7f2f4;
+
+    /*
+     * Barely there. In the reference the step from #151919 to #282D2D is what
+     * separates a card from the screen; a heavy shadow on near-black only smudges
+     * the ground around it.
+     */
+    --ui-shadow-card: 0 2px 8px -4px rgb(0 0 0 / 0.5);
+    --ui-shadow-float: 0 10px 26px -12px rgb(0 0 0 / 0.75), 0 3px 8px -4px rgb(0 0 0 / 0.5);
+
+    color-scheme: dark;
+  }
+}
+
+[data-theme='dark'] {
+  /*
+   * Ground and card, sampled at #151919 and #282D2D. Cool near-black with a faint
+   * teal cast, not the warm espresso this used to be: the reference is decidedly
+   * cool and the two do not read alike side by side.
+   */
+  --ui-page: #0b0e0e;
+  --ui-ground: #151919;
+  --ui-surface: #282d2d;
+  --ui-surface-raised: #333939;
+  --ui-surface-sunken: #0b0e0e;
+
+  /*
+   * Flat. The reference's dark screens carry no wash under the status bar at all,
+   * so the gradient that defines the light screens resolves to a single colour
+   * here rather than being softened. Same element, no glow.
+   */
+  --ui-wash-from: #151919;
+  --ui-wash-to: #151919;
+
+  --ui-text: #ecefef;
+  /*
+   * Sampled at #8D8F8F, lifted to #A2A7A7. The sampled value measures 4.30:1 on
+   * the card and 3.62:1 on a raised chip, both under AA; the lift clears 4.5:1 on
+   * ground, card and chip alike and is imperceptible beside the original.
+   */
+  --ui-text-muted: #a2a7a7;
+  --ui-text-on-photo: #ffffff;
+
+  /*
+   * THE ONE DELIBERATE BRAND MOVE. The light reference is an orange product; the
+   * dark reference is a mint one, and every primary pill in it — Get Started,
+   * Start workout, Edit Profile — is #D7F2F4 with near-black ink. Matching the
+   * reference exactly means the primary accent changes hue between modes, which
+   * the previous note in this file explicitly ruled out. The user overrode that on
+   * 2026-08-31: the dark screens must look exactly like the pinned dark image.
+   * Ink measures 15.10:1 on the mint, so the fill needs no compromise here.
+   */
+  --ui-accent: #d7f2f4;
+  --ui-accent-ink: #151919;
+  --ui-accent-hover: #c2e4e7;
+  /* The ring track, sampled from the arcs' unfilled remainder. */
+  --ui-accent-soft: #2e3a3b;
+  /* Mint reads 11.90:1 as a hairline on the card, so strokes reuse the fill. */
+  --ui-accent-line: #d7f2f4;
+
+  /*
+   * The orange survives as the second colour, exactly as the reference uses it:
+   * the chart line, the flame, the Premium tag. It is no longer the primary, so
+   * it takes the accent-2 slot that magenta holds in light.
+   */
+  --ui-accent-2: #ec9933;
+  --ui-accent-2-ink: #1f1508;
+  --ui-accent-2-soft: #3a2a16;
+
+  --ui-edge: #8e9494;
+  --ui-rule: #2e3434;
+
+  --ui-danger: #ff8577;
+  --ui-danger-ink: #1f0a08;
+
+  /*
+   * Filter chips. The reference's dark segmented control does not use the accent
+   * at all: the selected chip is a raised card-coloured pill with full-strength
+   * text, the rest sit bare on the ground in muted text. In light the same chip is
+   * an orange fill. State also reaches assistive tech through aria-selected, which
+   * is what carries it when the fills are this close.
+   */
+  --ui-chip: #151919;
+  --ui-chip-ink: #a2a7a7;
+  --ui-chip-selected: #282d2d;
+  --ui-chip-selected-ink: #ecefef;
+
+  /*
+   * The small circular action sitting on a card. The reference sinks it to the
+   * ground colour and strokes the icon in mint; light does the inverse, a
+   * near-black disc with a white icon. Both are the same idea: the disc reverses
+   * against whatever it sits on.
+   */
+  --ui-control: #151919;
+  --ui-control-ink: #d7f2f4;
+
+  /*
+   * Barely there. In the reference the step from #151919 to #282D2D is what
+   * separates a card from the screen; a heavy shadow on near-black only smudges
+   * the ground around it.
+   */
+  --ui-shadow-card: 0 2px 8px -4px rgb(0 0 0 / 0.5);
+  --ui-shadow-float: 0 10px 26px -12px rgb(0 0 0 / 0.75), 0 3px 8px -4px rgb(0 0 0 / 0.5);
+
+  color-scheme: dark;
+}
+
+/* ---------- Tailwind theme ------------------------------------------------- */
+
+@theme inline {
+  --color-page: var(--ui-page);
+  --color-ground: var(--ui-ground);
+  --color-surface: var(--ui-surface);
+  --color-surface-raised: var(--ui-surface-raised);
+  --color-surface-sunken: var(--ui-surface-sunken);
+
+  --color-wash-from: var(--ui-wash-from);
+  --color-wash-to: var(--ui-wash-to);
+
+  --color-text: var(--ui-text);
+  --color-text-muted: var(--ui-text-muted);
+  --color-text-on-photo: var(--ui-text-on-photo);
+
+  --color-accent: var(--ui-accent);
+  --color-accent-ink: var(--ui-accent-ink);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-accent-line: var(--ui-accent-line);
+  --color-accent-hover: var(--ui-accent-hover);
+
+  --color-accent-2: var(--ui-accent-2);
+  --color-accent-2-ink: var(--ui-accent-2-ink);
+  --color-accent-2-soft: var(--ui-accent-2-soft);
+
+  --color-edge: var(--ui-edge);
+  --color-rule: var(--ui-rule);
+
+  --color-danger: var(--ui-danger);
+  --color-danger-ink: var(--ui-danger-ink);
+
+  --color-chip: var(--ui-chip);
+  --color-chip-ink: var(--ui-chip-ink);
+  --color-chip-selected: var(--ui-chip-selected);
+  --color-chip-selected-ink: var(--ui-chip-selected-ink);
+
+  --color-control: var(--ui-control);
+  --color-control-ink: var(--ui-control-ink);
+
+  --font-ui: 'Poppins', ui-rounded, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Poppins', ui-rounded, ui-sans-serif, system-ui, sans-serif;
+
+  /* Shape lock, read off the reference. Soft everywhere, pill on anything pressed. */
+  --radius-media: 22px;
+  --radius-card: 20px;
+  --radius-field: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-card: var(--ui-shadow-card);
+  --shadow-float: var(--ui-shadow-float);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --duration-press: 160ms;
+  --duration-state: 180ms;
+  --duration-sheet: 300ms;
+}
+
+/* ---------- layer scale ---------------------------------------------------- */
+
+:root {
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-sheet: 30;
+  --z-toast: 40;
+}
+
+/* ---------- motion --------------------------------------------------------- */
+
+/*
+ * Reduced motion means fewer and gentler, never zero. Opacity and colour survive
+ * because they aid comprehension; transform-based movement is what goes.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: opacity, color, background-color, border-color, fill, stroke !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@custom-variant pointer-hover (@media (hover: hover) and (pointer: fine));
+
+/* ---------- carousels ------------------------------------------------------ */
+
+/*
+ * Native scroll snap rather than a carousel library: it keeps the momentum and
+ * rubber-banding the platform already tuned, works with trackpad, keyboard and
+ * screen reader, and costs nothing in the bundle.
+ */
+.rail {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+/* ---------- browser surfaces ----------------------------------------------- */
+
+::selection {
+  background-color: var(--ui-accent);
+  color: var(--ui-accent-ink);
+}
+
+:root {
+  caret-color: var(--ui-accent);
+  accent-color: var(--ui-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ui-accent-line);
+  outline-offset: 2px;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ui-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--ui-surface-raised) inset;
+  caret-color: var(--ui-accent);
+  transition: background-color 9999s ease-out;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+html {
+  background-color: var(--ui-page);
+  color: var(--ui-text);
+  font-family: var(--font-ui);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--ui-page);
+  color: var(--ui-text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
