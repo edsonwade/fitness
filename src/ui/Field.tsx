@@ -16,6 +16,10 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
  * Label above the input, error below it, never a placeholder standing in for a
  * label. The error is wired through `aria-describedby` and announced politely, so
  * it reaches a screen reader instead of only being visible.
+ *
+ * The input is 16px on purpose. iOS Safari zooms the whole page when a focused
+ * input is smaller than that, and the recovery from that zoom is a pinch, one
+ * handed, mid-set.
  */
 export function Field({
   label,
@@ -36,7 +40,7 @@ export function Field({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="font-ui text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted"
+        className="font-ui text-[13px] font-500 text-text-muted"
       >
         {label}
       </label>
@@ -49,12 +53,15 @@ export function Field({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={clsx(
-            'w-full rounded-[12px] border bg-surface-raised px-4 font-ui text-[16px] text-text',
+            'w-full rounded-field border bg-surface-raised px-4 font-ui text-[16px] text-text',
             // 52px keeps the target well clear of the 24px floor, which the gym
             // scene needs: sweaty hands and a phone held in one hand.
             'min-h-[52px] placeholder:text-text-muted',
             'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-            'focus:outline-none focus-visible:border-accent',
+            // No border swap on focus. The global :focus-visible outline in
+            // tokens.css is the indicator; recolouring the border too drew a second
+            // concentric ring around every focused field.
+            'focus-visible:outline-offset-[3px]',
             revealable && 'pr-[52px]',
             error ? 'border-danger' : 'border-rule pointer-hover:border-edge',
             className,
