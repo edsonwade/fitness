@@ -2,7 +2,8 @@ import { useState } from 'react';
 import clsx from 'clsx';
 
 import { BLOCKS, DAYS, EXERCISES } from '../../content';
-import { useTheme, type ThemePreference } from '../../app/theme';
+import type { ThemePreference } from '../../app/theme';
+import { useThemeState } from '../../app/theme-context';
 
 /**
  * Programs screen, built against the pinned reference image.
@@ -23,7 +24,7 @@ import { useTheme, type ThemePreference } from '../../app/theme';
  * All content is real: the seven days, the block names, the exercise photographs.
  */
 export function Showcase() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemeState();
   const [blockIndex, setBlockIndex] = useState(0);
   const programs = DAYS.filter((d) => d.type !== 'rest');
   const hero = programs[3];

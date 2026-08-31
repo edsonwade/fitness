@@ -83,9 +83,11 @@
   --ui-accent-ink: #1f1508;
   --ui-accent-soft: #fbe3c9;
   /*
-   * A deeper orange for thin strokes only: progress arcs, focus rings, 1px marks.
-   * The vivid fill cannot reach 3:1 as a hairline on a light surface, and thinning
-   * the brand colour is not an option, so strokes get their own token.
+   * The accent at INK strength: progress arcs, focus rings, 1px marks, and accent
+   * coloured text. The vivid fill cannot reach 3:1 as a hairline on a light surface,
+   * let alone 4.5:1 as text, and thinning the brand colour is not an option, so
+   * anything thin or read as text gets this instead. It measures 5.21:1 on the card
+   * and 4.70:1 on the ground.
    */
   --ui-accent-line: #a85700;
 
@@ -183,7 +185,7 @@
     --ui-accent-hover: #c2e4e7;
     /* The ring track, sampled from the arcs' unfilled remainder. */
     --ui-accent-soft: #2e3a3b;
-    /* Mint reads 11.90:1 as a hairline on the card, so strokes reuse the fill. */
+    /* Mint reads 11.90:1 on the card, so strokes and accent text reuse the fill. */
     --ui-accent-line: #d7f2f4;
 
     /*
@@ -277,7 +279,7 @@
   --ui-accent-hover: #c2e4e7;
   /* The ring track, sampled from the arcs' unfilled remainder. */
   --ui-accent-soft: #2e3a3b;
-  /* Mint reads 11.90:1 as a hairline on the card, so strokes reuse the fill. */
+  /* Mint reads 11.90:1 on the card, so strokes and accent text reuse the fill. */
   --ui-accent-line: #d7f2f4;
 
   /*

@@ -12,7 +12,12 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
  *
  * Full pill, per the shape lock read off the pinned reference. Primary is the accent
  * fill with its own ink token: the orange in light at 7.4:1, the mint in dark at
- * 15.1:1. Neither is the lime this comment used to describe.
+ * 15.1:1.
+ *
+ * Sentence case, not the letterspaced small caps this carried from the retired
+ * industrial world. Both pinned references set every pill in sentence case, and caps
+ * plus tracking is the one detail that made this button look like a different app
+ * from the screen it sits on.
  *
  * Loading is a real state, not a disabled button with a changed word: the label is
  * swapped, `aria-busy` is set, and the control stops accepting presses so a slow
@@ -35,7 +40,7 @@ export function Button({
       aria-busy={loading || undefined}
       className={clsx(
         'inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-6',
-        'font-ui text-[14px] font-bold uppercase tracking-[0.1em]',
+        'font-ui text-[15px] font-700',
         'transition-[background-color,color,border-color,opacity,transform]',
         'duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
         // Tactile press. Dropped under reduced motion, where movement is what goes
