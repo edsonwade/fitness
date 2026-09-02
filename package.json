@@ -15,18 +15,26 @@
     "verify": "npm run lint && npm run build && npm test && npm run check:contrast",
     "validate": "node scripts/validate-phase.mjs",
     "validate:live": "node scripts/validate-live.mjs",
-    "show:gate": "node scripts/show-gate.mjs"
+    "show:gate": "node scripts/show-gate.mjs",
+    "migrate:dry": "node scripts/backfill.ts",
+    "migrate:write": "node scripts/backfill.ts --write --yes-write-to-this-database",
+    "validate:live:3": "node scripts/validate-live-phase3.mjs",
+    "validate:live:4": "node scripts/validate-live-phase4.mjs",
+    "validate:live:4a": "node scripts/validate-live-phase4a.mjs"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@supabase/supabase-js": "^2.112.4",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.102.8",
     "clsx": "^2.1.1",
+    "idb": "^8.0.3",
     "motion": "^13.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.1",
     "tailwindcss": "^4.3.3",
+    "vite-plugin-pwa": "^1.3.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
