@@ -1,6 +1,7 @@
-import { Navigate, Outlet, useRouteError } from 'react-router';
+import { Link, Navigate, Outlet, useRouteError } from 'react-router';
 
 import { AuthGate } from '../features/auth/AuthGate';
+import { pt } from '../i18n/pt';
 import { useSessionState } from '../features/auth/session-context';
 import { Screen, SessionSplash } from '../ui/Screen';
 
@@ -37,6 +38,33 @@ export function RequireNoSession() {
   const { session } = useSessionState();
   if (session) return <Navigate to="/" replace />;
   return <AuthGate />;
+}
+
+/**
+ * A tab whose surface phase 4 has not written yet.
+ *
+ * It renders inside <AppShell>, so it draws no frame of its own: the shell already
+ * owns the panel and the bottom bar stays under the thumb, which is what makes this
+ * read as a screen of this app rather than as an error. It says plainly that the
+ * screen does not exist yet, and offers the one place that does.
+ */
+export function SurfacePending() {
+  return (
+    <div className="grid min-h-full place-items-center px-8 py-16 text-center">
+      <div className="flex flex-col items-center gap-3">
+        <h1 className="font-ui text-[19px] font-700 leading-[1.2] text-text">{pt.pending.title}</h1>
+        <p className="max-w-[28ch] font-ui text-[13.5px] leading-relaxed text-text-muted">
+          {pt.pending.body}
+        </p>
+        <Link
+          to="/"
+          className="mt-1 inline-flex min-h-[48px] items-center rounded-full bg-accent px-6 font-ui text-[14px] font-700 text-accent-ink transition-colors duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] pointer-hover:bg-accent-hover active:scale-[0.98] motion-reduce:active:scale-100"
+        >
+          {pt.pending.action}
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export function NotFound() {

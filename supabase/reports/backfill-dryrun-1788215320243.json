@@ -1,0 +1,96 @@
+{
+  "target": "https://loiiwelbzbweacpwpzil.supabase.co",
+  "write": false,
+  "reports": [
+    {
+      "user_id": "e623fc9b-7df6-43a2-a21d-a54d344d197e",
+      "counts": {
+        "exercise_logs": 0,
+        "sessions": 0,
+        "session_entries": 0,
+        "goals": 1,
+        "trainers": 1,
+        "trainer_sessions": 0,
+        "user_profiles": 1,
+        "user_settings": 1,
+        "custom_exercises": 0,
+        "exercise_overrides": 1,
+        "hidden_items": 0,
+        "rest_preferences": 0,
+        "exercise_order": 4
+      },
+      "expected": {
+        "sessions": 0,
+        "session_entries": 0,
+        "goals": 1,
+        "trainers": 1,
+        "trainer_sessions": 0,
+        "ex_keys": 0,
+        "ovr_keys": 1,
+        "restSec_keys": 0
+      },
+      "mismatches": [],
+      "warnings": []
+    },
+    {
+      "user_id": "1e746126-0c62-45d3-af9b-ef67ca810322",
+      "counts": {
+        "exercise_logs": 50,
+        "sessions": 19,
+        "session_entries": 131,
+        "goals": 1,
+        "trainers": 0,
+        "trainer_sessions": 0,
+        "user_profiles": 1,
+        "user_settings": 1,
+        "custom_exercises": 0,
+        "exercise_overrides": 10,
+        "hidden_items": 17,
+        "rest_preferences": 2,
+        "exercise_order": 2
+      },
+      "expected": {
+        "sessions": 19,
+        "session_entries": 131,
+        "goals": 1,
+        "trainers": 0,
+        "trainer_sessions": 0,
+        "ex_keys": 50,
+        "ovr_keys": 10,
+        "restSec_keys": 2
+      },
+      "mismatches": [],
+      "warnings": []
+    },
+    {
+      "user_id": "8e8aa3cd-7abe-4d5d-9a75-fea24249afb9",
+      "counts": {
+        "exercise_logs": 8,
+        "sessions": 7,
+        "session_entries": 45,
+        "goals": 1,
+        "trainers": 1,
+        "trainer_sessions": 0,
+        "user_profiles": 1,
+        "user_settings": 1,
+        "custom_exercises": 0,
+        "exercise_overrides": 36,
+        "hidden_items": 17,
+        "rest_preferences": 8,
+        "exercise_order": 4
+      },
+      "expected": {
+        "sessions": 7,
+        "session_entries": 45,
+        "goals": 1,
+        "trainers": 1,
+        "trainer_sessions": 0,
+        "ex_keys": 12,
+        "ovr_keys": 36,
+        "restSec_keys": 8
+      },
+      "mismatches": [],
+      "warnings": []
+    }
+  ]
+}
