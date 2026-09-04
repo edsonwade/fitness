@@ -12,7 +12,9 @@ import {
   type ProgKind,
 } from '../../content';
 import type {
+  CatalogExercise,
   CustomExercise,
+  DayAddition,
   ExerciseOrder,
   ExerciseOverride,
   HiddenItem,
@@ -20,15 +22,22 @@ import type {
 import { useRows } from '../../data/queries';
 
 /**
- * What a day is actually made of, once the user has had their say.
+ * What a day is actually made of, once people have had their say.
  *
- * The bundled programme is the baseline and nothing writes to it. On top of it sit
- * four private tables, and this module is the one place that knows how they combine:
+ * The bundled programme is the baseline and nothing writes to it. On top of it sit five
+ * tables, every one of them shared since `009`, and this module is the one place that
+ * knows how they combine:
  *
- *  - `custom_exercises` adds exercises of the user's own,
+ *  - `custom_exercises` adds an exercise to this day,
+ *  - `catalog_exercises` + `day_additions` put a catalogue exercise on this day,
  *  - `exercise_overrides` changes the prescription of a baseline one,
  *  - `hidden_items` takes one out of the day,
  *  - `exercise_order` decides the sequence of what is left.
+ *
+ * Nothing here is filtered by who wrote it, and that is the point rather than an
+ * oversight: the week is one week, so the answer this returns is the same answer on
+ * every account. What differs between two accounts is what they logged against it,
+ * which is a different table and is not read here.
  *
  * Every screen reads the result, never the raw content: the card, the set tracker,
  * the day's progress bar and the week's rings all have to agree, and they only agree
@@ -43,7 +52,7 @@ export const BLOCK_KEYS = ['b1', 'b2', 'b3', 'dl'] as const;
 export type DayEntry = {
   /** The key everything else is stored against: logs, hiding, ordering, rest. */
   key: string;
-  kind: 'built' | 'custom';
+  kind: 'built' | 'custom' | 'shared';
   name: string;
   equipment: string | null;
   /** This block's target, after any override. */
@@ -60,6 +69,8 @@ export type DayEntry = {
   custom?: CustomExercise;
   /** The row behind a changed baseline exercise, for the edit sheet and the badge. */
   override?: ExerciseOverride;
+  /** The two rows behind a published exercise: what it is, and that it is on this day. */
+  shared?: { catalog: CatalogExercise; addition: DayAddition };
 };
 
 export type ResolvedDay = {
@@ -113,12 +124,51 @@ function text(value: string | null | undefined): string | null {
  * default to be improved on.
  */
 export function customPrescription(row: CustomExercise, block: BlockKey): Prescription {
-  const kind: ProgKind = isProgKind(row.kind) ? row.kind : 'acc';
-  const slots = prog(setCount(row.sets, 3), text(row.load) ?? '—', text(row.rest) ?? '90 s', kind);
+  return derivePrescription(row, row.kind, block);
+}
+
+/** The four numbers an authored or published exercise is written with. */
+type Numbers = {
+  sets: string | null;
+  reps: string | null;
+  load: string | null;
+  rest: string | null;
+};
+
+/**
+ * One set of figures plus a movement type, through `prog()`, for one block.
+ *
+ * Shared by a user's own exercise and by a published one, because they are written
+ * with the same four fields and must periodize the same way. A published exercise
+ * that behaved differently from a private one with identical numbers would be a
+ * second prescription model nobody asked for.
+ */
+export function derivePrescription(
+  numbers: Numbers,
+  kindValue: string | null | undefined,
+  block: BlockKey,
+): Prescription {
+  const kind: ProgKind = isProgKind(String(kindValue ?? '')) ? (kindValue as ProgKind) : 'acc';
+  const slots = prog(
+    setCount(numbers.sets, 3),
+    text(numbers.load) ?? '—',
+    text(numbers.rest) ?? '90 s',
+    kind,
+  );
   const base = slots[block];
-  const reps = text(row.reps);
+  const reps = text(numbers.reps);
   return reps ? { ...base, r: reps } : base;
 }
+
+/*
+ * `day_additions.block_config` is deliberately left empty.
+ *
+ * Everything about a published exercise, the numbers and the movement type
+ * included, lives on its catalog row, so a day addition says one thing only: this
+ * exercise belongs on this day. Splitting the prescription across the two would give
+ * the same exercise different targets on different days, which is the opposite of
+ * the rule this feature is built to keep.
+ */
 
 /**
  * A baseline prescription with the user's changes applied.
@@ -163,6 +213,17 @@ export type ResolveInput = {
   overrides: readonly ExerciseOverride[];
   hidden: readonly HiddenItem[];
   order: readonly ExerciseOrder[];
+  /** Everything anyone has published. Read by every account, identically. */
+  catalog?: readonly CatalogExercise[];
+  /**
+   * Which of those are prescribed on which day.
+   *
+   * Every one of them is everybody's, because every day is: `009` made the day number
+   * unique across the database, so matching on `dayNo` alone below is enough. It was
+   * not before, when 101 named a different day in each account, and `008` had to give
+   * those rows an owner to tell them apart.
+   */
+  additions?: readonly DayAddition[];
 };
 
 /**
@@ -177,6 +238,8 @@ export type ResolveInput = {
  */
 export function resolveDayEntries(input: ResolveInput): ResolvedDay {
   const { day, dayNo, block, customs, overrides, hidden, order } = input;
+  const catalog = input.catalog ?? [];
+  const additions = input.additions ?? [];
 
   const hiddenKeys = new Set(
     hidden.filter((row) => row.day_no === dayNo).map((row) => row.ex_key),
@@ -236,6 +299,46 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
     });
   }
 
+  /*
+   * What everyone else added to this day.
+   *
+   * The catalog row is the exercise and the addition is the fact that it belongs
+   * here, so an addition whose catalog row is missing draws nothing at all: that
+   * pairing is broken data, and inventing a card named after a key would be the app
+   * making up an exercise. Soft-deleted rows never reach here, because `fetchRows`
+   * filters `deleted = false` for everyone before they are cached.
+   */
+  const byKey = new Map(catalog.map((row) => [row.ex_key, row]));
+  /*
+   * `user_id` is not tested here, and since `009` there is nothing to test: it is null
+   * on every addition, because no day belongs to one account. The day number is the
+   * whole of the match, and the database is what keeps that true — `check (user_id is
+   * null)`, `009` §5 — rather than a rule this file would have to remember.
+   */
+  const shared = additions
+    .filter((row) => row.day_no === dayNo && byKey.has(row.ex_key))
+    .slice()
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  for (const addition of shared) {
+    if (hiddenKeys.has(addition.ex_key)) {
+      hiddenCount += 1;
+      continue;
+    }
+    const row = byKey.get(addition.ex_key)!;
+    entries.push({
+      key: addition.ex_key,
+      kind: 'shared',
+      name: text(row.name_pt) ?? addition.ex_key,
+      equipment: text(row.equipment),
+      prescription: derivePrescription(row, row.kind, block),
+      videoId: text(row.video_id),
+      photo: text(row.photo_url),
+      fallbackPhoto: null,
+      shared: { catalog: row, addition },
+    });
+  }
+
   const saved = order.find((row) => row.day_no === dayNo)?.ordered_keys ?? [];
   const position = new Map(saved.map((key, index) => [key, index]));
   const natural = new Map(entries.map((entry, index) => [entry.key, index]));
@@ -252,9 +355,9 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
 /* ---------- the hooks the screens use --------------------------------------- */
 
 /**
- * The four tables that shape a day, read once for the whole app.
+ * The six tables that shape a day, read once for the whole app.
  *
- * One read each, not one per day and not one per card. All four are bounded by the
+ * One read each, not one per day and not one per card. All six are bounded by the
  * programme — a few dozen rows between them — and a query per day would be seven
  * subscriptions to lists that are already in memory.
  */
@@ -263,14 +366,30 @@ export function useProgrammeState() {
   const overrides = useRows('exercise_overrides');
   const hidden = useRows('hidden_items');
   const order = useRows('exercise_order');
+  const catalog = useRows('catalog_exercises');
+  const additions = useRows('day_additions');
 
   return {
     customs: customs.data,
     overrides: overrides.data,
     hidden: hidden.data,
     order: order.data,
-    isPending: customs.isPending || overrides.isPending || hidden.isPending || order.isPending,
-    isError: customs.isError || overrides.isError || hidden.isError || order.isError,
+    catalog: catalog.data,
+    additions: additions.data,
+    isPending:
+      customs.isPending ||
+      overrides.isPending ||
+      hidden.isPending ||
+      order.isPending ||
+      catalog.isPending ||
+      additions.isPending,
+    isError:
+      customs.isError ||
+      overrides.isError ||
+      hidden.isError ||
+      order.isError ||
+      catalog.isError ||
+      additions.isError,
   };
 }
 
@@ -286,7 +405,7 @@ const EMPTY: never[] = [];
  */
 export function useProgramme(block: BlockKey) {
   const state = useProgrammeState();
-  const { customs, overrides, hidden, order } = state;
+  const { customs, overrides, hidden, order, catalog, additions } = state;
 
   const resolve = useMemo(
     () =>
@@ -299,8 +418,10 @@ export function useProgramme(block: BlockKey) {
           overrides: overrides ?? EMPTY,
           hidden: hidden ?? EMPTY,
           order: order ?? EMPTY,
+          catalog: catalog ?? EMPTY,
+          additions: additions ?? EMPTY,
         }),
-    [block, customs, overrides, hidden, order],
+    [block, customs, overrides, hidden, order, catalog, additions],
   );
 
   return { ...state, resolve };

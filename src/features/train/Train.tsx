@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import clsx from 'clsx';
 
-import { BLOCKS, DAYS, type BlockKey, type Day } from '../../content';
+import { BLOCKS, type BlockKey } from '../../content';
 import { pt } from '../../i18n/pt';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 import { Icon } from '../../ui/Icon';
+import { DaySheet } from './DaySheet';
+import { useCustomDayEditing, useDays, type DayInput, type DayRef } from './custom-days';
 import { dayPoster, useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, useExerciseLogs } from './logs';
 
 const t = pt.train;
+const d = pt.days;
 
 /**
  * The week, wired.
@@ -21,11 +24,35 @@ const t = pt.train;
  *
  * The block lives in local state and rides into the day view on the link, so a day
  * opened from block 2 opens showing block 2 and a reload of the day keeps it.
+ *
+ * The week is the programme's seven days and then the user's own, and this screen is
+ * where one is made. Creating opens the new day straight away rather than returning
+ * here with a fresh empty card: a day is created in order to put something in it, and
+ * the next tap after "create" is always "add exercise".
  */
 export function Train() {
+  const navigate = useNavigate();
   const [block, setBlock] = useState<BlockKey>('b1');
   const logs = useExerciseLogs();
   const programme = useProgramme(block);
+  const week = useDays();
+  const editing = useCustomDayEditing();
+  /*
+   * Mounted after it closes so it can animate out, and remounted under a fresh id
+   * each time it is opened, which is what seeds the form without an effect.
+   */
+  const [sheet, setSheet] = useState<number | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  function openSheet() {
+    setSheet((current) => (current ?? 0) + 1);
+    setSheetOpen(true);
+  }
+
+  function createDay(input: DayInput) {
+    const dayNo = editing.createDay(input);
+    navigate(`/treino/${dayNo}?bloco=${block}`);
+  }
 
   return (
     <div className="relative min-h-full bg-ground">
@@ -74,7 +101,7 @@ export function Train() {
           })}
         </div>
 
-        {logs.isError || programme.isError ? (
+        {logs.isError || programme.isError || week.isError ? (
           <p
             role="status"
             className="mt-4 rounded-card border border-rule bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-text-muted"
@@ -83,32 +110,66 @@ export function Train() {
           </p>
         ) : null}
 
+        {editing.saveFailed ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
+          >
+            {d.saveFailed}
+          </p>
+        ) : null}
+
         <ul className="mt-4 flex flex-col gap-2.5">
-          {DAYS.map((day) => (
-            <li key={day.id}>
+          {week.days.map((dayRef) => (
+            <li key={dayRef.no}>
               <DayCard
-                day={day}
+                dayRef={dayRef}
                 block={block}
-                entries={programme.resolve(day, day.id).entries}
+                entries={programme.resolve(dayRef.day, dayRef.no).entries}
                 logs={logs.byKey}
                 pending={logs.isPending || programme.isPending}
               />
             </li>
           ))}
         </ul>
+
+        <button
+          type="button"
+          onClick={openSheet}
+          className={clsx(
+            'mt-3 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full',
+            'border border-dashed border-edge/60 bg-transparent',
+            'font-ui text-[14px] font-700 text-text',
+            'transition-[border-color,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+            'active:scale-[0.98] motion-reduce:active:scale-100 pointer-hover:border-edge',
+          )}
+        >
+          <Icon name="plus" size={18} strokeWidth={2.2} />
+          {d.create}
+        </button>
       </div>
+
+      {sheet ? (
+        <DaySheet
+          key={sheet}
+          open={sheetOpen}
+          mode={{ kind: 'new' }}
+          onOpenChange={setSheetOpen}
+          onSubmit={createDay}
+        />
+      ) : null}
     </div>
   );
 }
 
 function DayCard({
-  day,
+  dayRef,
   block,
   entries,
   logs,
   pending,
 }: {
-  day: Day;
+  dayRef: DayRef;
   block: BlockKey;
   /** The day the user actually has: baseline, plus their own, minus what they hid. */
   entries: readonly DayEntry[];
@@ -120,10 +181,22 @@ function DayCard({
    * arrange as well as a thing the programme ships. Reading `type` alone would have
    * put "rest day" on a day someone had just filled with their own exercises.
    */
-  const isRest = day.type === 'rest' && entries.length === 0;
-  const photo = entries[0]?.photo ?? dayPoster(day.id);
+  const isRest = dayRef.type === 'rest' && entries.length === 0;
+  /*
+   * A day of your own always opens, rest or not. The programme's rest day has
+   * nothing behind it and nothing you could do there; yours has a name to change and
+   * a delete, and a card that refused to open would be a day you could create and
+   * never get back into.
+   */
+  const opens = dayRef.kind === 'own' || !isRest;
+  /*
+   * No borrowed photograph. A day of yours with nothing in it yet shows a neutral
+   * tile rather than one of the programme's day pictures, for the same reason an
+   * exercise you added never gets given a baseline demonstration.
+   */
+  const photo = entries[0]?.photo ?? (dayRef.kind === 'built' ? dayPoster(dayRef.no) : null);
   const setCount = entries.reduce((sum, entry) => sum + entry.prescription.s, 0);
-  const progress = dayProgress(day.id, block, entries, logs);
+  const progress = dayProgress(dayRef.no, block, entries, logs);
 
   const inner = (
     <article
@@ -134,9 +207,9 @@ function DayCard({
     >
       <div className="min-w-0 flex-1 py-1 pl-1">
         <p className="font-ui text-[11px] font-600 uppercase tracking-[0.04em] text-text-muted">
-          {day.wd.pt}
+          {dayRef.label}
         </p>
-        <h2 className="mt-0.5 truncate font-ui text-[18px] font-700 text-text">{day.name.pt}</h2>
+        <h2 className="mt-0.5 truncate font-ui text-[18px] font-700 text-text">{dayRef.name}</h2>
 
         {isRest ? (
           <p className="mt-1.5 font-ui text-[12px] text-text-muted">{t.restDay}</p>
@@ -149,7 +222,7 @@ function DayCard({
           </p>
         )}
 
-        {!isRest ? (
+        {opens ? (
           <div className="mt-3 flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2.5 font-ui text-[12px] font-700 text-accent-ink">
               {t.open}
@@ -167,24 +240,35 @@ function DayCard({
         ) : null}
       </div>
 
-      <img
-        src={photo}
-        alt=""
-        loading="lazy"
-        onError={(e) => {
-          e.currentTarget.src = dayPoster(day.id);
-        }}
-        className="h-[108px] w-[108px] shrink-0 rounded-[16px] object-cover"
-      />
+      {photo ? (
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          onError={(e) => {
+            const fallback = dayRef.kind === 'built' ? dayPoster(dayRef.no) : null;
+            if (!fallback || e.currentTarget.src.endsWith(fallback)) return;
+            e.currentTarget.src = fallback;
+          }}
+          className="h-[108px] w-[108px] shrink-0 rounded-[16px] object-cover"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="grid h-[108px] w-[108px] shrink-0 place-items-center rounded-[16px] bg-surface-sunken text-text-muted"
+        >
+          <Icon name="dumbbell" size={30} strokeWidth={1.5} />
+        </span>
+      )}
     </article>
   );
 
-  if (isRest) return inner;
+  if (!opens) return inner;
 
   return (
     <Link
-      to={`/treino/${day.id}?bloco=${block}`}
-      aria-label={`${day.name.pt}. ${progress.pct}% concluído.`}
+      to={`/treino/${dayRef.no}?bloco=${block}`}
+      aria-label={`${dayRef.name}. ${progress.pct}% concluído.`}
       className="block rounded-[20px] transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99] motion-reduce:active:scale-100"
     >
       {inner}

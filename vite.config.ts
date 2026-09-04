@@ -6,6 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 // GitHub Pages serves this as static files with no server and no SSR (plan D11),
 // so every path stays relative to the deployed base.
 export default defineConfig({
+  // Project site, not a user site: everything lives under /fitness/. The router
+  // reads this back through import.meta.env.BASE_URL, so the two cannot drift.
+  base: '/fitness/',
   plugins: [
     react(),
     tailwindcss(),

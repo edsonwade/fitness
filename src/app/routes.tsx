@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router';
 
+import { Catalog } from '../features/catalog/Catalog';
 import { DayView } from '../features/train/DayView';
 import { Train } from '../features/train/Train';
 import { AppShell } from './AppShell';
@@ -24,10 +25,10 @@ import {
  * between sets, and a tab bar there is five ways to lose your place mid-session. It
  * draws its own frame and leaves by its own back control.
  *
- * The four surfaces that phase 4 has not built yet are routed to <SurfacePending>
- * rather than left out of the table. The shell already ships their tabs, and a tab
- * that lands on "page not found" tells the user the app is broken when the truth is
- * that the screen is not written yet.
+ * The three surfaces not built yet are routed to <SurfacePending> rather than left
+ * out of the table. The shell already ships their tabs, and a tab that lands on
+ * "page not found" tells the user the app is broken when the truth is that the
+ * screen is not written yet.
  *
  * `basename` comes from Vite rather than being written literally. This deploys to
  * GitHub Pages, which serves from a repository subpath; a hardcoded '/' would work
@@ -47,7 +48,7 @@ export const router = createBrowserRouter(
               element: <AppShell />,
               children: [
                 { index: true, element: <Train /> },
-                { path: 'catalogo', element: <SurfacePending /> },
+                { path: 'catalogo', element: <Catalog /> },
                 { path: 'objetivos', element: <SurfacePending /> },
                 { path: 'treinadores', element: <SurfacePending /> },
                 { path: 'perfil', element: <SurfacePending /> },

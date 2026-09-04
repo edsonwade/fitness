@@ -76,4 +76,13 @@ export const mutationKeys = {
   upsert: (table: TableName) => ['db', 'upsert', table] as const,
   remove: (table: TableName) => ['db', 'delete', table] as const,
   mergeLog: () => ['db', 'merge', 'exercise_logs'] as const,
+  /**
+   * Publishing, which is two tables and one key on purpose.
+   *
+   * A published exercise is a `catalog_exercises` row and a `day_additions` row, and
+   * they are worthless apart: an addition with no exercise behind it is a card no
+   * screen will draw. Two mutation keys would let the outbox replay one of them and
+   * not the other, which is exactly the failure this key exists to make impossible.
+   */
+  publishShared: () => ['db', 'publish', 'shared_exercise'] as const,
 };

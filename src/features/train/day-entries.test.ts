@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { DAYS, EXERCISES } from '../../content';
 import type {
+  CatalogExercise,
   CustomExercise,
+  DayAddition,
   ExerciseLog,
   ExerciseOrder,
   ExerciseOverride,
@@ -24,6 +26,8 @@ import { dayProgress, logId } from './logs';
 
 const DAY = DAYS.find((d) => d.id === 1)!;
 const USER = '00000000-0000-4000-8000-000000000001';
+/** The other account. On a shared table `user_id` says who wrote a row, not whose it is. */
+const OTHER = '00000000-0000-4000-8000-000000000002';
 
 function custom(over: Partial<CustomExercise> = {}): CustomExercise {
   return {
@@ -64,8 +68,8 @@ function override(over: Partial<ExerciseOverride> = {}): ExerciseOverride {
   };
 }
 
-function hidden(exKey: string, dayNo = 1): HiddenItem {
-  return { user_id: USER, updated_at: '2026-01-01T00:00:00Z', day_no: dayNo, ex_key: exKey };
+function hidden(exKey: string, dayNo = 1, by = USER): HiddenItem {
+  return { user_id: by, updated_at: '2026-01-01T00:00:00Z', day_no: dayNo, ex_key: exKey };
 }
 
 function order(keys: string[], dayNo = 1): ExerciseOrder {
@@ -74,6 +78,44 @@ function order(keys: string[], dayNo = 1): ExerciseOrder {
     updated_at: '2026-01-01T00:00:00Z',
     day_no: dayNo,
     ordered_keys: keys,
+  };
+}
+
+function published(over: Partial<CatalogExercise> = {}): CatalogExercise {
+  return {
+    id: '33333333-3333-4333-8333-333333333333',
+    ex_key: 's:44444444-4444-4444-8444-444444444444',
+    name_pt: 'Caminhada inclinada',
+    name_en: null,
+    kind: 'acc',
+    equipment: 'Passadeira',
+    sets: '3',
+    reps: '10',
+    load: null,
+    rest: '60 s',
+    video_id: null,
+    photo_url: null,
+    deleted: false,
+    created_by: USER,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...over,
+  };
+}
+
+function addition(over: Partial<DayAddition> = {}): DayAddition {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    day_no: 1,
+    // Null on every addition, because every day is everybody's. See `009` §5.
+    user_id: null,
+    ex_key: 's:44444444-4444-4444-8444-444444444444',
+    block_config: {},
+    deleted: false,
+    created_by: USER,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...over,
   };
 }
 
@@ -283,5 +325,78 @@ describe('dayProgress over a composed day', () => {
     const full = dayProgress(1, 'b1', resolve().entries, new Map());
     const less = dayProgress(1, 'b1', resolve({ hidden: [hidden('legpress')] }).entries, new Map());
     expect(less.total).toBe(full.total - DAY.items![0].b1.s);
+  });
+});
+
+describe('exercises published to the shared catalogue', () => {
+  /**
+   * The bug these cover, in one sentence: an exercise published inside a day of
+   * somebody's own never reached the other account, because the day number it was
+   * filed under — 101 — names a different day in every account that has one.
+   *
+   * The resolver's half of the fix is small, and that is the point: `008` puts the
+   * owner on the addition and refuses to serve another account's, so what is left here
+   * is that a personal day draws a published exercise at all. That path had no test,
+   * which is why it was possible to ship a chip offering to publish into a day where
+   * publishing produced nothing anyone could see.
+   */
+
+  it('draws a published exercise on a day of the programme', () => {
+    const { entries } = resolve({ catalog: [published()], additions: [addition()] });
+    const entry = entries.find((row) => row.kind === 'shared');
+
+    expect(entry?.name).toBe('Caminhada inclinada');
+    expect(entry?.prescription.s).toBe(3);
+  });
+
+  it('draws a published exercise on a day somebody added to the week', () => {
+    // `day: null` is a day with no bundled programme behind it, which is what an added
+    // day is. It draws by day number alone: since `009` the number is unique across the
+    // database, so 101 is one day and the addition on it is everybody's. The `user_id`
+    // is null here because the database allows nothing else.
+    const { entries } = resolve({
+      day: null,
+      dayNo: 101,
+      catalog: [published()],
+      additions: [addition({ day_no: 101 })],
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('shared');
+    expect(entries[0].shared?.addition.user_id).toBeNull();
+  });
+
+  it('leaves an addition from another day alone', () => {
+    // An addition names one day and appears on that day. This used to be the collision
+    // that put an exercise inside an unrelated day in another account, because 101 was
+    // a different day in each; the number is unique now, so this is what it looks like
+    // when the resolver is simply asked about a day the addition is not on.
+    const { entries } = resolve({
+      catalog: [published()],
+      additions: [addition({ day_no: 101 })],
+    });
+
+    expect(entries.some((row) => row.kind === 'shared')).toBe(false);
+  });
+
+  it('draws what another account added, and hides what another account hid', () => {
+    // The whole point of `009`, at the level this file can prove it: nothing in the
+    // resolver looks at who wrote a row, so one day reads the same on both screens.
+    // Before it, this test was unwritable — the other account's rows never arrived.
+    const { entries, hiddenCount } = resolve({
+      customs: [custom({ user_id: OTHER, name: 'Remada dela' })],
+      hidden: [hidden('legpress', 1, OTHER)],
+    });
+
+    expect(entries.map((row) => row.name)).toContain('Remada dela');
+    expect(entries.some((row) => row.key === 'legpress')).toBe(false);
+    expect(hiddenCount).toBe(1);
+  });
+
+  it('refuses to draw an addition with no exercise behind it', () => {
+    // The four orphans `008` §2b retires looked exactly like this. Drawing a card named
+    // after a key would be the app inventing an exercise out of broken data.
+    const { entries } = resolve({ catalog: [], additions: [addition()] });
+    expect(entries.some((row) => row.kind === 'shared')).toBe(false);
   });
 });

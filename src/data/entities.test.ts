@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { PRIMARY_KEYS, TABLES, type TableName } from './entities';
+import { AUTHORED_TABLES, PRIMARY_KEYS, SHARED_TABLES, TABLES, type TableName } from './entities';
 
 /**
  * The migrations and the client schemas are two descriptions of the same tables,
@@ -71,14 +71,18 @@ const createdIn003 = new Map<string, Set<string>>();
 readCreates(SQL, createdIn003);
 
 /**
- * `migration_errors` is deliberately absent from the client registry: it has no RLS
- * policy, only the service role reads it, and giving it a client schema would imply
- * the app is meant to.
+ * Deliberately absent from the client registry: both have no RLS policy, only the
+ * service role reads them, and giving either a client schema would imply the app is
+ * meant to. `merged_duplicates` is where `009` puts the rows it folds together while
+ * re-keying, so that a merge can be answered for rather than only asserted.
  */
-const SERVER_ONLY = new Set(['migration_errors']);
+const SERVER_ONLY = new Set(['migration_errors', 'merged_duplicates']);
+
+/** The migration that made the plan one plan, checked on its own below. */
+const SQL_009 = MIGRATIONS.find(({ file }) => file.startsWith('009'))!.sql;
 
 /** Read by everyone, owned by their author, so `user_id` is not their owner column. */
-const AUTHORED = new Set(['catalog_exercises', 'day_additions']);
+const AUTHORED = new Set<string>([...AUTHORED_TABLES]);
 
 describe('the migrations against the client entities', () => {
   it('finds every table in the SQL', () => {
@@ -152,6 +156,65 @@ describe('the migrations against the client entities', () => {
       if (SERVER_ONLY.has(table)) continue;
       expect(columns.has('updated_by_client'), `${table} cannot suppress its own echo`).toBe(true);
     }
+  });
+
+  /*
+   * The shared plan, `009`.
+   *
+   * These four are the difference between "everyone sees the week" and "everyone
+   * silently keeps their own copy of it", and each of them is a place where the SQL
+   * and this client have to say the same thing. They are checked against the file
+   * rather than against a running database because the failure they guard against is
+   * a client that assumes a policy the migration never wrote.
+   */
+  it('keeps who wrote a row out of the identity of every shared row', () => {
+    // The rule `009` §3 re-keys four tables for. With `user_id` in the key, one fact
+    // about the week is stored once per account, and the second account's "restore"
+    // deletes a row that was never what was hiding the exercise.
+    for (const table of SHARED_TABLES) {
+      expect(PRIMARY_KEYS[table], `${table} is shared and keyed by its writer`).not.toContain(
+        'user_id',
+      );
+    }
+  });
+
+  it('opens the plan tables in the SQL exactly where the client stops filtering', () => {
+    // `SHARED_TABLES` decides that the client asks for everybody's rows; this loop in
+    // `009` §4 decides that the database serves them. One without the other is either
+    // an empty screen or a read the server refuses, so they are checked against each
+    // other rather than trusted to have been edited together.
+    const loop = /foreach t in array array\[([\s\S]*?)\]\s*\n\s*loop\s*\n\s*execute format\('alter table public\.%I enable row level security/.exec(
+      SQL_009,
+    );
+    expect(loop, 'the shared-RLS loop was not found in 009').not.toBeNull();
+
+    const opened = [...loop![1].matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
+    // The catalogue pair is already open, from 003 §12 and 006 §1, and is shared for a
+    // different reason: authorship rather than ownership. `009` §5 handles it apart.
+    const expected = [...SHARED_TABLES].filter((t) => !AUTHORED_TABLES.has(t)).sort();
+    expect(opened).toEqual(expected);
+  });
+
+  it('re-keys in the SQL the same tables, on the same columns, the client keys', () => {
+    const spec = /spec\s+text\[\]\s*:=\s*array\[([\s\S]*?)\];/.exec(SQL_009);
+    expect(spec, 'the re-key spec was not found in 009').not.toBeNull();
+
+    const literals = [...spec![1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
+    for (let i = 0; i < literals.length; i += 2) {
+      const table = literals[i] as TableName;
+      const columns = literals[i + 1].split(',').map((c) => c.trim());
+      expect(PRIMARY_KEYS[table], `${table}: 009 and the client disagree on the key`).toEqual(
+        columns,
+      );
+    }
+  });
+
+  it('leaves an addition no owner to disagree about', () => {
+    // `008` gave `day_additions.user_id` a meaning that only held while day numbers
+    // were per account. `009` §5 pins it to null, and the client schema and the
+    // resolver both assume that; a migration that relaxed the constraint without
+    // telling them would put another account's row on a day it does not belong to.
+    expect(withoutComments(SQL_009)).toMatch(/check\s*\(user_id is null\)/);
   });
 
   it('never touches user_state', () => {

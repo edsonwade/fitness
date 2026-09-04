@@ -83,6 +83,13 @@ export function ExerciseCard({
             ) : null}
           </div>
           {entry.kind === 'custom' ? <Badge>{e.badgeOwn}</Badge> : null}
+          {/*
+            * "De todos" is not decoration. It is the only thing on the card that says
+            * editing this changes it on everyone's phone, and removing it removes it
+            * from everyone's day. Someone reaching for the pencil mid-set needs that
+            * before they press it, not after.
+            */}
+          {entry.kind === 'shared' ? <Badge>{e.badgeShared}</Badge> : null}
           {entry.override ? <Badge>{e.badgeChanged}</Badge> : null}
         </div>
 
@@ -177,7 +184,9 @@ export function ExerciseCard({
           </>
         ) : null}
 
-        {controls ? <Controls name={entry.name} controls={controls} /> : null}
+        {controls ? (
+          <Controls name={entry.name} controls={controls} shared={entry.kind === 'shared'} />
+        ) : null}
       </div>
     </article>
   );
@@ -193,9 +202,12 @@ export function ExerciseCard({
 function Controls({
   name,
   controls,
+  shared,
 }: {
   name: string;
   controls: NonNullable<Parameters<typeof ExerciseCard>[0]['controls']>;
+  /** Published for everybody, which changes what the hide control is called. */
+  shared: boolean;
 }) {
   return (
     <div className="mt-4 flex items-center gap-2 border-t border-rule pt-3">
@@ -214,7 +226,17 @@ function Controls({
       <span className="flex-1" />
       <SmallButton icon="edit" label={`${pt.common.edit}: ${name}`} onClick={controls.onEdit} />
       {controls.onHide ? (
-        <SmallButton icon="x" label={`${e.hide}: ${name}`} onClick={controls.onHide} />
+        <SmallButton
+          icon="x"
+          /*
+           * A shared exercise gets a different word for the same gesture. "Tirar do
+           * dia" on something that belongs to everyone reads like removing it from
+           * everyone's day, and the control that does that is behind a confirmation
+           * inside the sheet, not one tap away on the card.
+           */
+          label={`${shared ? e.hideShared : e.hide}: ${name}`}
+          onClick={controls.onHide}
+        />
       ) : null}
     </div>
   );

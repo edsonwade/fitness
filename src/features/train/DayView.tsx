@@ -2,21 +2,24 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import clsx from 'clsx';
 
-import { BLOCKS, CARDIO, DAYS, type BlockKey } from '../../content';
+import { BLOCKS, CARDIO, type BlockKey } from '../../content';
 import type { LogFields } from '../../data/mutations';
 import { useMergeExerciseLog } from '../../data/mutations';
 import { pt } from '../../i18n/pt';
-import { Screen } from '../../ui/Screen';
+import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon, IconButton } from '../../ui/Icon';
+import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseSheet, type SheetMode } from './ExerciseSheet';
 import { RestTimer } from './RestTimer';
+import { useCustomDayEditing, useDays, type DayInput } from './custom-days';
 import { useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, logId, useExerciseLogs } from './logs';
 import { useDayEditing, type ExerciseInput } from './use-day-editing';
 
 const t = pt.train;
 const e = pt.editor;
+const d = pt.days;
 
 function isBlockKey(value: string | null): value is BlockKey {
   return value !== null && (BLOCK_KEYS as readonly string[]).includes(value);
@@ -55,18 +58,31 @@ export function DayView() {
    */
   const [sheet, setSheet] = useState<{ mode: SheetMode; id: number } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [daySheet, setDaySheet] = useState<number | null>(null);
+  const [daySheetOpen, setDaySheetOpen] = useState(false);
 
   const dayId = Number(params.dia);
-  const day = DAYS.find((d) => d.id === dayId) ?? null;
+  const week = useDays();
+  const dayRef = week.dayOf(dayId);
   const blockParam = searchParams.get('bloco');
   const block: BlockKey = isBlockKey(blockParam) ? blockParam : 'b1';
 
   const programme = useProgramme(block);
   const editing = useDayEditing(dayId);
-  const { entries, hiddenCount } = programme.resolve(day, dayId);
+  const dayEditing = useCustomDayEditing();
+  const { entries, hiddenCount } = programme.resolve(dayRef?.day ?? null, dayId);
   const progress = dayProgress(dayId, block, entries, logs.byKey);
 
-  if (!day) {
+  /*
+   * A day of the user's own does not ship in the bundle, so opening one cold means
+   * waiting for a row. Telling someone their own training day does not exist, every
+   * time they open it from a link, is the failure this guard exists to prevent.
+   */
+  if (!dayRef && week.isPending) {
+    return <SessionSplash label={pt.common.loading} />;
+  }
+
+  if (!dayRef) {
     return (
       <Screen title="Dia não encontrado" body="Este dia de treino não existe.">
         <Link
@@ -81,7 +97,9 @@ export function DayView() {
 
   // Bound after the guard above, because a hoisted function body does not inherit the
   // narrowing an early return gives the rest of the component.
-  const baselineItems = day.items ?? [];
+  const day = dayRef;
+  const baselineItems = day.day?.items ?? [];
+  const isOwnDay = day.kind === 'own';
   const isRestDay = day.type === 'rest' && entries.length === 0 && hiddenCount === 0;
 
   function setBlock(next: BlockKey) {
@@ -123,7 +141,8 @@ export function DayView() {
     if (!mode) return;
     if (mode.kind === 'new') editing.addCustom(input);
     else if (mode.kind === 'own') editing.saveCustom(mode.entry.custom!, input);
-    else editing.saveOverride(mode.entry.key, input);
+    else if (mode.kind === 'shared') editing.saveShared(mode.entry, input);
+    else if (mode.kind === 'built') editing.saveOverride(mode.entry.key, input);
   }
 
   function removeOwn() {
@@ -131,6 +150,22 @@ export function DayView() {
     if (mode?.kind !== 'own') return;
     if (!window.confirm(e.removeConfirm)) return;
     editing.deleteCustom(mode.entry.custom!);
+    setSheetOpen(false);
+  }
+
+  /**
+   * Removes a published exercise from every account, not just this one.
+   *
+   * The confirmation says so in those words. Anyone may do this, by the decision of
+   * 2026-09-02, which makes the wording the only thing standing between "I do not
+   * want this in my Tuesday" and deleting it out of someone else's Tuesday. Taking it
+   * out of your own day is a different control, on the card, called something else.
+   */
+  function removeShared() {
+    const mode = sheet?.mode;
+    if (mode?.kind !== 'shared') return;
+    if (!window.confirm(e.removeSharedConfirm)) return;
+    editing.removeShared(mode.entry);
     setSheetOpen(false);
   }
 
@@ -152,7 +187,43 @@ export function DayView() {
    */
   function restoreHidden() {
     const visible = new Set(entries.map((entry) => entry.key));
-    editing.restoreHidden(baselineItems.map((i) => i.ex).filter((k) => !visible.has(k)));
+    /*
+     * The keys this day could be showing: the programme's own, plus everything
+     * anyone published onto it. Whatever is missing from the resolved list is what
+     * was hidden. Asking `hidden_items` instead would be asking a table that holds
+     * every day at once which of its rows belong to this one.
+     */
+    const possible = [
+      ...baselineItems.map((i) => i.ex),
+      ...(programme.additions ?? [])
+        .filter((row) => row.day_no === dayId)
+        .map((row) => row.ex_key),
+    ];
+    editing.restoreHidden(possible.filter((k) => !visible.has(k)));
+  }
+
+  function openDaySheet() {
+    setDaySheet((current) => (current ?? 0) + 1);
+    setDaySheetOpen(true);
+  }
+
+  function saveDay(input: DayInput) {
+    if (!day.custom) return;
+    dayEditing.saveDay(day.custom, input);
+  }
+
+  /**
+   * Deleting the day leaves the screen the day was on, and has to.
+   *
+   * The row goes first and the navigation follows in the same tick: the write is
+   * optimistic, so staying here for even a frame would render a day that no longer
+   * exists and land on the "day not found" screen by way of an empty list.
+   */
+  function removeDay() {
+    if (!window.confirm(d.removeConfirm)) return;
+    dayEditing.deleteDay(dayId);
+    setDaySheetOpen(false);
+    navigate('/', { replace: true });
   }
 
   return (
@@ -168,11 +239,21 @@ export function DayView() {
             <IconButton icon="back" label={pt.common.back} onClick={goBack} />
             <div className="min-w-0 flex-1 text-center">
               <p className="font-ui text-[11px] font-600 uppercase tracking-[0.05em] text-text-muted">
-                {day.wd.pt}
+                {day.label}
               </p>
-              <h1 className="truncate font-ui text-[19px] font-700 text-text">{day.name.pt}</h1>
+              <h1 className="truncate font-ui text-[19px] font-700 text-text">{day.name}</h1>
             </div>
-            <span className="h-11 w-11 shrink-0" aria-hidden="true" />
+            {/*
+              * The edit control appears only on a day the user made. The programme's
+              * seven are not editable content: they ship in the bundle, so there is
+              * nothing here that could change them, and a button that opened a form
+              * with no destination would be a promise the data model refuses.
+              */}
+            {isOwnDay ? (
+              <IconButton icon="edit" label={d.edit} onClick={openDaySheet} />
+            ) : (
+              <span className="h-11 w-11 shrink-0" aria-hidden="true" />
+            )}
           </header>
 
           <div
@@ -226,8 +307,8 @@ export function DayView() {
             ) : null}
           </div>
 
-          {day.goal ? <Callout title={t.goal}>{day.goal.pt}</Callout> : null}
-          {day.warm ? <Callout title={t.warmup}>{day.warm.pt}</Callout> : null}
+          {day.goal ? <Callout title={t.goal}>{day.goal}</Callout> : null}
+          {day.warm ? <Callout title={t.warmup}>{day.warm}</Callout> : null}
 
           {logs.isError || programme.isError ? (
             <p
@@ -249,6 +330,15 @@ export function DayView() {
               className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
             >
               {e.saveFailed}
+            </p>
+          ) : null}
+
+          {dayEditing.saveFailed ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
+            >
+              {d.saveFailed}
             </p>
           ) : null}
 
@@ -275,7 +365,16 @@ export function DayView() {
                     onRest={startRest}
                     controls={{
                       onEdit: () => openSheet(sheetModeFor(entry)),
-                      onHide: entry.kind === 'built' ? () => editing.hide(entry.key) : undefined,
+                      /*
+                       * Hiding takes something out of THIS day, for this account
+                       * only, and it is offered on anything the user did not write:
+                       * the programme's exercises and the ones other people
+                       * published. An exercise of your own has a delete instead,
+                       * because hiding a row you can remove would be two ways to do
+                       * the same thing with different consequences.
+                       */
+                      onHide:
+                        entry.kind === 'custom' ? undefined : () => editing.hide(entry.key),
                       onMove: (direction) => editing.move(entries, entry.key, direction),
                       canMoveUp: index > 0,
                       canMoveDown: index < entries.length - 1,
@@ -315,7 +414,7 @@ export function DayView() {
             {e.add}
           </button>
 
-          {day.cardio?.length ? <CardioSection keys={day.cardio} /> : null}
+          {day.day?.cardio?.length ? <CardioSection keys={day.day.cardio} /> : null}
         </div>
 
         {rest ? (
@@ -330,6 +429,17 @@ export function DayView() {
         ) : null}
       </div>
 
+      {daySheet && day.custom ? (
+        <DaySheet
+          key={daySheet}
+          open={daySheetOpen}
+          mode={{ kind: 'edit', ref: day }}
+          onOpenChange={setDaySheetOpen}
+          onSubmit={saveDay}
+          onDelete={removeDay}
+        />
+      ) : null}
+
       {sheet ? (
         <ExerciseSheet
           key={sheet.id}
@@ -337,7 +447,13 @@ export function DayView() {
           mode={sheet.mode}
           onOpenChange={setSheetOpen}
           onSubmit={submitSheet}
-          onDelete={sheet.mode.kind === 'own' ? removeOwn : undefined}
+          onDelete={
+            sheet.mode.kind === 'own'
+              ? removeOwn
+              : sheet.mode.kind === 'shared'
+                ? removeShared
+                : undefined
+          }
           onRestore={
             sheet.mode.kind === 'built' && sheet.mode.entry.override ? restoreOriginal : undefined
           }
@@ -348,7 +464,9 @@ export function DayView() {
 }
 
 function sheetModeFor(entry: DayEntry): SheetMode {
-  return entry.kind === 'custom' ? { kind: 'own', entry } : { kind: 'built', entry };
+  if (entry.kind === 'custom') return { kind: 'own', entry };
+  if (entry.kind === 'shared') return { kind: 'shared', entry };
+  return { kind: 'built', entry };
 }
 
 function Callout({ title, children }: { title: string; children: React.ReactNode }) {

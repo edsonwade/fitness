@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { isOwnEcho } from './client-id';
 import { parseRow, SchemaDriftError } from './db';
 import type { RowOf, TableName } from './entities';
-import { TABLES } from './entities';
+import { isShared, TABLES } from './entities';
 import { dbKeys, rowId, scopeOfRow } from './keys';
 import { useUserId } from './queries';
 import { applyIncoming, removeRow } from './row-cache';
@@ -16,8 +16,10 @@ import { supabase } from './supabase';
  *
  * This is new capability: in the old app, private state had no realtime at all, and
  * a set ticked on the phone stayed invisible on the tablet until something pulled.
- * Postgres Changes applies RLS per subscriber, so a user is sent only their own
- * rows and the filter below is belt to that braces.
+ * Postgres Changes applies RLS per subscriber, so what a subscription may deliver is
+ * decided in the database and not here: a private table is filtered to its owner on
+ * both sides, and a shared one is filtered on neither, because the point of a shared
+ * table is that somebody else's write is news.
  *
  * Three things have to be true for this to be an improvement rather than a source
  * of flicker:
@@ -36,10 +38,12 @@ export type DbChange = {
   row: Record<string, unknown>;
 };
 
-const AUTHORED_TABLES: readonly TableName[] = ['catalog_exercises', 'day_additions'];
-const PRIVATE_TABLES = (Object.keys(TABLES) as TableName[]).filter(
-  (table) => !AUTHORED_TABLES.includes(table),
-);
+/**
+ * Subscribed whole, because every account is meant to see them: the week itself.
+ * Subscribed by owner, because they are one person's: what that person did.
+ */
+const SHARED = (Object.keys(TABLES) as TableName[]).filter(isShared);
+const PRIVATE = (Object.keys(TABLES) as TableName[]).filter((table) => !isShared(table));
 
 /**
  * Writes one change into the cache.
@@ -53,6 +57,24 @@ const PRIVATE_TABLES = (Object.keys(TABLES) as TableName[]).filter(
 export function applyChange(client: QueryClient, userId: string, change: DbChange): void {
   const { table, row } = change;
   const key = dbKeys.rows(userId, table, scopeOfRow(table, row as Partial<RowOf<TableName>>));
+
+  /*
+   * A shared row is never really deleted. Removing one is `deleted = true`, so that
+   * nobody else's day is left pointing at a row that is gone, which means the change
+   * arrives here as an UPDATE and not as a DELETE.
+   *
+   * The cache holds what the screens can show, and `fetchRows` defines that as
+   * `deleted = false`. Applying a soft-deleted row instead of removing it left the
+   * cache and a refetch disagreeing, and the visible symptom was the one thing this
+   * feature must not do: an exercise deleted on one account stayed on screen on every
+   * other account until someone reloaded.
+   */
+  if (change.eventType !== 'DELETE' && (row as { deleted?: boolean }).deleted === true) {
+    client.setQueryData<RowOf<TableName>[]>(key, (rows = []) =>
+      removeRow(rows, table, row as Partial<RowOf<TableName>>),
+    );
+    return;
+  }
 
   if (change.eventType === 'DELETE') {
     client.setQueryData<RowOf<TableName>[]>(key, (rows = []) =>
@@ -108,7 +130,7 @@ export function createChangeQueue(apply: (change: DbChange) => void) {
 }
 
 /**
- * Subscribes the signed-in user to their own rows and to the shared catalogue.
+ * Subscribes the signed-in user to their own rows and to everybody's week.
  *
  * Mounted once, near the root. One channel carries every table: a channel per table
  * would be fifteen websocket subscriptions for one person, and Supabase charges
@@ -147,14 +169,21 @@ export function useRealtimeSync(): void {
       queue.push({ table, eventType, row });
     };
 
-    for (const table of PRIVATE_TABLES) {
+    for (const table of PRIVATE) {
       channel.on(
         'postgres_changes',
         { event: '*', schema: 'public', table, filter: `user_id=eq.${userId}` },
         handler(table) as never,
       );
     }
-    for (const table of AUTHORED_TABLES) {
+    /*
+     * No filter, and that is what makes the other account's screen change while they
+     * are looking at it. A `user_id=eq.<me>` filter here would have been the exact
+     * inverse of the promise: the row is written for everybody and delivered to
+     * nobody but its writer. RLS still decides what may arrive — `009` §4 opens the
+     * read on precisely these tables and no others.
+     */
+    for (const table of SHARED) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, handler(table) as never);
     }
 
