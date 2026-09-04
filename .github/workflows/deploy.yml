@@ -1,10 +1,19 @@
-name: Deploy to GitHub Pages
+name: CI & Deploy
 
-# Pages was serving the repository root, which means the source index.html and its
-# /src/main.tsx script tag — a file that only exists while Vite is running. The site
-# has to be built first and only the build published.
+# For a push event GitHub reads the workflow file out of the commit that was pushed,
+# on the branch that was pushed to. The trigger used to be `branches: [main]`, and
+# main is still the old static site with no .github directory at all — so no push
+# ever put this file in scope and Actions never ran once. Every branch runs the
+# checks now, as does every pull request into main; only main publishes.
+#
+# A pull request opened from a branch of this same repository matches both triggers
+# and runs twice. That is the accepted cost of the pair: the push run is what marks
+# a branch green before a PR exists, and the pull_request run is what a fork's
+# contribution gets, since a fork's push never reaches this repository at all.
 on:
   push:
+    branches: ['**']
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -13,11 +22,11 @@ permissions:
   pages: write
   id-token: write
 
-# A queued deploy waits for the running one instead of cancelling it, so a push
-# never leaves the site half-published.
+# A superseded run on a feature branch is noise, so it gets cancelled. On main it
+# is a deploy, and a cancelled deploy can leave the site half-published.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -32,19 +41,35 @@ jobs:
 
       - run: npm ci
 
+      # `npm run verify` also runs scripts/contrast.mjs, and scripts/ is gitignored,
+      # so it cannot exist on a fresh checkout. These three are the part CI can run.
+      - run: npm run lint
+
+      - run: npm test
+
       - run: npm run build
 
       # Pages has no rewrite rules, so a reload on /fitness/train is a miss. Serving
       # the same shell as the 404 body hands the URL to the router untouched.
       - run: cp dist/index.html dist/404.html
 
+      # Uploading an artifact that no job will deploy is wasted minutes. This also
+      # covers pull requests without naming them: on a pull_request event the ref is
+      # refs/pull/<n>/merge, never refs/heads/main, so a PR into main stops here too.
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: dist
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # A queued deploy waits for the running one instead of cancelling it, so a push
+    # never leaves the site half-published.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
