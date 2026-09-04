@@ -5,6 +5,7 @@ import { useUserId } from '../../data/queries';
 import { pt } from '../../i18n/pt';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icon';
+import { WriteFailureNotice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 import { ExerciseSheet, type SheetMode } from '../train/ExerciseSheet';
@@ -79,9 +80,16 @@ export function Catalog() {
     setSheetOpen(false);
   }
 
-  /** The names of the days an exercise is prescribed on, as the reader knows them. */
+  /**
+   * The names of the days an exercise is prescribed on, as the reader knows them.
+   *
+   * A day that is not in the week is named in words rather than by its number. It
+   * means one thing only: the day was deleted and retiring this addition with it was
+   * refused, so the row outlived the day it belonged to. "No dia: 101" was the app
+   * reading that state out as a fact about the plan; it is a leftover, and it says so.
+   */
   function dayNames(item: CatalogItem): string[] {
-    return item.days.map((addition) => week.dayOf(addition.day_no)?.name ?? `${addition.day_no}`);
+    return item.days.map((addition) => week.dayOf(addition.day_no)?.name ?? t.dayGone);
   }
 
   return (
@@ -111,14 +119,7 @@ export function Catalog() {
           </p>
         ) : null}
 
-        {editing.saveFailed || placement.saveFailed ? (
-          <p
-            role="alert"
-            className="mt-5 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
-          >
-            {e.saveFailed}
-          </p>
-        ) : null}
+        <WriteFailureNotice failure={editing.failure ?? placement.failure} className="mt-5" />
 
         {isPending ? (
           <ul className="mt-5 flex flex-col gap-2.5" aria-busy="true">

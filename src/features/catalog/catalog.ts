@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 
 import { clientId } from '../../data/client-id';
 import type { CatalogExercise, DayAddition } from '../../data/entities';
-import { usePublishShared, useUpsertRow } from '../../data/mutations';
+import { firstFailure, usePublishShared, useUpsertRow } from '../../data/mutations';
 import { useRows } from '../../data/queries';
+import { pt } from '../../i18n/pt';
 import type { ExerciseInput } from '../train/use-day-editing';
 
 /**
@@ -24,6 +25,7 @@ import type { ExerciseInput } from '../train/use-day-editing';
  */
 
 const EPOCH = new Date(0).toISOString();
+const t = pt.catalog;
 
 export type CatalogItem = {
   row: CatalogExercise;
@@ -79,7 +81,17 @@ export function useCatalogEditing() {
   const additions = useUpsertRow('day_additions');
 
   return {
-    saveFailed: catalog.isError || additions.isError,
+    /*
+     * Guardar e apagar são o mesmo upsert nesta tabela — apagar é `deleted = true` —
+     * por isso é o que foi enviado que diz qual das duas frases é a verdadeira.
+     */
+    failure: firstFailure([
+      [
+        catalog,
+        (catalog.variables as { deleted?: boolean } | undefined)?.deleted ? t.failRemove : t.failSave,
+      ],
+      [additions, t.failAddition],
+    ]),
 
     /**
      * Saves the shared exercise, for everybody.
@@ -163,7 +175,15 @@ export function useCatalogPlacement() {
   }
 
   return {
-    saveFailed: publish.isError,
+    /* Pôr e tirar são a mesma transacção, distinguidas pelo `deleted` que ela levou. */
+    failure: firstFailure([
+      [
+        publish,
+        (publish.variables as { deleted?: boolean } | undefined)?.deleted
+          ? t.failUnplace
+          : t.failPlace,
+      ],
+    ]),
     additionOn,
 
     /**

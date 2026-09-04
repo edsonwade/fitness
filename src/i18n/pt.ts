@@ -92,6 +92,20 @@ export const pt = {
     offlineNote: 'Sem ligação. As alterações ficam guardadas e sobem quando voltares a ter internet.',
     required: 'Este campo é obrigatório.',
     optional: 'opcional',
+
+    /*
+     * O aviso de uma escrita recusada. O título muda conforme o que falhou — cada
+     * `fail…` mais abaixo é uma frase inteira — e estas quatro linhas são as que não
+     * mudam: o que se pode fazer, e como ver o que o servidor respondeu.
+     *
+     * "O resto do que fizeste ficou guardado" é literal e não consolo: cada escrita
+     * sobe por si, por isso quando uma é recusada as outras já lá estão.
+     */
+    writeBody: 'O resto do que fizeste ficou guardado. Isto pode ser tentado outra vez.',
+    writeRetry: 'Tentar outra vez',
+    writeDismiss: 'Ignorar',
+    writeDetails: 'Ver o que o servidor respondeu',
+    writeDetailsHide: 'Esconder a resposta do servidor',
   },
 
   train: {
@@ -161,9 +175,17 @@ export const pt = {
 
     loadError: 'Não foi possível carregar o catálogo. Tenta outra vez.',
 
+    /* Uma frase por escrita, como no dia. Ver `days.failCreate`. */
+    failSave: 'As alterações a este exercício não ficaram guardadas.',
+    failRemove: 'O exercício não foi apagado do catálogo.',
+    failAddition: 'O exercício foi apagado, mas continua acrescentado a um dia.',
+    failPlace: 'O exercício não foi posto no dia.',
+    failUnplace: 'O exercício não saiu do dia.',
+
     onDay: 'No dia',
     onDays: 'Nos dias',
     onNoDay: 'Ainda em nenhum dia',
+    dayGone: 'um dia apagado',
     countOne: 'exercício publicado',
     countMany: 'exercícios publicados',
 
@@ -221,8 +243,26 @@ export const pt = {
 
     remove: 'Apagar dia',
     removeConfirm:
-      'Apagar este dia e os exercícios que lhe foram acrescentados? Sai da semana de todas as contas. As cargas já registadas ficam guardadas.',
-    saveFailed: 'Não foi possível guardar este dia. Verifica a ligação e tenta outra vez.',
+      'Apagar este dia e os exercícios que lhe foram acrescentados? Sai da semana de todas as contas. Os exercícios que também estão no catálogo continuam lá, e as cargas já registadas ficam guardadas.',
+
+    /*
+     * Uma frase por escrita, e não uma para todas.
+     *
+     * A que existia — "Não foi possível guardar este dia" — apareceu debaixo de um dia
+     * que tinha acabado de ser apagado com sucesso, porque era um OU de seis mutações
+     * e não sabia qual delas tinha sido recusada. Apagar um dia toca em cinco tabelas:
+     * quatro delas podem falhar sozinhas, e cada uma deixa a semana num estado
+     * diferente. Dizer qual é a diferença entre "tenta outra vez" e "o que é que isto
+     * me fez?".
+     */
+    failCreate: 'O dia novo não ficou guardado.',
+    failSave: 'As alterações a este dia não ficaram guardadas.',
+    failDelete: 'O dia não foi apagado e continua na semana.',
+    failExercises: 'O dia foi apagado, mas um exercício próprio continua agarrado a ele.',
+    failHidden: 'O dia foi apagado, mas uma marca de exercício escondido continua nele.',
+    failOrder: 'O dia foi apagado, mas a ordem que lhe tinhas dado continua guardada.',
+    failAddition:
+      'O dia saiu da semana, mas um exercício do catálogo continua acrescentado a ele.',
   },
 
   /**
@@ -277,7 +317,20 @@ export const pt = {
     photoFailed: 'A foto não subiu. Tenta outra vez, ou guarda sem ela.',
     photoBadFile: 'Não consegui ler esse ficheiro como imagem.',
 
-    saveFailed: 'Não foi possível guardar esta alteração. Verifica a ligação e tenta outra vez.',
+    /*
+     * O mesmo princípio das frases do dia: uma por escrita. Compor um dia são oito
+     * escritas em cinco tabelas, e "não foi possível guardar esta alteração" não
+     * distingue um exercício que não foi criado de uma ordem que não ficou guardada —
+     * e uma delas dá para ignorar, a outra não.
+     */
+    failSave: 'Este exercício não ficou guardado.',
+    failDelete: 'O exercício não foi apagado e continua no dia.',
+    failOverride: 'A alteração à prescrição não ficou guardada.',
+    failRestore: 'A prescrição original não foi reposta.',
+    failHide: 'O exercício não saiu do dia.',
+    failUnhide: 'Os exercícios escondidos não voltaram ao dia.',
+    failOrder: 'A nova ordem não ficou guardada.',
+    failPublish: 'A publicação no catálogo não passou, e nada foi publicado.',
 
     errName: 'Escreve o nome do exercício.',
     errVideo: 'Esse link não é um vídeo do YouTube.',

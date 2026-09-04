@@ -5,8 +5,9 @@ import clsx from 'clsx';
 import { BLOCKS, type BlockKey } from '../../content';
 import { pt } from '../../i18n/pt';
 import { ThemeToggle } from '../../ui/ThemeToggle';
-import { Icon } from '../../ui/Icon';
-import { DaySheet } from './DaySheet';
+import { Icon, IconButton } from '../../ui/Icon';
+import { WriteFailureNotice } from '../../ui/Notice';
+import { DaySheet, type DaySheetMode } from './DaySheet';
 import { useCustomDayEditing, useDays, type DayInput, type DayRef } from './custom-days';
 import { dayPoster, useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, useExerciseLogs } from './logs';
@@ -29,6 +30,14 @@ const d = pt.days;
  * where one is made. Creating opens the new day straight away rather than returning
  * here with a fresh empty card: a day is created in order to put something in it, and
  * the next tap after "create" is always "add exercise".
+ *
+ * It is also where one is removed, and that is here rather than only inside the day
+ * because of where a person looks. A day added to the week is a thing you notice from
+ * the week — eight cards where the programme has seven — and the delete lived one
+ * screen further in, behind a pencil, past a scroll. "The week only has seven days"
+ * is a sentence said while looking at this list, so the control belongs on this list.
+ * It is the same sheet and the same confirmation the day itself opens, not a second
+ * way to delete with its own rules.
  */
 export function Train() {
   const navigate = useNavigate();
@@ -41,17 +50,39 @@ export function Train() {
    * Mounted after it closes so it can animate out, and remounted under a fresh id
    * each time it is opened, which is what seeds the form without an effect.
    */
-  const [sheet, setSheet] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<{ mode: DaySheetMode; id: number } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  function openSheet() {
-    setSheet((current) => (current ?? 0) + 1);
+  function openSheet(mode: DaySheetMode) {
+    setSheet((current) => ({ mode, id: (current?.id ?? 0) + 1 }));
     setSheetOpen(true);
   }
 
-  function createDay(input: DayInput) {
-    const dayNo = editing.createDay(input);
-    navigate(`/treino/${dayNo}?bloco=${block}`);
+  /** One handler for both shapes of the sheet: a day being made, and one being changed. */
+  function submitSheet(input: DayInput) {
+    const mode = sheet?.mode;
+    if (!mode) return;
+    if (mode.kind === 'new') {
+      const dayNo = editing.createDay(input);
+      navigate(`/treino/${dayNo}?bloco=${block}`);
+      return;
+    }
+    if (mode.ref.custom) editing.saveDay(mode.ref.custom, input);
+  }
+
+  /**
+   * Deletes the day the sheet is open on, and stays here.
+   *
+   * The day view navigates home after this because it is standing on the day it just
+   * removed; the week is already where a deleted day leaves you, so the only thing to
+   * do is close the sheet and let the card go.
+   */
+  function removeDay() {
+    const mode = sheet?.mode;
+    if (mode?.kind !== 'edit') return;
+    if (!window.confirm(d.removeConfirm)) return;
+    editing.deleteDay(mode.ref.no);
+    setSheetOpen(false);
   }
 
   return (
@@ -110,14 +141,7 @@ export function Train() {
           </p>
         ) : null}
 
-        {editing.saveFailed ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
-          >
-            {d.saveFailed}
-          </p>
-        ) : null}
+        <WriteFailureNotice failure={editing.failure} />
 
         <ul className="mt-4 flex flex-col gap-2.5">
           {week.days.map((dayRef) => (
@@ -128,6 +152,12 @@ export function Train() {
                 entries={programme.resolve(dayRef.day, dayRef.no).entries}
                 logs={logs.byKey}
                 pending={logs.isPending || programme.isPending}
+                /*
+                 * Only a day the user added. The programme's seven ship in the bundle
+                 * and nothing in the database can change or remove them, so a pencil
+                 * on one would open a form with no destination.
+                 */
+                onEdit={dayRef.kind === 'own' ? () => openSheet({ kind: 'edit', ref: dayRef }) : undefined}
               />
             </li>
           ))}
@@ -135,7 +165,7 @@ export function Train() {
 
         <button
           type="button"
-          onClick={openSheet}
+          onClick={() => openSheet({ kind: 'new' })}
           className={clsx(
             'mt-3 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full',
             'border border-dashed border-edge/60 bg-transparent',
@@ -151,11 +181,12 @@ export function Train() {
 
       {sheet ? (
         <DaySheet
-          key={sheet}
+          key={sheet.id}
           open={sheetOpen}
-          mode={{ kind: 'new' }}
+          mode={sheet.mode}
           onOpenChange={setSheetOpen}
-          onSubmit={createDay}
+          onSubmit={submitSheet}
+          onDelete={sheet.mode.kind === 'edit' ? removeDay : undefined}
         />
       ) : null}
     </div>
@@ -168,6 +199,7 @@ function DayCard({
   entries,
   logs,
   pending,
+  onEdit,
 }: {
   dayRef: DayRef;
   block: BlockKey;
@@ -175,6 +207,8 @@ function DayCard({
   entries: readonly DayEntry[];
   logs: ReturnType<typeof useExerciseLogs>['byKey'];
   pending: boolean;
+  /** Opens the day's own form, delete included. Only a day the user added has one. */
+  onEdit?: () => void;
 }) {
   /*
    * A rest day is a day with nothing in it, and now that is a thing the user can
@@ -263,16 +297,42 @@ function DayCard({
     </article>
   );
 
-  if (!opens) return inner;
-
+  /*
+   * The pencil is a sibling of the link, not a child of it. Nesting a button inside an
+   * anchor is invalid, and the browser resolves it by giving the tap to whichever it
+   * feels like — on a card whose other control deletes the day, "whichever it feels
+   * like" is not a thing to leave to a browser. Sitting on top of the link instead, it
+   * takes its own taps and lets every other pixel of the card open the day.
+   */
   return (
-    <Link
-      to={`/treino/${dayRef.no}?bloco=${block}`}
-      aria-label={`${dayRef.name}. ${progress.pct}% concluído.`}
-      className="block rounded-[20px] transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99] motion-reduce:active:scale-100"
-    >
-      {inner}
-    </Link>
+    <div className="relative">
+      {opens ? (
+        <Link
+          to={`/treino/${dayRef.no}?bloco=${block}`}
+          aria-label={`${dayRef.name}. ${progress.pct}% concluído.`}
+          className="block rounded-[20px] transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.99] motion-reduce:active:scale-100"
+        >
+          {inner}
+        </Link>
+      ) : (
+        inner
+      )}
+
+      {onEdit ? (
+        <IconButton
+          icon="edit"
+          /*
+           * The default 44px, not the small one. It sits over a photograph on a card
+           * that scrolls under a thumb, and it is the way into a sheet with a delete
+           * in it: this is the last control on the screen to make hard to hit
+           * accurately. The border is what separates it from a pale photograph.
+           */
+          label={`${d.edit}: ${dayRef.name}`}
+          onClick={onEdit}
+          className="absolute right-3 top-3 border border-rule"
+        />
+      ) : null}
+    </div>
   );
 }
 
