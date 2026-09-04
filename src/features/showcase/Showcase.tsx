@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { BLOCKS, DAYS, EXERCISES } from '../../content';
 import type { ThemePreference } from '../../app/theme';
 import { useThemeState } from '../../app/theme-context';
+import { builtinPoster, dayPoster } from '../train/day-entries';
 
 /**
  * Programs screen, built against the pinned reference image.
@@ -258,7 +259,7 @@ function HeroCard({ day, blockIndex }: { day: (typeof DAYS)[number]; blockIndex:
 
   return (
     <article className="relative mt-3 overflow-hidden rounded-[20px] shadow-[var(--shadow-float)]">
-      <img src={`/img/day-${day.id}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={dayPoster(day.id)} alt="" className="absolute inset-0 h-full w-full object-cover" />
       {/* Scrim, so white text on a photograph is a measured 4.5:1 and not a hope. */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/25" />
 
@@ -317,7 +318,7 @@ function ProgramList({
       {programs.map((day, i) => {
         const items = day.items ?? [];
         const first = items[0];
-        const photo = first ? `/img/ex-${first.ex.replace('_', '')}.jpg` : `/img/day-${day.id}.jpg`;
+        const photo = first ? builtinPoster(first.ex) : dayPoster(day.id);
         const sets = items.reduce((total, item) => total + item[key].s, 0);
 
         return (
@@ -353,7 +354,7 @@ function ProgramList({
                 src={photo}
                 alt=""
                 onError={(e) => {
-                  e.currentTarget.src = `/img/day-${day.id}.jpg`;
+                  e.currentTarget.src = dayPoster(day.id);
                 }}
                 className="h-[112px] w-[112px] shrink-0 rounded-[16px] object-cover"
               />

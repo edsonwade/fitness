@@ -1,4 +1,4 @@
-import { TABLES, type RowOf, type TableName } from './entities';
+import { AUTHORED_TABLES, isShared, TABLES, type RowOf, type TableName } from './entities';
 import { SCOPE_COLUMN, type Scope } from './keys';
 import { supabase } from './supabase';
 
@@ -11,9 +11,6 @@ import { supabase } from './supabase';
  * database whose migration has not been run fails here, with the table and the
  * column named, instead of three screens later as `undefined`.
  */
-
-/** The two tables everyone can read. The rest are scoped to the caller by RLS. */
-const AUTHORED_TABLES = new Set<TableName>(['catalog_exercises', 'day_additions']);
 
 export class SchemaDriftError extends Error {
   readonly table: TableName;
@@ -48,9 +45,17 @@ export function parseRow<T extends TableName>(table: T, data: unknown): RowOf<T>
 /**
  * One cache entry's worth of rows.
  *
- * The `user_id` filter is redundant with RLS and is sent anyway. RLS is what makes
- * it safe; the filter is what makes it correct if this ever runs against a row set
- * a future policy widens, and it costs the index lookup that would happen regardless.
+ * **A shared table is read whole and a private one is read by owner**, and this is the
+ * one place that difference is applied. On a private table the `user_id` filter is
+ * redundant with RLS and is sent anyway: RLS is what makes it safe, the filter is what
+ * makes it correct if a future policy ever widens the row set, and it costs the index
+ * lookup that would happen regardless.
+ *
+ * On a shared table that same filter would have been the bug the whole of `009` is
+ * about — the database serving everybody's week and the client asking only for the
+ * rows it wrote — so it is not sent. `SHARED_TABLES` is the single list, in
+ * `entities.ts`, and the reason it is there rather than here is that the realtime
+ * bridge has to draw the line in exactly the same place.
  *
  * Soft-deleted catalogue rows are dropped here rather than at each call site.
  * `deleted = true` is how the additive catalogue removes something without leaving
@@ -65,7 +70,7 @@ export async function fetchRows<T extends TableName>(
 
   if (AUTHORED_TABLES.has(table)) {
     query = query.eq('deleted', false);
-  } else {
+  } else if (!isShared(table)) {
     query = query.eq('user_id', userId);
   }
 

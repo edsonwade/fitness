@@ -3,6 +3,7 @@ import clsx from 'clsx';
 
 import { BLOCKS, prog, type ProgKind } from '../../content';
 import { PHOTO_ACCEPT, PhotoError, uploadExercisePhoto } from '../../data/photos';
+import type { CatalogExercise } from '../../data/entities';
 import { useUserId } from '../../data/queries';
 import { pt } from '../../i18n/pt';
 import { Button } from '../../ui/Button';
@@ -10,7 +11,7 @@ import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { Sheet } from '../../ui/Sheet';
 import { isProgKind, type DayEntry } from './day-entries';
-import type { ExerciseInput } from './use-day-editing';
+import type { ExerciseInput, Visibility } from './use-day-editing';
 import { youtubeId } from './video-id';
 
 const t = pt.editor;
@@ -18,11 +19,20 @@ const t = pt.editor;
 /**
  * The one form that creates and changes an exercise.
  *
- * Three jobs, deliberately one component: adding an exercise of your own, editing one
- * you added, and changing what a baseline exercise asks of you. They differ in which
- * fields show and where the result is written, and in nothing else a person would
- * notice, so splitting them into three would be three places for the same layout to
- * drift.
+ * Four jobs, deliberately one component: adding an exercise, editing one you added,
+ * editing one that is published for everybody, and changing what a baseline exercise
+ * asks of you. They differ in which fields show and where the result is written, and in
+ * nothing else a person would notice, so splitting them into four would be four places
+ * for the same layout to drift.
+ *
+ * **Where it lives is a field, not a mode.** The chips decide whether the exercise is
+ * written to this day alone or also to the shared catalogue, and the hint under them
+ * changes with the choice, because the catalogue has a consequence a label does not
+ * carry: from there anyone can put it on another day, change it, or remove it.
+ *
+ * They no longer decide who sees it. Since `009` the week is one week, so an exercise
+ * added to Wednesday is on everybody's Wednesday either way, and a chip offering to
+ * keep it to yourself would have been offering something the database will not do.
  *
  * **Only the name is required.** Video and photo are both optional and both are real
  * on their own: an exercise with a video and no photo shows the demonstration and a
@@ -45,7 +55,15 @@ const t = pt.editor;
 export type SheetMode =
   | { kind: 'new' }
   | { kind: 'own'; entry: DayEntry }
-  | { kind: 'built'; entry: DayEntry };
+  | { kind: 'built'; entry: DayEntry }
+  | { kind: 'shared'; entry: DayEntry }
+  /** The same published exercise, edited from the catalogue, with no day around it. */
+  | { kind: 'catalog'; row: CatalogExercise };
+
+const VISIBILITIES: readonly { value: Visibility; label: string }[] = [
+  { value: 'day', label: t.visPrivate },
+  { value: 'catalog', label: t.visShared },
+];
 
 const KINDS: readonly { value: ProgKind; label: string }[] = [
   { value: 'comp', label: t.kindComp },
@@ -64,14 +82,36 @@ type Draft = {
   rest: string;
   video: string;
   photoUrl: string | null;
+  visibility: Visibility;
 };
 
+/** A published exercise, wherever it is being edited from. One shape, one source. */
+function draftFromCatalog(row: CatalogExercise): Draft {
+  return {
+    name: row.name_pt,
+    equipment: row.equipment ?? '',
+    kind: isProgKind(row.kind) ? row.kind : 'acc',
+    sets: row.sets ?? '3',
+    reps: row.reps ?? '',
+    load: row.load ?? '',
+    rest: row.rest ?? '',
+    video: row.video_id ?? '',
+    photoUrl: row.photo_url,
+    visibility: 'catalog',
+  };
+}
+
 function draftFrom(mode: SheetMode): Draft {
+  if (mode.kind === 'catalog') return draftFromCatalog(mode.row);
+
   if (mode.kind === 'new') {
     return {
       name: '', equipment: '', kind: 'acc',
       sets: '3', reps: '', load: '', rest: '90 s',
       video: '', photoUrl: null,
+      // This day only, by default. Putting an exercise in the catalogue is a choice
+      // someone makes, never one they discover afterwards.
+      visibility: 'day',
     };
   }
 
@@ -90,8 +130,11 @@ function draftFrom(mode: SheetMode): Draft {
       rest: row.rest ?? '',
       video: row.video_id ?? '',
       photoUrl: row.photo_url,
+      visibility: 'day',
     };
   }
+
+  if (mode.kind === 'shared') return draftFromCatalog(entry.shared!.catalog);
 
   /*
    * A baseline exercise prefills from what it currently asks, override included, so a
@@ -109,6 +152,10 @@ function draftFrom(mode: SheetMode): Draft {
     rest: p.rest,
     video: entry.videoId ?? '',
     photoUrl: entry.override?.photo_url ?? null,
+    // A baseline exercise is the programme's, and what this form writes for it is an
+    // override on the day. There is nothing here to put in the catalogue, so the
+    // selector does not show.
+    visibility: 'day',
   };
 }
 
@@ -173,6 +220,14 @@ export function ExerciseSheet({
       setVideoError(t.errVideo);
       return;
     }
+    /*
+     * Publishing something that was yours is one way: the private row goes, the
+     * shared one takes its key, and from then on anyone can change or remove it.
+     * A new exercise does not ask, because there is nothing to lose and the hint
+     * under the chips already says what "toda a gente" means.
+     */
+    if (isOwn && draft.visibility === 'catalog' && !window.confirm(t.publishConfirm)) return;
+
     onSubmit({
       name,
       equipment: draft.equipment,
@@ -183,20 +238,32 @@ export function ExerciseSheet({
       rest: draft.rest,
       videoId,
       photoUrl: draft.photoUrl,
+      visibility: draft.visibility,
     });
     onOpenChange(false);
   }
 
   const isNew = mode.kind === 'new';
   const isOwn = mode.kind === 'own';
-  const showKind = isNew || isOwn;
+  const isShared = mode.kind === 'shared' || mode.kind === 'catalog';
+  const showKind = isNew || isOwn || isShared;
+  /*
+   * Two reasons the chips are not always here. A baseline exercise belongs to the
+   * programme, and what this form writes for it is a private override, so there is
+   * nothing to publish. An already-published one has no way back: taking it private
+   * again would remove it from days other people are training this week, and no
+   * screen in this app is going to do that behind a chip.
+   */
+  const showVisibility = isNew || isOwn;
 
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={isNew ? t.newTitle : isOwn ? t.editOwnTitle : t.editBuiltTitle}
-      description={isNew ? t.newHint : mode.kind === 'built' ? t.editBuiltHint : undefined}
+      title={isNew ? t.newTitle : isShared ? t.sharedTitle : isOwn ? t.editOwnTitle : t.editBuiltTitle}
+      description={
+        isNew ? t.newHint : isShared ? t.sharedHint : mode.kind === 'built' ? t.editBuiltHint : undefined
+      }
       footer={
         <div className="flex flex-col gap-2.5">
           <Button onClick={submit} loading={uploading}>
@@ -205,7 +272,7 @@ export function ExerciseSheet({
           {onDelete ? (
             <Button variant="ghost" onClick={onDelete} className="text-danger">
               <Icon name="trash" size={17} strokeWidth={1.9} />
-              {t.remove}
+              {isShared ? t.removeShared : t.remove}
             </Button>
           ) : null}
           {onRestore ? (
@@ -227,6 +294,38 @@ export function ExerciseSheet({
             if (nameError) setNameError(null);
           }}
         />
+
+        {showVisibility ? (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="font-ui text-[13px] font-500 text-text-muted">{t.visibility}</legend>
+            <div className="flex gap-2">
+              {VISIBILITIES.map((option) => {
+                const selected = draft.visibility === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => set('visibility', option.value)}
+                    className={clsx(
+                      'min-h-[44px] rounded-full px-5 font-ui text-[13px] font-500',
+                      'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+                      'active:scale-[0.97] motion-reduce:active:scale-100',
+                      selected
+                        ? 'bg-chip-selected font-600 text-chip-selected-ink'
+                        : 'bg-chip text-chip-ink',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="font-ui text-[12px] leading-snug text-text-muted">
+              {draft.visibility === 'day' ? t.visHintPrivate : t.visHintShared}
+            </p>
+          </fieldset>
+        ) : null}
 
         <Field
           label={t.equipment}

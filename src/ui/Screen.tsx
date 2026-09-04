@@ -43,8 +43,14 @@ export function Screen({
  *
  * `aria-busy` and the polite live region carry the state to a screen reader, which
  * is what a silent frame would otherwise fail to do.
+ *
+ * `label` exists because the same resting frame is now the right answer to a second
+ * short wait: a training day of the user's own arrives from the database rather than
+ * from the bundle, so opening one from a link waits on a row. The frame is identical;
+ * only what a screen reader is told differs, and it should not be told the app is
+ * opening when the app is already open.
  */
-export function SessionSplash() {
+export function SessionSplash({ label = 'A abrir a aplicação' }: { label?: string }) {
   return (
     <div
       className="min-h-[100dvh] bg-page py-0 sm:py-8"
@@ -52,7 +58,7 @@ export function SessionSplash() {
       role="status"
       aria-live="polite"
     >
-      <span className="sr-only">A abrir a aplicação</span>
+      <span className="sr-only">{label}</span>
       <div className="mx-auto min-h-[100dvh] w-full max-w-[26.5rem] bg-ground sm:min-h-[32rem] sm:rounded-[40px] sm:shadow-[var(--shadow-float)]" />
     </div>
   );

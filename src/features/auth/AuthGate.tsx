@@ -3,6 +3,7 @@ import clsx from 'clsx';
 
 import { authErrorCode, supabase } from '../../data/supabase';
 import { pt } from '../../i18n/pt';
+import { dayPoster } from '../train/day-entries';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { checkEmail, checkPassword, passwordRules } from './validation';
@@ -254,7 +255,7 @@ function GateBanner({ tab }: { tab: Tab }) {
     <header className="relative px-7 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <div className="relative overflow-hidden rounded-media shadow-[var(--shadow-float)]">
         <img
-          src="/img/day-4.jpg"
+          src={dayPoster(4)}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
           fetchPriority="high"
