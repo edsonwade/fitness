@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { DAYS } from '../../content';
-import type { CustomDay } from '../../data/entities';
-import { FIRST_CUSTOM_DAY, nextDayNo, refOfBuilt, resolveDays } from './custom-days';
+import type { CustomDay, CustomExercise, DayAddition } from '../../data/entities';
+import { dayCleanup, FIRST_CUSTOM_DAY, nextDayNo, refOfBuilt, resolveDays } from './custom-days';
 import { resolveDayEntries } from './day-entries';
 
 /**
@@ -132,6 +132,118 @@ describe('the week', () => {
     expect(ref.label).toBe(first.wd.pt);
     expect(ref.day).toBe(first);
     expect(ref.custom).toBeUndefined();
+  });
+});
+
+describe('deleting an added day', () => {
+  /**
+   * The state this was written against, read out of the live database on 2026-09-04:
+   * day 101 "Caminhada", an exercise published to the catalogue and added to it, and a
+   * hidden marker on that same exercise. Deleting the day used to take the day and the
+   * marker and leave the addition, so the exercise stayed in the plan on a day that no
+   * longer existed, and the next day handed 101 opened holding it.
+   */
+  function exercise(over: Partial<CustomExercise> = {}): CustomExercise {
+    return {
+      user_id: USER,
+      updated_at: '2026-01-01T00:00:00Z',
+      id: '00000000-0000-4000-8000-00000000000a',
+      day_no: 101,
+      legacy_key: null,
+      kind: 'acc',
+      name: 'Passeio',
+      equipment: null,
+      sets: null,
+      reps: null,
+      load: null,
+      rest: null,
+      video_id: null,
+      photo_url: null,
+      created_at: '2026-01-01T00:00:00Z',
+      ...over,
+    };
+  }
+
+  function addition(over: Partial<DayAddition> = {}): DayAddition {
+    return {
+      created_by: USER,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      deleted: false,
+      id: '00000000-0000-4000-8000-00000000000b',
+      day_no: 101,
+      user_id: null,
+      ex_key: 's:e2cc7dc5-161b-4e28-b8c4-fb16121fc2de',
+      block_config: {},
+      ...over,
+    };
+  }
+
+  const hidden = [
+    { user_id: USER, updated_at: '2026-01-01T00:00:00Z', day_no: 101, ex_key: 's:e2cc7dc5' },
+    { user_id: OTHER, updated_at: '2026-01-01T00:00:00Z', day_no: 2, ex_key: 'legpress' },
+  ];
+  const order = [
+    { user_id: USER, updated_at: '2026-01-01T00:00:00Z', day_no: 101, ordered_keys: ['a', 'b'] },
+  ];
+
+  it('takes the day’s published additions with it', () => {
+    const going = dayCleanup(101, {
+      exercises: [],
+      hidden: [],
+      order: [],
+      additions: [addition()],
+    });
+
+    expect(going.additions.map((row) => row.id)).toEqual([
+      '00000000-0000-4000-8000-00000000000b',
+    ]);
+  });
+
+  it('empties every table the day writes into', () => {
+    const going = dayCleanup(101, {
+      exercises: [exercise()],
+      hidden,
+      order,
+      additions: [addition()],
+    });
+
+    expect(going.exercises).toEqual(['00000000-0000-4000-8000-00000000000a']);
+    expect(going.hidden).toEqual([{ day_no: 101, ex_key: 's:e2cc7dc5' }]);
+    expect(going.order).toBe(true);
+    expect(going.additions).toHaveLength(1);
+  });
+
+  it('touches nothing belonging to another day', () => {
+    const going = dayCleanup(101, {
+      exercises: [exercise({ id: '00000000-0000-4000-8000-00000000000c', day_no: 3 })],
+      hidden,
+      order: [],
+      additions: [addition({ id: '00000000-0000-4000-8000-00000000000d', day_no: 6 })],
+    });
+
+    expect(going.exercises).toEqual([]);
+    expect(going.hidden).toEqual([{ day_no: 101, ex_key: 's:e2cc7dc5' }]);
+    expect(going.order).toBe(false);
+    expect(going.additions).toEqual([]);
+  });
+
+  it('does not retire an addition that is already retired', () => {
+    // A second `deleted = true` is a write that changes nothing and still travels to
+    // the other account over realtime. Deleting a day twice is one tap and a retry.
+    const going = dayCleanup(101, {
+      exercises: [],
+      hidden: [],
+      order: [],
+      additions: [addition({ deleted: true })],
+    });
+
+    expect(going.additions).toEqual([]);
+  });
+
+  it('has nothing to do for a day that holds nothing', () => {
+    const going = dayCleanup(102, { exercises: [], hidden: [], order: [], additions: [] });
+    expect(going).toEqual({ exercises: [], hidden: [], order: false, additions: [] });
   });
 });
 

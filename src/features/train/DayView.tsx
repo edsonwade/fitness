@@ -8,6 +8,7 @@ import { useMergeExerciseLog } from '../../data/mutations';
 import { pt } from '../../i18n/pt';
 import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon, IconButton } from '../../ui/Icon';
+import { WriteFailureNotice } from '../../ui/Notice';
 import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseSheet, type SheetMode } from './ExerciseSheet';
@@ -320,27 +321,12 @@ export function DayView() {
           ) : null}
 
           {/*
-            * A rejected write has to say so. The card appears the moment it is added,
-            * and without this the only way to find out the server refused it is to
-            * open the day again tomorrow and see it gone.
+            * A rejected write has to say so, and say which one. The card appears the
+            * moment it is added, so without this the only way to find out the server
+            * refused it is to open the day again tomorrow and see it gone.
             */}
-          {editing.saveFailed ? (
-            <p
-              role="alert"
-              className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
-            >
-              {e.saveFailed}
-            </p>
-          ) : null}
-
-          {dayEditing.saveFailed ? (
-            <p
-              role="alert"
-              className="mt-4 rounded-card border border-danger/40 bg-surface px-4 py-3 font-ui text-[13px] leading-snug text-danger"
-            >
-              {d.saveFailed}
-            </p>
-          ) : null}
+          <WriteFailureNotice failure={editing.failure} />
+          <WriteFailureNotice failure={dayEditing.failure} />
 
           {isRestDay ? (
             <div className="mt-6 rounded-card border border-rule bg-surface p-6 text-center">

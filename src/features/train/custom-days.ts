@@ -2,8 +2,15 @@ import { useMemo } from 'react';
 
 import { DAYS, type Day } from '../../content';
 import { clientId } from '../../data/client-id';
-import { FIRST_CUSTOM_DAY, type CustomDay } from '../../data/entities';
-import { useDeleteRow, useUpsertRow } from '../../data/mutations';
+import {
+  FIRST_CUSTOM_DAY,
+  type CustomDay,
+  type CustomExercise,
+  type DayAddition,
+  type ExerciseOrder,
+  type HiddenItem,
+} from '../../data/entities';
+import { firstFailure, useDeleteRow, useUpsertRow } from '../../data/mutations';
 import { useRows } from '../../data/queries';
 import { pt } from '../../i18n/pt';
 
@@ -100,11 +107,14 @@ const orNull = text;
  * accepting an ambiguity: the day's primary key is its number now.
  *
  * A gap left by a deleted day is not filled, but the highest number is taken again once
- * the day that held it is gone. That is safe for the same reason as before: deleting a
- * day takes its exercises, its hidden markers and its saved order with it (`deleteDay`
- * below), so the only rows a reused number can meet are `exercise_logs`, which are
- * keyed by exercise as well as by day, and whose exercise keys are uuids that cannot
- * come back.
+ * the day that held it is gone. That is safe only because deleting a day empties it
+ * first — `dayCleanup` below names everything that goes, and `deleteDay` sends it — so
+ * the only rows a reused number can meet are `exercise_logs`, which are keyed by
+ * exercise as well as by day, and whose exercise keys are uuids that cannot come back.
+ *
+ * That was a claim before it was true. Until this was fixed, `day_additions` survived a
+ * deleted day, so the next day handed number 101 opened holding the previous 101's
+ * published exercises.
  */
 export function nextDayNo(customs: readonly CustomDay[]): number {
   let highest = FIRST_CUSTOM_DAY - 1;
@@ -112,6 +122,46 @@ export function nextDayNo(customs: readonly CustomDay[]): number {
     if (row.day_no > highest) highest = row.day_no;
   }
   return highest + 1;
+}
+
+/** Everything in the database that a day can be holding. */
+export type DayContents = {
+  exercises: readonly CustomExercise[];
+  hidden: readonly HiddenItem[];
+  order: readonly ExerciseOrder[];
+  additions: readonly DayAddition[];
+};
+
+/** What deleting a day has to take with it, one list per table. */
+export type DayCleanup = {
+  /** `custom_exercises` ids. */
+  exercises: string[];
+  /** `hidden_items` keys, as the delete wants them. */
+  hidden: { day_no: number; ex_key: string }[];
+  /** Whether this day has a saved order to remove. One row per day, so a boolean. */
+  order: boolean;
+  /** `day_additions` rows to retire with `deleted = true`. Never a hard delete. */
+  additions: DayAddition[];
+};
+
+/**
+ * Everything that only existed inside one day.
+ *
+ * Pure, and separate from the hook that sends it, because "what a delete takes" is the
+ * part that was wrong and the part worth holding still: it is four tables, and the one
+ * that was missing — `day_additions` — was missing silently, in a table no screen draws
+ * a day from. A function that can be handed four lists and asked is a function a test
+ * can ask.
+ */
+export function dayCleanup(dayNo: number, contents: DayContents): DayCleanup {
+  return {
+    exercises: contents.exercises.filter((row) => row.day_no === dayNo).map((row) => row.id),
+    hidden: contents.hidden
+      .filter((row) => row.day_no === dayNo)
+      .map((row) => ({ day_no: dayNo, ex_key: row.ex_key })),
+    order: contents.order.some((row) => row.day_no === dayNo),
+    additions: contents.additions.filter((row) => row.day_no === dayNo && !row.deleted),
+  };
 }
 
 /** One `custom_days` row as the screens read it. */
@@ -209,27 +259,44 @@ export function useCustomDayEditing() {
   const removeExercise = useDeleteRow('custom_exercises');
   const removeHidden = useDeleteRow('hidden_items');
   const removeOrder = useDeleteRow('exercise_order');
+  const retireAddition = useUpsertRow('day_additions');
 
   const existing = useRows('custom_days').data;
   const exercises = useRows('custom_exercises').data;
   const hidden = useRows('hidden_items').data;
   const order = useRows('exercise_order').data;
+  const additions = useRows('day_additions').data;
 
   return {
     /**
-     * Whether the last write to a day came back refused.
+     * The write that came back refused, if one did, and how to send it again.
      *
-     * Every write here is optimistic, so a rejected one leaves a day on screen that
-     * the database never accepted, and without this the way you find out is opening
-     * the app tomorrow and finding it gone. Offline is not this: a write with no
-     * signal is paused, not failed, and the outbox sends it later.
+     * Every write here is optimistic, so a rejected one leaves a day on screen that the
+     * database never accepted, and without this the way you find out is opening the app
+     * tomorrow and finding it gone. Offline is not this: a write with no signal is
+     * paused, not failed, and the outbox sends it later.
+     *
+     * The order is the order of the telling, and it is not arbitrary. Deleting a day is
+     * five writes, and the one whose failure changes what the user is looking at — the
+     * day itself — is named first; the leftovers inside a day that did go are true but
+     * secondary, and a person only needs to be told about them once the day is gone.
      */
-    saveFailed:
-      days.isError ||
-      removeDay.isError ||
-      removeExercise.isError ||
-      removeHidden.isError ||
-      removeOrder.isError,
+    failure: firstFailure([
+      /*
+       * Creating and changing a day are the same upsert, and they are not the same
+       * sentence: one lost a day that never existed, the other lost an edit to a day
+       * that is still there. `created_at` is only ever sent by `createDay`, so the
+       * payload itself says which one this was.
+       */
+      [days, (days.variables as { created_at?: unknown } | undefined)?.created_at
+        ? t.failCreate
+        : t.failSave],
+      [removeDay, t.failDelete],
+      [removeExercise, t.failExercises],
+      [removeHidden, t.failHidden],
+      [removeOrder, t.failOrder],
+      [retireAddition, t.failAddition],
+    ]),
 
     /** A new day, at the next free number. Returns it, so the caller can open it. */
     createDay(input: DayInput): number {
@@ -266,19 +333,53 @@ export function useCustomDayEditing() {
      * leaving them would leave rows no screen can ever show and no person can ever
      * remove. Its saved order and its hidden markers go for the same reason.
      *
+     * **A day's `day_additions` go too, and that is what this used to leave behind.**
+     * An addition says "this published exercise is trained on day 101"; once 101 is
+     * gone the sentence has no subject, and the row was unreachable from every screen
+     * — no day drew it, and the catalogue lists days, not orphans. Worse, `nextDayNo`
+     * hands the number out again, so the next day created inherited the deleted day's
+     * exercises. The comment above `nextDayNo` claims that cannot happen; until now it
+     * only held for the four tables listed there.
+     *
+     * The removal is `deleted = true` rather than a delete, because `day_additions` is
+     * one of the two additive tables: a hard delete has no policy and, more to the
+     * point, the realtime bridge carries a flagged row to the other account's open app
+     * where a vanished row would arrive as nothing at all.
+     *
+     * `catalog_exercises` stay, deliberately. The catalogue is a library, not this
+     * day's contents: an exercise published from here can be on other days and can be
+     * put on a day again tomorrow, and emptying the library because one day was
+     * deleted would take it out of somebody else's week too. Removing it from the
+     * catalogue is its own control, on the catalogue screen, and it says so.
+     *
      * `exercise_logs` stay. They are the record of work actually done, and deleting
      * a day is a statement about the plan, not about last Tuesday. This is the same
      * rule an exercise of your own already follows.
      */
     deleteDay(dayNo: number): void {
-      for (const row of exercises ?? []) {
-        if (row.day_no === dayNo) removeExercise.remove({ id: row.id });
-      }
-      for (const row of hidden ?? []) {
-        if (row.day_no === dayNo) removeHidden.remove({ day_no: dayNo, ex_key: row.ex_key });
-      }
-      if ((order ?? []).some((row) => row.day_no === dayNo)) {
-        removeOrder.remove({ day_no: dayNo });
+      const going = dayCleanup(dayNo, {
+        exercises: exercises ?? [],
+        hidden: hidden ?? [],
+        order: order ?? [],
+        additions: additions ?? [],
+      });
+
+      for (const id of going.exercises) removeExercise.remove({ id });
+      for (const key of going.hidden) removeHidden.remove(key);
+      if (going.order) removeOrder.remove({ day_no: dayNo });
+      for (const row of going.additions) {
+        /*
+         * The whole row goes up, not a patch: `day_additions` is upserted, so Postgres
+         * builds the candidate tuple before deciding to update it and a patch missing
+         * `ex_key` or `created_by` is refused by a not-null constraint. The same reason
+         * `useCatalogEditing.save` states.
+         */
+        retireAddition.save({
+          ...row,
+          deleted: true,
+          updated_at: EPOCH,
+          updated_by_client: clientId(),
+        });
       }
 
       removeDay.remove({ day_no: dayNo });

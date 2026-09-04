@@ -38,6 +38,97 @@ import { supabase } from './supabase';
 type Ctx = { key: readonly unknown[]; previous: unknown };
 type AnyRow = Record<string, unknown>;
 
+/* ---------- a write that came back refused ---------------------------------- */
+
+/**
+ * One refused write, in the shape a screen can actually use.
+ *
+ * The old shape was a boolean — `saveFailed` — OR-ed across every mutation a hook
+ * owns, and it produced the worst sentence in the application: a red slab saying "não
+ * foi possível guardar este dia" underneath a day that had just been deleted
+ * successfully. It was wrong in three separate ways at once. It could not say which
+ * of six writes had been refused, so it guessed and guessed badly. It offered nothing
+ * to do about it. And it threw away what the server actually said, which is the one
+ * thing that would have explained it.
+ *
+ * So a failure carries what did not happen, in the user's words; what the server said,
+ * for when "try again" is not the answer; and the two things they can do about it.
+ */
+export type WriteFailure = {
+  /** The sentence the user reads. What did not happen — not the table, not the verb. */
+  what: string;
+  /** The server's own words, shown on demand. Empty when there is nothing to add. */
+  detail: string;
+  /** Sends exactly the same write again. */
+  retry: () => void;
+  /** Clears the failure without retrying. The optimistic change is already rolled back. */
+  dismiss: () => void;
+};
+
+/**
+ * The minimum a mutation has to expose to be reported and retried. Structural on
+ * purpose: `useUpsertRow`, `useDeleteRow` and the two RPC hooks all satisfy it without
+ * any of them knowing this type exists.
+ */
+type Refusable = {
+  isError: boolean;
+  error: Error | null;
+  variables: unknown;
+  mutate: (variables: never) => void;
+  reset: () => void;
+};
+
+/**
+ * The first refused write in a list, paired with what it means.
+ *
+ * First, not all of them: two failures in one gesture are one broken connection, and a
+ * stack of red cards describing six halves of it is not more informative than one
+ * sentence and a retry. The order of the list is therefore the order of the telling —
+ * put the write whose failure the user would notice first.
+ */
+export function firstFailure(
+  entries: readonly (readonly [Refusable, string])[],
+): WriteFailure | null {
+  for (const [mutation, what] of entries) {
+    if (!mutation.isError) continue;
+    return {
+      what,
+      detail: detailOf(mutation.error),
+      retry: () => mutation.mutate(mutation.variables as never),
+      dismiss: () => mutation.reset(),
+    };
+  }
+  return null;
+}
+
+/**
+ * What the server said, flattened to one line.
+ *
+ * A PostgREST error is four fields and the useful one varies: a violated constraint is
+ * in `details`, a missing column is in `message`, and the code is what makes either
+ * searchable. They are joined rather than picked, because the point of showing this is
+ * the case nobody predicted.
+ */
+function detailOf(error: Error | null): string {
+  if (!error) return '';
+  const e = error as Error & { code?: string; details?: string; hint?: string };
+  return [e.code ? `[${e.code}]` : '', e.message, e.details, e.hint]
+    .filter((part) => typeof part === 'string' && part.trim() !== '')
+    .join(' · ');
+}
+
+/**
+ * One line in the console for every refused write, naming the table and the payload.
+ *
+ * Not decoration: a write refused on a phone in a gym is the one failure nobody can
+ * reproduce later, and until this existed the app's response to a refusal was to
+ * discard the reason and show a sentence that did not name the operation. The user's
+ * own words for the state that produced this: "apareceu esta msg feia".
+ */
+function reportWriteError(table: string, kind: string, error: Error, variables: unknown): void {
+  console.error(`[escrita recusada] ${kind} ${table}: ${detailOf(error)}`, variables);
+}
+
 export type LogKey = { day_no: number; block: string; ex_key: string };
 export type LogFields = Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'sets_done' | 'note'>>;
 export type MergeLogVars = LogKey & { user_id: string; fields: LogFields; changedAt: string };
@@ -316,8 +407,9 @@ export function useUpsertRow<T extends TableName>(table: T) {
       );
       return ctx;
     },
-    onError: (_error, _patch, ctx) => {
+    onError: (error, patch, ctx) => {
       if (ctx) client.setQueryData(ctx.key, ctx.previous);
+      reportWriteError(table, 'upsert', error, patch);
     },
   });
 
@@ -352,8 +444,9 @@ export function useDeleteRow<T extends TableName>(table: T) {
       client.setQueryData<RowOf<T>[]>(cacheKey, (rows = []) => removeRow(rows, table, key));
       return ctx;
     },
-    onError: (_error, _key, ctx) => {
+    onError: (error, key, ctx) => {
       if (ctx) client.setQueryData(ctx.key, ctx.previous);
+      reportWriteError(table, 'delete', error, key);
     },
   });
 
@@ -420,8 +513,9 @@ export function useMergeExerciseLog() {
       );
       return ctx;
     },
-    onError: (_error, _variables, ctx) => {
+    onError: (error, variables, ctx) => {
       if (ctx) client.setQueryData(ctx.key, ctx.previous);
+      reportWriteError('exercise_logs', 'merge', error, variables);
     },
   });
 
@@ -532,7 +626,8 @@ export function usePublishShared() {
 
       return ctx;
     },
-    onError: (_error, _variables, ctx) => {
+    onError: (error, variables, ctx) => {
+      reportWriteError('catalog_exercises + day_additions', 'publish', error, variables);
       if (!ctx) return;
       client.setQueryData(ctx.keys[0], ctx.previous[0]);
       client.setQueryData(ctx.keys[1], ctx.previous[1]);

@@ -36,6 +36,7 @@ const PATHS = {
   calendar: 'M7 3v3M17 3v3M4 8h16M5 6h14v14H5zM8 12h3M8 16h8',
   flag: 'M6 21V4M6 4h11l-2 4 2 4H6',
   info: 'M12 8h.01M11 12h1v5h1M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+  alert: 'M12 4.5 3 20h18zM12 10v4M12 17h.01',
   external: 'M7 17L17 7M9 7h8v8',
   dumbbell: 'M6.5 9v6M17.5 9v6M4 10.5v3M20 10.5v3M9 12h6',
   book: 'M5 4h9l5 5v11H5zM14 4v5h5',

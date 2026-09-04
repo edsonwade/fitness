@@ -5,9 +5,10 @@ import type {
   DayAddition,
   ExerciseOverride,
 } from '../../data/entities';
-import { useDeleteRow, usePublishShared, useUpsertRow } from '../../data/mutations';
+import { firstFailure, useDeleteRow, usePublishShared, useUpsertRow } from '../../data/mutations';
 import { useUserId } from '../../data/queries';
 import type { ProgKind } from '../../content';
+import { pt } from '../../i18n/pt';
 import { customKey, type DayEntry } from './day-entries';
 
 /**
@@ -30,6 +31,7 @@ import { customKey, type DayEntry } from './day-entries';
  */
 
 const EPOCH = new Date(0).toISOString();
+const e = pt.editor;
 
 /**
  * Where an exercise lives.
@@ -131,23 +133,28 @@ export function useDayEditing(dayNo: number) {
 
   return {
     /**
-     * Whether the last composing write came back as a failure.
+     * The composing write that came back refused, if one did, and how to send it again.
      *
      * Not cosmetic. Every write here is optimistic, so a rejected one leaves the card
      * on screen until the next reload takes it away, and the user finds out that the
      * exercise they added never existed by opening the day again later. Offline is not
      * this: a write with no signal is paused rather than failed, and the outbox carries
      * it up, so this stays quiet exactly when it should.
+     *
+     * Eight writes, eight sentences. The boolean this replaced could say only that
+     * something had not been saved, on a screen where "something" could have been a
+     * publication to every account or the order of two cards.
      */
-    saveFailed:
-      customs.isError ||
-      removeCustom.isError ||
-      overrides.isError ||
-      removeOverride.isError ||
-      hidden.isError ||
-      unhide.isError ||
-      order.isError ||
-      publish.isError,
+    failure: firstFailure([
+      [publish, e.failPublish],
+      [customs, e.failSave],
+      [removeCustom, e.failDelete],
+      [overrides, e.failOverride],
+      [removeOverride, e.failRestore],
+      [hidden, e.failHide],
+      [unhide, e.failUnhide],
+      [order, e.failOrder],
+    ]),
 
     /**
      * A new exercise of the user's own.
