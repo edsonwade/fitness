@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import clsx from 'clsx';
 
@@ -13,6 +13,7 @@ import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseSheet, type SheetMode } from './ExerciseSheet';
 import { RestTimer } from './RestTimer';
+import { blockSummary, type BlockSummary } from './block-summary';
 import { useCustomDayEditing, useDays, type DayInput } from './custom-days';
 import { useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, logId, useExerciseLogs } from './logs';
@@ -61,6 +62,13 @@ export function DayView() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [daySheet, setDaySheet] = useState<number | null>(null);
   const [daySheetOpen, setDaySheetOpen] = useState(false);
+  /*
+   * The rail scrolls now that a phase says what it is and what it costs, so the
+   * selected one has to be brought into view. Without this, opening a day on the
+   * deload from a link lands on a rail scrolled to the start, showing three phases
+   * that are not the one on screen. `block: 'nearest'` keeps the page itself still.
+   */
+  const selectedPhase = useRef<HTMLButtonElement>(null);
 
   const dayId = Number(params.dia);
   const week = useDays();
@@ -73,6 +81,10 @@ export function DayView() {
   const dayEditing = useCustomDayEditing();
   const { entries, hiddenCount } = programme.resolve(dayRef?.day ?? null, dayId);
   const progress = dayProgress(dayId, block, entries, logs.byKey);
+
+  useEffect(() => {
+    selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [block]);
 
   /*
    * A day of the user's own does not ship in the bundle, so opening one cold means
@@ -257,30 +269,71 @@ export function DayView() {
             )}
           </header>
 
+          {/*
+            * The four phases of the programme, each saying what it is and what it
+            * costs today.
+            *
+            * It used to say "Bloco 1", which is the position of a thing in a list and
+            * not the thing itself. The name comes from the plan (§8.3), the meaning
+            * under it is the authored `s.pt` printed verbatim, and the third line is
+            * counted off this day's resolved entries rather than written by hand.
+            *
+            * Every tab is resolved in its own block, not in the selected one. The
+            * count is the same in all four, because a block changes targets and not
+            * the list, but the minutes are not: the deload prescribes fewer sets, and
+            * reading them all off the current block would have printed one block's
+            * cost four times.
+            */}
           <div
             className="rail -mx-6 mt-4 gap-2.5 px-6 pb-1"
             role="tablist"
             aria-label={t.blocksLabel}
           >
             {BLOCKS.map((b) => {
-              const selected = b.k === block;
+              const key = b.k as BlockKey;
+              const selected = key === block;
+              const summary = blockSummary(programme.resolveIn(key, day.day ?? null, dayId).entries);
+              const cost = costOf(summary);
               return (
                 <button
                   key={b.k}
+                  ref={selected ? selectedPhase : undefined}
                   role="tab"
                   type="button"
                   aria-selected={selected}
-                  onClick={() => setBlock(b.k as BlockKey)}
+                  /*
+                   * Spoken as a sentence, because the visible lines are built out of
+                   * separators and a tilde: "~27 min" read aloud is the word tilde.
+                   */
+                  aria-label={[t.phase[key], b.s.pt, cost.spoken].filter(Boolean).join(', ')}
+                  onClick={() => setBlock(key)}
                   className={clsx(
-                    'min-h-[42px] rounded-full px-4 font-ui text-[13px] font-500',
+                    'min-w-[10.5rem] rounded-card px-4 py-3 text-left font-ui',
                     'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
                     'active:scale-[0.97] motion-reduce:active:scale-100',
-                    selected
-                      ? 'bg-chip-selected font-600 text-chip-selected-ink'
-                      : 'bg-chip text-chip-ink',
+                    selected ? 'bg-chip-selected text-chip-selected-ink' : 'bg-chip text-chip-ink',
                   )}
                 >
-                  {b.t.pt}
+                  {/*
+                    * Hidden from the reader, who gets the label above, and the three
+                    * lines carry no colour of their own: the muted token is mixed for
+                    * the page, not for a chip, and on the orange selected fill it
+                    * lands at 2.9:1. The steps here are size and weight.
+                    */}
+                  <span aria-hidden="true" className="block text-[15px] font-700 leading-[1.2]">
+                    {t.phase[key]}
+                  </span>
+                  <span aria-hidden="true" className="mt-0.5 block text-[11.5px] font-500 leading-[1.3]">
+                    {b.s.pt}
+                  </span>
+                  {cost.shown ? (
+                    <span
+                      aria-hidden="true"
+                      className="tabular mt-1.5 block text-[11px] font-600 leading-[1.3]"
+                    >
+                      {cost.shown}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -447,6 +500,27 @@ export function DayView() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * The cost line of a phase tab, seen and spoken.
+ *
+ * A day with nothing in it gets no line rather than "0 exercícios · ~0 min". The plan
+ * is explicit (§14) that its own figures are examples and not data, so an empty day
+ * that printed a duration would be inventing exactly the number that section warns
+ * about. The rest day already says what it is, in words, below the rail.
+ */
+function costOf(summary: BlockSummary): { shown: string | null; spoken: string | null } {
+  if (summary.count === 0) return { shown: null, spoken: null };
+
+  const unit = summary.count === 1 ? t.exercise : t.exercises;
+  const counted = `${summary.count} ${unit}`;
+  if (summary.minutes === null) return { shown: counted, spoken: counted };
+
+  return {
+    shown: `${counted} · ~${summary.minutes} ${t.minutes}`,
+    spoken: `${counted}, ${t.about} ${summary.minutes} ${t.minutesLong}`,
+  };
 }
 
 function sheetModeFor(entry: DayEntry): SheetMode {

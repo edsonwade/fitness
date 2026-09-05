@@ -24,7 +24,8 @@
     "validate:live:4b": "node scripts/validate-live-phase4b.mjs",
     "validate:live:4c": "node scripts/validate-live-phase4c.mjs",
     "gate:c": "node scripts/gate-phase-c.mjs",
-    "verify:009": "node scripts/verify-009.mjs"
+    "verify:009": "node scripts/verify-009.mjs",
+    "gate:nova:001": "node scripts/gate-nova-001.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

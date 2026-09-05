@@ -74,6 +74,10 @@ deploy-proof*.log
 # Documentation directory — internal only
 docs/
 /docs/**
+proto/**
+proto/
+
+pages-check.png
 
 # Documentation and AI-related files
 .claude/

@@ -402,18 +402,24 @@ const EMPTY: never[] = [];
  * the day view for one, off the same four reads. It is recomputed rather than cached
  * per day: a day is a handful of entries and one sort, and a memo keyed by day number
  * would be mutable state living across renders to save work that costs nothing.
+ *
+ * `resolveIn` is the same answer for a block that is not the selected one, which the
+ * block rail needs: it prints what each of the four phases costs on this day, and a
+ * resolver that only knew the current block could not tell it. It is the general
+ * function and `resolve` is it with the screen's block already applied, so there is
+ * still one merge rule and not two.
  */
 export function useProgramme(block: BlockKey) {
   const state = useProgrammeState();
   const { customs, overrides, hidden, order, catalog, additions } = state;
 
-  const resolve = useMemo(
+  const resolveIn = useMemo(
     () =>
-      (day: Day | null, dayNo: number): ResolvedDay =>
+      (blockKey: BlockKey, day: Day | null, dayNo: number): ResolvedDay =>
         resolveDayEntries({
           day,
           dayNo,
-          block,
+          block: blockKey,
           customs: customs ?? EMPTY,
           overrides: overrides ?? EMPTY,
           hidden: hidden ?? EMPTY,
@@ -421,8 +427,13 @@ export function useProgramme(block: BlockKey) {
           catalog: catalog ?? EMPTY,
           additions: additions ?? EMPTY,
         }),
-    [block, customs, overrides, hidden, order, catalog, additions],
+    [customs, overrides, hidden, order, catalog, additions],
   );
 
-  return { ...state, resolve };
+  const resolve = useMemo(
+    () => (day: Day | null, dayNo: number): ResolvedDay => resolveIn(block, day, dayNo),
+    [resolveIn, block],
+  );
+
+  return { ...state, resolve, resolveIn };
 }

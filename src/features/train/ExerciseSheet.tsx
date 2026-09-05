@@ -490,7 +490,7 @@ function BlockPreview({ draft, id }: { draft: Draft; id: string }) {
           const p = slots[b.k];
           return (
             <li key={b.k} className="flex items-baseline justify-between gap-3 font-ui text-[12.5px]">
-              <span className="font-600 text-text-muted">{b.t.pt}</span>
+              <span className="font-600 text-text-muted">{pt.train.phase[b.k]}</span>
               <span className="tabular text-text">
                 {p.s} × {reps || p.r}
                 <span className="text-text-muted"> · RPE {p.rpe}</span>
