@@ -360,23 +360,23 @@ export function useDayEditing(dayNo: number) {
     },
 
     /**
-     * Moves one exercise up or down, and stores the whole sequence.
+     * Stores the order a drag (or a keyboard move) produced, as the whole sequence.
      *
-     * The sequence written is every visible key in this day, not a pair of positions,
-     * so the saved order and what is on screen cannot drift apart. Baseline and own
-     * exercises move through the same list, which is the point: the day is one
-     * sequence, not two lists that happen to be drawn together.
+     * It takes the final list of keys, not a pair of positions, because the day is one
+     * sequence and the caller already holds the sequence the manipulation ended on:
+     * `Reorder` reflows the list live under the finger, and only the drop lands here —
+     * one write per drop, not one per pixel. Baseline and own exercises move through the
+     * same list, which is the point; the day is one sequence, not two lists drawn side
+     * by side.
+     *
+     * The old `move(…, 'up' | 'down')` computed the swap itself, from the arrow buttons
+     * the interaction requirement removed. There is no direction any more: direct
+     * manipulation decides the order, and this only records where it settled.
      */
-    move(entries: readonly DayEntry[], key: string, direction: 'up' | 'down'): void {
-      const keys = entries.map((entry) => entry.key);
-      const index = keys.indexOf(key);
-      if (index < 0) return;
-      const target = direction === 'up' ? index - 1 : index + 1;
-      if (target < 0 || target >= keys.length) return;
-      [keys[index], keys[target]] = [keys[target], keys[index]];
+    saveOrder(orderedKeys: readonly string[]): void {
       order.save({
         day_no: dayNo,
-        ordered_keys: keys,
+        ordered_keys: [...orderedKeys],
         updated_at: EPOCH,
         updated_by_client: clientId(),
       });

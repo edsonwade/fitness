@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Reorder } from 'motion/react';
 import clsx from 'clsx';
 
 import { BLOCKS, CARDIO, type BlockKey } from '../../content';
@@ -13,6 +14,7 @@ import { Callout } from './Callout';
 import { PhaseJourney } from './PhaseJourney';
 import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
+import { ReorderableCard } from './ReorderableCard';
 import { ExerciseSheet, type SheetMode } from './ExerciseSheet';
 import { RestTimer } from './RestTimer';
 import { blockSummary, type BlockSummary } from './block-summary';
@@ -86,6 +88,31 @@ export function DayView() {
   const dayEditing = useCustomDayEditing();
   const { entries, hiddenCount } = programme.resolve(dayRef?.day ?? null, dayId);
   const progress = dayProgress(dayId, block, entries, logs.byKey);
+
+  /*
+   * The order the list is drawn in. It mirrors the resolved day, but `Reorder` needs to
+   * move it live under the finger, so the live sequence lives here and only the drop
+   * writes it back. `orderRef` holds the same value synchronously, so the commit on
+   * release reads the sequence the last reflow produced and not a render behind it.
+   *
+   * A write from the server (this device's own, or the other account's) arrives as a
+   * new resolved order; the effect adopts it, but never mid-drag — clobbering the list
+   * under a moving finger is the one thing this guard exists to prevent. Keys never
+   * contain a newline, so it is a safe separator for the cheap equality check.
+   */
+  const [orderKeys, setOrderKeys] = useState<string[]>(() => entries.map((e2) => e2.key));
+  const orderRef = useRef(orderKeys);
+  const draggingRef = useRef(false);
+  const [announce, setAnnounce] = useState('');
+  const hintId = useId();
+
+  const serverSig = entries.map((e2) => e2.key).join('\n');
+  useEffect(() => {
+    if (draggingRef.current) return;
+    const next = serverSig === '' ? [] : serverSig.split('\n');
+    setOrderKeys((prev) => (prev.join('\n') === serverSig ? prev : next));
+    orderRef.current = next;
+  }, [serverSig]);
 
   useEffect(() => {
     selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -243,6 +270,55 @@ export function DayView() {
     setDaySheetOpen(false);
     navigate('/', { replace: true });
   }
+
+  /** `Reorder` reflows the list; keep the ref in step so the drop reads the latest. */
+  function reorder(next: string[]) {
+    orderRef.current = next;
+    setOrderKeys(next);
+  }
+
+  function pickUp() {
+    draggingRef.current = true;
+  }
+
+  /** One write per drop: the sequence the drag settled on, straight to `exercise_order`. */
+  function drop() {
+    draggingRef.current = false;
+    editing.saveOrder(orderRef.current);
+  }
+
+  /**
+   * The keyboard path, for anyone who cannot drag. Arrow Up / Down on the grab handle
+   * moves the card one place and writes it, and the live region speaks the new position.
+   * It is the same one write, and the same handle — not the chevrons that were removed.
+   */
+  function moveByKey(key: string, direction: 'up' | 'down') {
+    const current = orderRef.current;
+    const index = current.indexOf(key);
+    if (index < 0) return;
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= current.length) return;
+    const next = current.slice();
+    [next[index], next[target]] = [next[target], next[index]];
+    reorder(next);
+    editing.saveOrder(next);
+    const name = entries.find((entry) => entry.key === key)?.name ?? '';
+    setAnnounce(`${name}, ${e.position} ${target + 1} ${e.positionOf} ${next.length}`);
+  }
+
+  /*
+   * The entries in the order the user set. Anything the resolved day has that the saved
+   * order does not yet (an exercise added a beat ago, before the sync effect adopts it)
+   * is drawn at the end, so a fresh card is never dropped from the list for one frame.
+   */
+  const entryByKey = new Map(entries.map((entry) => [entry.key, entry]));
+  const ordered = orderKeys
+    .map((key) => entryByKey.get(key))
+    .filter((entry): entry is DayEntry => entry !== undefined);
+  for (const entry of entries) {
+    if (!orderKeys.includes(entry.key)) ordered.push(entry);
+  }
+  const renderKeys = ordered.map((entry) => entry.key);
 
   return (
     <div className="min-h-[100dvh] bg-page py-0 sm:py-8">
@@ -409,9 +485,24 @@ export function DayView() {
               <p className="mt-1.5 font-ui text-[13px] leading-snug text-text-muted">{e.emptyBody}</p>
             </div>
           ) : (
-            <ul className="mt-5 flex flex-col gap-4">
-              {entries.map((entry, index) => (
-                <li key={entry.key}>
+            <Reorder.Group
+              as="ul"
+              axis="y"
+              values={renderKeys}
+              onReorder={reorder}
+              className="mt-5 flex flex-col gap-4"
+            >
+              {ordered.map((entry, index) => (
+                <ReorderableCard
+                  key={entry.key}
+                  value={entry.key}
+                  position={index + 1}
+                  total={ordered.length}
+                  hintId={hintId}
+                  onPickup={pickUp}
+                  onDrop={drop}
+                  onKeyMove={(direction) => moveByKey(entry.key, direction)}
+                >
                   <ExerciseCard
                     entry={entry}
                     log={logs.byKey.get(logId(dayId, block, entry.key))}
@@ -429,15 +520,24 @@ export function DayView() {
                        */
                       onHide:
                         entry.kind === 'custom' ? undefined : () => editing.hide(entry.key),
-                      onMove: (direction) => editing.move(entries, entry.key, direction),
-                      canMoveUp: index > 0,
-                      canMoveDown: index < entries.length - 1,
                     }}
                   />
-                </li>
+                </ReorderableCard>
               ))}
-            </ul>
+            </Reorder.Group>
           )}
+
+          {/*
+            * The keyboard alternative to dragging, spoken not shown. The instructions
+            * sit behind one id every grab handle points at; the live region says where a
+            * card landed after an Arrow Up / Down, since the reflow itself is silent.
+            */}
+          <p id={hintId} className="sr-only">
+            {e.reorderHint}
+          </p>
+          <p role="status" aria-live="polite" className="sr-only">
+            {announce}
+          </p>
 
           {hiddenCount > 0 ? (
             <p className="mt-4 text-center font-ui text-[12.5px] text-text-muted">

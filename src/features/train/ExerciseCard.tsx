@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import type { Exercise } from '../../content';
@@ -10,6 +10,7 @@ import { Icon } from '../../ui/Icon';
 import { VideoFacade } from './VideoFacade';
 import type { DayEntry } from './day-entries';
 import { parseRestSeconds, setsDoneFor } from './logs';
+import { ReorderContext, type CardReorder } from './reorder-context';
 
 const t = pt.train;
 const e = pt.editor;
@@ -47,11 +48,9 @@ export function ExerciseCard({
   controls?: {
     onEdit: () => void;
     onHide?: () => void;
-    onMove: (direction: 'up' | 'down') => void;
-    canMoveUp: boolean;
-    canMoveDown: boolean;
   };
 }) {
+  const reorder = useContext(ReorderContext);
   const [open, setOpen] = useState(false);
   const p = entry.prescription;
   const done = setsDoneFor(log, p.s);
@@ -64,7 +63,17 @@ export function ExerciseCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-card border border-rule bg-surface shadow-[var(--shadow-card)]">
+    <article
+      {...reorder?.rootProps}
+      style={reorder?.lifted ? { touchAction: 'none' } : undefined}
+      className={clsx(
+        'overflow-hidden rounded-card border bg-surface',
+        'transition-[box-shadow,transform,border-color] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+        reorder?.lifted
+          ? 'z-10 scale-[1.02] border-edge shadow-[var(--shadow-float)] motion-reduce:scale-100'
+          : 'border-rule shadow-[var(--shadow-card)]',
+      )}
+    >
       <div className="p-3">
         <VideoFacade
           videoId={entry.videoId}
@@ -76,6 +85,7 @@ export function ExerciseCard({
 
       <div className="px-4 pb-4">
         <div className="flex items-start gap-2">
+          {reorder ? <ReorderHandle name={entry.name} reorder={reorder} /> : null}
           <div className="min-w-0 flex-1">
             <h2 className="font-ui text-[17px] font-700 leading-tight text-text">{entry.name}</h2>
             {entry.equipment ? (
@@ -193,11 +203,41 @@ export function ExerciseCard({
 }
 
 /**
+ * The grab handle, at the head of the card, left of the title.
+ *
+ * It carries two jobs the chevrons used to fake. On pointer it is an immediate,
+ * precise pickup — `touch-none` so a drag off it never scrolls the page — while a
+ * press-and-hold anywhere on the card body does the same through `rootProps`. On the
+ * keyboard it is the accessible path: focus it, then Arrow Up / Down moves the card one
+ * place, announced by the day's live region. One quiet control, not two arrows: the
+ * requirement's ban on chevrons is not undone by the alternative that replaces them.
+ */
+function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${e.reorder}: ${name}, ${e.position} ${reorder.position} ${e.positionOf} ${reorder.total}`}
+      aria-describedby={reorder.hintId}
+      onPointerDown={reorder.handleProps.onPointerDown}
+      onKeyDown={reorder.handleProps.onKeyDown}
+      className={clsx(
+        '-my-1 -ml-1.5 grid h-11 w-9 shrink-0 touch-none select-none place-items-center rounded-field',
+        'transition-colors duration-[160ms] pointer-hover:text-text',
+        reorder.lifted ? 'cursor-grabbing text-text' : 'cursor-grab text-text-muted',
+      )}
+    >
+      <Icon name="grip" size={18} strokeWidth={2.2} />
+    </button>
+  );
+}
+
+/**
  * Composing controls, at the foot of the card rather than the head.
  *
  * The head of a card is where a thumb lands while scrolling a day mid-session, and
- * "remove from day" is not a thing to put under an accidental tap. Ordering, editing
- * and removing all live below the logging controls, past everything used during a set.
+ * "remove from day" is not a thing to put under an accidental tap. Editing and removing
+ * live below the logging controls, past everything used during a set. Ordering left the
+ * foot entirely: it is direct manipulation now, on the card itself, not a button here.
  */
 function Controls({
   name,
@@ -211,18 +251,6 @@ function Controls({
 }) {
   return (
     <div className="mt-4 flex items-center gap-2 border-t border-rule pt-3">
-      <SmallButton
-        icon="up"
-        label={`${e.moveUp}: ${name}`}
-        onClick={() => controls.onMove('up')}
-        disabled={!controls.canMoveUp}
-      />
-      <SmallButton
-        icon="down"
-        label={`${e.moveDown}: ${name}`}
-        onClick={() => controls.onMove('down')}
-        disabled={!controls.canMoveDown}
-      />
       <span className="flex-1" />
       <SmallButton icon="edit" label={`${pt.common.edit}: ${name}`} onClick={controls.onEdit} />
       {controls.onHide ? (
@@ -248,7 +276,7 @@ function SmallButton({
   onClick,
   disabled,
 }: {
-  icon: 'up' | 'down' | 'edit' | 'x';
+  icon: 'edit' | 'x';
   label: string;
   onClick: () => void;
   disabled?: boolean;
