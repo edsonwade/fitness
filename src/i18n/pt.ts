@@ -111,14 +111,43 @@ export const pt = {
   train: {
     title: 'Treino',
     subtitle: 'O teu plano da semana.',
-    blocksLabel: 'Bloco de periodização',
+    blocksLabel: 'Fase do programa',
     exercises: 'exercícios',
     exercise: 'exercício',
     series: 'séries',
     serie: 'série',
     open: 'Abrir dia',
     restDay: 'Dia de descanso',
-    restDayBody: 'Sem exercícios hoje. Recupera, dorme e come bem para o próximo bloco.',
+    restDayBody: 'Sem exercícios hoje. Recupera, dorme e come bem para a próxima fase.',
+
+    /*
+     * As quatro fases do programa, com os nomes que o dono do produto escolheu.
+     *
+     * Não são os do plano. O §8.3 de `.claude/plans/nova-idea-da-app.md` propõe
+     * "Preparar, Construir, Intensificar, Recuperar"; foi implementado assim e foi
+     * recusado. Ele tinha dito "iniciante, intermédio, avançado" e essa palavra é a
+     * que manda: o plano é a fonte onde ele não falou, não por cima do que ele disse.
+     * O quarto chip é uma semana do ciclo e não um nível, por isso não tinha nome no
+     * vocabulário dele — foi-lhe perguntado, e "Recuperar" é a resposta dele.
+     *
+     * A ordem não tem folga: as duas listas estão ordenadas e a descarga é a última
+     * semana. "Evoluir" não é uma fase, é o que vem depois do ciclo, e não tem chip.
+     *
+     * O que o bloco significa continua a ser o texto autorado em `BLOCKS[].s.pt`
+     * ("Volume · Sem 1-4"), que é conteúdo portado e não se reescreve. Isto é só o
+     * nome pelo qual a fase se apresenta a quem não sabe o que é um deload.
+     */
+    phase: {
+      b1: 'Iniciante',
+      b2: 'Intermédio',
+      b3: 'Avançado',
+      dl: 'Recuperar',
+    },
+
+    /* Para a estimativa de duração, que é sempre aproximada e diz que é. */
+    about: 'cerca de',
+    minutes: 'min',
+    minutesLong: 'minutos',
     logsError: 'Não foi possível carregar o teu registo de cargas. O plano continua visível.',
 
     // Day view
@@ -291,7 +320,7 @@ export const pt = {
     kindAcc: 'Acessório',
     kindIso: 'Isolamento',
     kindCore: 'Core',
-    kindHint: 'Decide como as séries e as reps mudam do bloco 1 ao deload.',
+    kindHint: 'Decide como as séries e as reps mudam de Iniciante a Recuperar.',
 
     sets: 'Séries',
     setsPlaceholder: 'ex: 3',
@@ -335,7 +364,7 @@ export const pt = {
     errName: 'Escreve o nome do exercício.',
     errVideo: 'Esse link não é um vídeo do YouTube.',
 
-    preview: 'Como fica nos quatro blocos',
+    preview: 'Como fica nas quatro fases',
 
     create: 'Criar exercício',
     remove: 'Apagar exercício',

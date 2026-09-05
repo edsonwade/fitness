@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import clsx from 'clsx';
 
@@ -42,6 +42,13 @@ const d = pt.days;
 export function Train() {
   const navigate = useNavigate();
   const [block, setBlock] = useState<BlockKey>('b1');
+  /*
+   * Same reason as the day's rail: named phases are wider than "Bloco 1", four of
+   * them overflow a phone, and a selected chip half past the right edge reads as a
+   * broken screen rather than a scrollable one. `block: 'nearest'` keeps the page
+   * itself still, so choosing a phase never scrolls the week away.
+   */
+  const selectedPhase = useRef<HTMLButtonElement>(null);
   const logs = useExerciseLogs();
   const programme = useProgramme(block);
   const week = useDays();
@@ -52,6 +59,10 @@ export function Train() {
    */
   const [sheet, setSheet] = useState<{ mode: DaySheetMode; id: number } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [block]);
 
   function openSheet(mode: DaySheetMode) {
     setSheet((current) => ({ mode, id: (current?.id ?? 0) + 1 }));
@@ -103,6 +114,19 @@ export function Train() {
           <ThemeToggle />
         </header>
 
+        {/*
+          * The week's rail names the phase, not its number, for the same reason the
+          * day's does: "Bloco 2" is a position and says nothing. Here it stays a
+          * single-line pill, because the week has no one day to count exercises or
+          * minutes for; the cost of a phase is a fact about a day, and it is printed
+          * on the day's own rail.
+          *
+          * Naming the phases made them wider than the numbers they replaced, and four
+          * of them no longer fit a 390px screen: the rail scrolls, so the selected
+          * chip has to be brought into view or someone arriving on the last phase
+          * reads it sliced by the right edge. That is a real defect this screen shipped
+          * with, seen in the browser, and it is why the effect below exists.
+          */}
         <div
           className="rail -mx-7 mt-5 gap-2.5 px-7 pb-1"
           role="tablist"
@@ -113,6 +137,7 @@ export function Train() {
             return (
               <button
                 key={b.k}
+                ref={selected ? selectedPhase : undefined}
                 role="tab"
                 type="button"
                 aria-selected={selected}
@@ -126,7 +151,7 @@ export function Train() {
                     : 'bg-chip text-chip-ink',
                 )}
               >
-                {b.t.pt}
+                {t.phase[b.k as BlockKey]}
               </button>
             );
           })}
