@@ -418,6 +418,52 @@
   }
 }
 
+/*
+ * The phase panel's focus pull (PhaseJourney). `phase-in` resolves a line from low,
+ * soft and dim into its resting place; `phase-out` lifts the leaving line and fades it.
+ * The stagger — title, then its sentence — is the delay on the second child. Reduced
+ * motion needs nothing extra here: the rule above collapses the duration to a snap, and
+ * every keyframe's end state is the plain resting state the panel wants anyway.
+ */
+@keyframes phase-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes phase-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+    filter: blur(2px);
+  }
+}
+
+.phase-enter > * {
+  animation: phase-in 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* Description a beat behind its title — the stagger the focus pull is built on. */
+.phase-enter > :nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.phase-leave {
+  animation: phase-out 200ms ease both;
+}
+
 @custom-variant pointer-hover (@media (hover: hover) and (pointer: fine));
 
 /* ---------- carousels ------------------------------------------------------ */

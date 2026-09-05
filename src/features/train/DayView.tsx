@@ -9,6 +9,8 @@ import { pt } from '../../i18n/pt';
 import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon, IconButton } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
+import { Callout } from './Callout';
+import { PhaseJourney } from './PhaseJourney';
 import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseSheet, type SheetMode } from './ExerciseSheet';
@@ -63,10 +65,13 @@ export function DayView() {
   const [daySheet, setDaySheet] = useState<number | null>(null);
   const [daySheetOpen, setDaySheetOpen] = useState(false);
   /*
-   * The rail scrolls now that a phase says what it is and what it costs, so the
-   * selected one has to be brought into view. Without this, opening a day on the
-   * deload from a link lands on a rail scrolled to the start, showing three phases
-   * that are not the one on screen. `block: 'nearest'` keeps the page itself still.
+   * The rail scrolls here — the chips carry a cost line and are too wide to fit four
+   * on a phone — so a day deep-linked on the deload has to bring that chip into view,
+   * or it lands on a rail scrolled to the start showing three phases that are not the
+   * one on screen. `inline: 'nearest'` reveals it with the least scroll and, unlike
+   * centring, never pushes an already-visible chip off: tapping a phase does not
+   * strand Iniciante the way the old centring did. `block: 'nearest'` keeps the page
+   * itself still.
    */
   const selectedPhase = useRef<HTMLButtonElement>(null);
 
@@ -83,7 +88,7 @@ export function DayView() {
   const progress = dayProgress(dayId, block, entries, logs.byKey);
 
   useEffect(() => {
-    selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [block]);
 
   /*
@@ -312,6 +317,14 @@ export function DayView() {
                     'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
                     'active:scale-[0.97] motion-reduce:active:scale-100',
                     selected ? 'bg-chip-selected text-chip-selected-ink' : 'bg-chip text-chip-ink',
+                    /*
+                     * A descarga fica separada das três anteriores porque não é a
+                     * quarta delas. Iniciante, Intermédio e Avançado são níveis de
+                     * treino; a descarga é a semana que fecha o ciclo. Encostada às
+                     * outras lê-se como um quarto nível, e o espaço é a maneira de o
+                     * dizer sem cor nova nem palavra a mais.
+                     */
+                    key === 'dl' && 'ml-4',
                   )}
                 >
                   {/*
@@ -338,6 +351,8 @@ export function DayView() {
               );
             })}
           </div>
+
+          <PhaseJourney block={block} />
 
           {/* Day progress. */}
           <div className="mt-4 rounded-card bg-surface p-4 shadow-[var(--shadow-card)]">
@@ -527,17 +542,6 @@ function sheetModeFor(entry: DayEntry): SheetMode {
   if (entry.kind === 'custom') return { kind: 'own', entry };
   if (entry.kind === 'shared') return { kind: 'shared', entry };
   return { kind: 'built', entry };
-}
-
-function Callout({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-4 rounded-card border border-accent-line/25 bg-accent-soft px-4 py-3">
-      <p className="font-ui text-[11px] font-700 uppercase tracking-[0.05em] text-accent-line">
-        {title}
-      </p>
-      <p className="mt-1 font-ui text-[13px] leading-snug text-text">{children}</p>
-    </div>
-  );
 }
 
 /** The cardio prescriptions a day names, shown as read-only guidance. */

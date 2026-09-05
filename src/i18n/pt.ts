@@ -144,6 +144,48 @@ export const pt = {
       dl: 'Recuperar',
     },
 
+    /*
+     * O que cada fase é, por baixo dos chips (§8.1, §8.3 e §10.5).
+     *
+     * Quatro chips em fila são um filtro. Uma linha que diga o que a fase escolhida
+     * treina é o que a torna um percurso e não uma coleção de blocos administrativos
+     * (§10.5). A versão anterior narrava a posição — "segunda fase, depois de
+     * Iniciante" —, que é só a ordem que os separadores já mostram: enchimento. Isto
+     * di-lo com substância, com as palavras do dono do produto para cada nível.
+     *
+     * Cada fase tem um `title` curto e um `body`: o painel mostra os dois com o título
+     * a entrar antes da descrição, e essa é a razão de o título existir. Os títulos
+     * são condensações directas do `body`, não copy nova — "Fundamentos" sai de
+     * "movimentos fundamentais", e por aí. O `dl` mantém o que a 001/002 lhe deram: a
+     * descarga é a fase cujo nome não carrega a finalidade (§8.1), por isso o `body`
+     * explica que a exigência baixa de propósito. "Pede-te menos" é o que o conteúdo
+     * faz mesmo (`RANGES`: RPE 5-6 na descarga contra 7-9 nas outras); não diz "menos
+     * séries" porque `dl` é `max(2, séries - 1)` e nos slots de duas séries fica igual.
+     *
+     * Nenhum `body` diz em que semana do ciclo a pessoa está: a app não sabe (não há
+     * registo com data até à fase 005) e o §14 proíbe pôr no ecrã um número que
+     * ninguém mediu. `phase-journey.test.ts` guarda estas invariantes — sem "Bloco"
+     * nem "Deload", sem número de semana, e cada fase com título e descrição.
+     */
+    phaseInfo: {
+      b1: {
+        title: 'Fundamentos',
+        body: 'Movimentos fundamentais e exercícios mais simples.',
+      },
+      b2: {
+        title: 'Mais variedade',
+        body: 'Mais experiência, maior variedade e exercícios um pouco mais complexos.',
+      },
+      b3: {
+        title: 'Movimentos avançados',
+        body: 'Para praticantes experientes, com movimentos avançados.',
+      },
+      dl: {
+        title: 'Semana de descarga',
+        body: 'Redução planeada da carga. Esta semana o programa pede-te menos, de propósito, para o corpo recuperar antes do próximo ciclo.',
+      },
+    },
+
     /* Para a estimativa de duração, que é sempre aproximada e diz que é. */
     about: 'cerca de',
     minutes: 'min',
