@@ -62,15 +62,33 @@ alter table public.day_additions
 -- ---- 2. reparar o que já lá está ----------------------------------------
 -- Antes da constraint, senão ela recusa-se a entrar por causa das linhas que
 -- este ficheiro existe para corrigir.
+--
+-- E antes dos `update` também: numa segunda corrida a constraint já existe, e um
+-- `update` que passe por um estado intermédio fora da regra bate nela ("new row
+-- violates check constraint") em vez de a reparação a poder pôr em conformidade.
+-- Tira-se aqui, repara-se, e o §3 volta a pô-la já validada. Registado a
+-- 2026-09-05: uma linha `day_no=101` com `user_id` nulo rebentava a corrida.
+alter table public.day_additions
+  drop constraint if exists day_additions_scope_check;
 
 -- 2a. As adições em dias próprios passam a ser de quem as criou. `created_by` é
 -- a melhor verdade disponível: quem publicou um exercício dentro do seu dia 101
 -- é o dono desse dia, porque nenhuma outra conta conseguia abri-lo para lá
--- escrever.
+-- escrever. `created_by` é `not null` por schema (003), por isso o resultado
+-- nunca fica nulo — que é o que a regra exige para os dias >= 101.
 update public.day_additions
    set user_id = created_by
  where day_no >= 101
    and user_id is null;
+
+-- 2a-bis. O sentido inverso: um dia do programa (<= 100) nunca leva dono. Se
+-- alguma linha antiga lá tem um `user_id` — de um estado que precede esta regra —
+-- passa a nulo, senão o §3 recusava-se a entrar por causa dela. Com 2a e 2a-bis
+-- juntos, TODA a linha passa a satisfazer `(day_no <= 100) = (user_id is null)`.
+update public.day_additions
+   set user_id = null
+ where day_no <= 100
+   and user_id is not null;
 
 -- 2b. Os órfãos. Uma adição sem linha de catálogo por trás não desenha nada — o
 -- `resolveDayEntries` do cliente recusa-se a desenhá-la de propósito, para não

@@ -16,8 +16,13 @@ import clsx from 'clsx';
 const PATHS = {
   back: 'M15 5l-7 7 7 7',
   forward: 'M9 5l7 7-7 7',
-  up: 'M12 19V5M5 12l7-7 7 7',
-  down: 'M12 5v14M5 12l7 7 7-7',
+  /*
+   * The grab dots of a reorderable row. Six zero-length segments the round cap turns
+   * into dots — same 24-grid and stroke weight as every other glyph, so the pickup
+   * affordance reads as part of the family and not a pasted-in handle. It replaced the
+   * up/down chevrons the interaction requirement forbids.
+   */
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
   check: 'M5 13l4 4L19 7',

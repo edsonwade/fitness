@@ -420,8 +420,17 @@ export const pt = {
     hiddenMany: 'exercícios fora do dia',
     restore: 'Repor',
 
-    moveUp: 'Subir na ordem',
-    moveDown: 'Descer na ordem',
+    /*
+     * Reordenar exercícios. As setas saíram (o requisito de interação proíbe-as): a
+     * ordem muda com press-and-hold e arrasto directo no cartão. Estas palavras servem
+     * a pega discreta que o cartão ganhou — o mesmo controlo que o teclado usa, com as
+     * setas, para quem não consegue arrastar. Não são dois botões de seta a mais.
+     */
+    reorder: 'Reordenar',
+    reorderHint:
+      'Mantém premido e arrasta para mudar a ordem. Com o teclado, foca aqui e usa as setas para cima e para baixo.',
+    position: 'posição',
+    positionOf: 'de',
 
     /*
      * Onde o exercício fica. Duas opções, e a pergunta que fazem mudou no 009.
