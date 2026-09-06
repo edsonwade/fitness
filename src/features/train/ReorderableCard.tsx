@@ -41,8 +41,11 @@ export function ReorderableCard({
   onKeyMove,
   children,
 }: {
-  /** The key this row reorders by; matches one entry in the group's `values`. */
-  value: string;
+  /**
+   * The key this row reorders by; matches one entry in the group's `values`. A string
+   * for the exercises (their `ex_key`), a number for the days (their `day_no`).
+   */
+  value: string | number;
   /** 1-based place in the list, spoken by the handle and the live region. */
   position: number;
   total: number;

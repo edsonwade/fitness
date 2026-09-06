@@ -191,8 +191,24 @@ describe('the migrations against the client entities', () => {
     const opened = [...loop![1].matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
     // The catalogue pair is already open, from 003 §12 and 006 §1, and is shared for a
     // different reason: authorship rather than ownership. `009` §5 handles it apart.
-    const expected = [...SHARED_TABLES].filter((t) => !AUTHORED_TABLES.has(t)).sort();
+    // `day_order` arrived after `009`: it opens itself, in `010`, with its own scoped
+    // policy, and is checked in the test just below rather than in this loop.
+    const expected = [...SHARED_TABLES]
+      .filter((t) => !AUTHORED_TABLES.has(t) && t !== 'day_order')
+      .sort();
     expect(opened).toEqual(expected);
+  });
+
+  it('opens day_order to the plan in 010, as its own scoped policy', () => {
+    // `009` predates the day-drag order, so its loop cannot have covered it. The same
+    // invariant the loop test guards — the client stops filtering exactly where the
+    // database opens — holds for `day_order` through the policy `010` writes: read and
+    // write the shared row (null) or your own (auth.uid()), and no one else's.
+    const sql010 = MIGRATIONS.find(({ file }) => file.startsWith('010'))!.sql;
+    expect(SHARED_TABLES.has('day_order')).toBe(true);
+    expect(withoutComments(sql010)).toMatch(
+      /create policy \w+ on public\.day_order[\s\S]*?using \(user_id is null or user_id = auth\.uid\(\)\)/,
+    );
   });
 
   it('re-keys in the SQL the same tables, on the same columns, the client keys', () => {

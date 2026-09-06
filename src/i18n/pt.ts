@@ -334,6 +334,40 @@ export const pt = {
     failOrder: 'O dia foi apagado, mas a ordem que lhe tinhas dado continua guardada.',
     failAddition:
       'O dia saiu da semana, mas um exercício do catálogo continua acrescentado a ele.',
+
+    /*
+     * Reordenar os dias da semana. As setas saíram, como nos exercícios: a ordem muda
+     * com press-and-hold e arrasto directo no cartão do dia. O dia da semana é a
+     * ranhura e o treino é o conteúdo, por isso arrastar um dia troca o que a Segunda
+     * treina, não o nome do dia.
+     */
+    reorder: 'Reordenar dia',
+    reorderHint:
+      'Mantém premido um dia e arrasta para mudar a semana. Com o teclado, foca a pega e usa as setas para cima e para baixo.',
+    position: 'posição',
+    positionOf: 'de',
+
+    /*
+     * As duas ordens da semana. A partilhada é de toda a gente, como o resto do plano;
+     * a tua é só tua e não mexe na semana das outras contas. Sem ordem própria, vê-se a
+     * partilhada. "Repor" tira a tua e deixa a partilhada aparecer outra vez — o caminho
+     * de volta, sem o qual a partilhada ficava invisível para sempre a quem arrastou.
+     */
+    orderLabel: 'Ordem da semana',
+    orderShared: 'Partilhada',
+    orderOwn: 'A minha',
+    orderReset: 'Repor a partilhada',
+    /*
+     * A volta à ordem original do plano, a partir da semana partilhada. "Repor a
+     * partilhada" tira só a tua e deixa aparecer a de todos; esta apaga a de todos e
+     * deixa aparecer a que o programa traz de raiz — o estado inicial. Escreve a semana
+     * de toda a gente, por isso pergunta antes.
+     */
+    orderResetDefault: 'Repor por defeito',
+    orderResetDefaultConfirm: 'Repor a ordem original da semana, para todas as contas?',
+    orderOwnActive: 'Estás a ver a tua ordem. A semana das outras contas não muda.',
+    orderSharedActive: 'Esta é a ordem de toda a gente. Arrastar muda-a em todas as contas.',
+    failWeekOrder: 'A nova ordem da semana não ficou guardada.',
   },
 
   /**
@@ -431,6 +465,13 @@ export const pt = {
       'Mantém premido e arrasta para mudar a ordem. Com o teclado, foca aqui e usa as setas para cima e para baixo.',
     position: 'posição',
     positionOf: 'de',
+    /*
+     * A volta à ordem original dos exercícios do dia. A ordem é partilhada, como o
+     * resto do plano, por isso repor apaga a de todos e deixa aparecer a que o programa
+     * traz de raiz. Escreve o dia de toda a gente — pergunta antes.
+     */
+    resetOrderDefault: 'Repor por defeito',
+    resetOrderDefaultConfirm: 'Repor a ordem original dos exercícios deste dia, para todas as contas?',
 
     /*
      * Onde o exercício fica. Duas opções, e a pergunta que fazem mudou no 009.
