@@ -78,6 +78,7 @@ export function useDayEditing(dayNo: number) {
   const hidden = useUpsertRow('hidden_items');
   const unhide = useDeleteRow('hidden_items');
   const order = useUpsertRow('exercise_order');
+  const removeOrder = useDeleteRow('exercise_order');
   const publish = usePublishShared();
 
   /**
@@ -154,6 +155,7 @@ export function useDayEditing(dayNo: number) {
       [hidden, e.failHide],
       [unhide, e.failUnhide],
       [order, e.failOrder],
+      [removeOrder, e.failOrder],
     ]),
 
     /**
@@ -380,6 +382,18 @@ export function useDayEditing(dayNo: number) {
         updated_at: EPOCH,
         updated_by_client: clientId(),
       });
+    },
+
+    /**
+     * Drops the day's saved order, so the exercises fall back to the sequence the
+     * programme ships — the day's factory order. `exercise_order` is one row per day
+     * (`day_no` is the whole key) and shared, like the rest of the plan, so removing
+     * it is the entire reset: `resolveDayEntries` with no order draws the baseline
+     * sequence again. It is the way back the reorder never had, and because it writes
+     * a day every account reads, the screen asks first.
+     */
+    resetOrder(): void {
+      removeOrder.remove({ day_no: dayNo });
     },
   };
 }

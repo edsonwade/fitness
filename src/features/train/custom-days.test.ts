@@ -2,8 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import { DAYS } from '../../content';
 import type { CustomDay, CustomExercise, DayAddition } from '../../data/entities';
-import { dayCleanup, FIRST_CUSTOM_DAY, nextDayNo, refOfBuilt, resolveDays } from './custom-days';
+import { pt } from '../../i18n/pt';
+import {
+  applyDayDrag,
+  dayCleanup,
+  FIRST_CUSTOM_DAY,
+  nextDayNo,
+  refOfBuilt,
+  resolveDays,
+} from './custom-days';
 import { resolveDayEntries } from './day-entries';
+
+/** The weekday labels, as the slot ordering assigns them: authored order, Seg…Dom. */
+const WEEKDAYS = DAYS.map((d) => d.wd.pt);
 
 /**
  * Days added to the week.
@@ -132,6 +143,101 @@ describe('the week', () => {
     expect(ref.label).toBe(first.wd.pt);
     expect(ref.day).toBe(first);
     expect(ref.custom).toBeUndefined();
+  });
+});
+
+describe('the day-drag rule (Leitura A)', () => {
+  // The days are stood in for by numbers; the rule works on the sequence, not on
+  // what the days are. In the scenarios: Pernas 10, Descanso 20, Ombros 30, Costas 40.
+
+  it('Cenário 1 · Pernas de Segunda para Terça → Ombros, Pernas, Descanso, Costas', () => {
+    // The literal test the interaction spec writes. Dropping one slot down brings the
+    // day at t+1 (Ombros) round to the origin — the wrap, on purpose.
+    expect(applyDayDrag([10, 20, 30, 40], 0, 1)).toEqual([30, 10, 20, 40]);
+  });
+
+  it('Cenário 2 · Costas acima de Ombros → Pernas, Costas, Ombros', () => {
+    // Upwards is plain direct insertion, and total: no wrap, no ambiguity.
+    expect(applyDayDrag([10, 30, 40], 2, 1)).toEqual([10, 40, 30]);
+  });
+
+  it('reaches any position: a jump longer than one slot down is direct insertion', () => {
+    // "Saltar para qualquer posição, sem barreira." A→pos2 in [A,B,C,D,E].
+    expect(applyDayDrag([1, 2, 3, 4, 5], 0, 2)).toEqual([2, 3, 1, 4, 5]);
+  });
+
+  it('carries the wrap for a single slot down in the middle too', () => {
+    // from 1 to 2 in [1..5]: the day at t+1 (4) comes round to s (1).
+    expect(applyDayDrag([1, 2, 3, 4, 5], 1, 2)).toEqual([1, 4, 2, 3, 5]);
+  });
+
+  it('degenerates to a swap when a single slot down is the last slot', () => {
+    // No t+1 to bring round, so it is the same move direct insertion would make.
+    expect(applyDayDrag([1, 2], 0, 1)).toEqual([2, 1]);
+  });
+
+  it('moves up by direct insertion for any distance', () => {
+    expect(applyDayDrag([1, 2, 3, 4, 5], 4, 1)).toEqual([1, 5, 2, 3, 4]);
+  });
+
+  it('leaves the sequence untouched when dropped where it started', () => {
+    expect(applyDayDrag([1, 2, 3], 1, 1)).toEqual([1, 2, 3]);
+  });
+
+  it('is a pure function: it does not mutate its input', () => {
+    const input = [1, 2, 3, 4];
+    applyDayDrag(input, 0, 1);
+    expect(input).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('the week under a stored day order', () => {
+  it('rearranges the seven to the stored sequence', () => {
+    const week = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
+    expect(week.map((d) => d.no)).toEqual([3, 1, 2, 4, 5, 6, 7]);
+  });
+
+  it('takes the weekday from the position, not from the day', () => {
+    // Day 3 now sits first, so it is Segunda; day 1 sits second, so it is Terça.
+    const week = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
+    expect(week[0].label).toBe(WEEKDAYS[0]);
+    expect(week[1].label).toBe(WEEKDAYS[1]);
+  });
+
+  it('gives an own day a weekday when it is dragged into the first seven', () => {
+    const week = resolveDays([day({ day_no: 101, name: 'Meu' })], [101, 1, 2, 3, 4, 5, 6, 7]);
+    expect(week[0].no).toBe(101);
+    expect(week[0].label).toBe(WEEKDAYS[0]);
+    // A programme day pushed past the seventh position loses its weekday.
+    expect(week[7].label).toBe(pt.days.own);
+  });
+
+  it('skips a stored number that no longer names a day', () => {
+    const week = resolveDays([], [999, 1, 2, 3, 4, 5, 6, 7]);
+    expect(week.map((d) => d.no)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('appends a day that exists but is missing from the stored order', () => {
+    // A day created after the order was saved appears rather than vanishing.
+    const week = resolveDays([day({ day_no: 101, name: 'Novo' })], [1, 2, 3, 4, 5, 6, 7]);
+    expect(week[week.length - 1].no).toBe(101);
+    expect(week).toHaveLength(DAYS.length + 1);
+  });
+
+  it('keeps the authored weekday labels when there is no stored order', () => {
+    const week = resolveDays([]);
+    expect(week.map((d) => d.label)).toEqual(WEEKDAYS);
+  });
+
+  it('returns to the programme’s own order once the stored order is gone', () => {
+    // This is the contract "Repor por defeito" leans on: the reset deletes the one
+    // stored row and writes nothing else, so the week it lands on is exactly this —
+    // resolveDays with no order, the sequence the bundle ships. A dragged week and a
+    // reset week are the two calls below, and the reset one is the factory state.
+    const dragged = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
+    const reset = resolveDays([]);
+    expect(dragged.map((d) => d.no)).not.toEqual(reset.map((d) => d.no));
+    expect(reset.map((d) => d.no)).toEqual(DAYS.map((d) => d.id));
   });
 });
 

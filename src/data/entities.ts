@@ -206,6 +206,28 @@ export const exerciseOrderSchema = z.object({
   ordered_keys: z.array(z.string()),
 });
 
+/**
+ * The sequence the week's days appear in — the day-drag order of `010`.
+ *
+ * Not a table of days: the days already exist (1..7 in the bundle, 101+ in
+ * `custom_days`). This stores only the order they sit in, as a list of `day_no`.
+ * The weekday label (Seg..Dom) comes from the position in that list, on the client.
+ *
+ * `user_id` is nullable and carries the meaning `008` gave `day_additions`: null is
+ * the **shared** week that belongs to everybody, a real id is one account's **own**
+ * arrangement. Both can exist; the client prefers the own one. So this is not spread
+ * from `ownedRow`, whose `user_id` is never null. `id` is its own key — the shared
+ * row's id is the zero uuid, an own row's id is its `user_id` — so the client's
+ * upsert on the primary key lands on the one row per scope deterministically.
+ */
+export const dayOrderSchema = z.object({
+  id: z.uuid(),
+  user_id: z.uuid().nullable(),
+  ordered_day_nos: z.array(z.number().int()),
+  updated_at: timestamptz,
+  updated_by_client: nullableText.optional(),
+});
+
 /* ---------- the additive catalogue ----------------------------------------- */
 
 const authoredRow = {
@@ -294,6 +316,7 @@ export const TABLES = {
   exercise_order: exerciseOrderSchema,
   catalog_exercises: catalogExerciseSchema,
   day_additions: dayAdditionSchema,
+  day_order: dayOrderSchema,
 } as const;
 
 export type TableName = keyof typeof TABLES;
@@ -327,6 +350,7 @@ export const SHARED_TABLES: ReadonlySet<TableName> = new Set<TableName>([
   'exercise_order',
   'catalog_exercises',
   'day_additions',
+  'day_order',
 ]);
 
 /**
@@ -362,6 +386,7 @@ export type RestPreference = z.infer<typeof restPreferenceSchema>;
 export type ExerciseOrder = z.infer<typeof exerciseOrderSchema>;
 export type CatalogExercise = z.infer<typeof catalogExerciseSchema>;
 export type DayAddition = z.infer<typeof dayAdditionSchema>;
+export type DayOrder = z.infer<typeof dayOrderSchema>;
 
 /**
  * The primary key of each table, which the realtime bridge needs to find the row a
@@ -392,4 +417,5 @@ export const PRIMARY_KEYS: Record<TableName, readonly string[]> = {
   exercise_order: ['day_no'],
   catalog_exercises: ['id'],
   day_additions: ['id'],
+  day_order: ['id'],
 };

@@ -66,16 +66,6 @@ export function DayView() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [daySheet, setDaySheet] = useState<number | null>(null);
   const [daySheetOpen, setDaySheetOpen] = useState(false);
-  /*
-   * The rail scrolls here — the chips carry a cost line and are too wide to fit four
-   * on a phone — so a day deep-linked on the deload has to bring that chip into view,
-   * or it lands on a rail scrolled to the start showing three phases that are not the
-   * one on screen. `inline: 'nearest'` reveals it with the least scroll and, unlike
-   * centring, never pushes an already-visible chip off: tapping a phase does not
-   * strand Iniciante the way the old centring did. `block: 'nearest'` keeps the page
-   * itself still.
-   */
-  const selectedPhase = useRef<HTMLButtonElement>(null);
 
   const dayId = Number(params.dia);
   const week = useDays();
@@ -113,10 +103,6 @@ export function DayView() {
     setOrderKeys((prev) => (prev.join('\n') === serverSig ? prev : next));
     orderRef.current = next;
   }, [serverSig]);
-
-  useEffect(() => {
-    selectedPhase.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [block]);
 
   /*
    * A day of the user's own does not ship in the bundle, so opening one cold means
@@ -320,6 +306,77 @@ export function DayView() {
   }
   const renderKeys = ordered.map((entry) => entry.key);
 
+  /*
+   * Whether this day has a saved order at all. Only then is there anything to reset:
+   * with no row, the list is already the programme's own sequence. The order is one
+   * shared row per day, so resetting it writes a day every account reads — the button
+   * asks first.
+   */
+  const hasOrder = (programme.order ?? []).some((row) => row.day_no === dayId);
+
+  function resetOrder() {
+    if (!window.confirm(e.resetOrderDefaultConfirm)) return;
+    editing.resetOrder();
+  }
+
+  /*
+   * One phase card. Pulled out of the map so the three training levels and the deload
+   * can be laid out in separate rows — a grid that wraps and a line of its own for the
+   * descarga — off the same markup, rather than a scroll rail that hid Iniciante and
+   * clipped Recuperação on a phone. Every card is resolved in its own block, so the
+   * cost line is that phase's, not the selected one's.
+   */
+  function renderPhaseTab(b: (typeof BLOCKS)[number]) {
+    const key = b.k as BlockKey;
+    const selected = key === block;
+    const summary = blockSummary(programme.resolveIn(key, day.day ?? null, dayId).entries);
+    const cost = costOf(summary);
+    return (
+      <button
+        key={b.k}
+        role="tab"
+        type="button"
+        aria-selected={selected}
+        /*
+         * Spoken as a sentence, because the visible lines are built out of separators
+         * and a tilde: "~27 min" read aloud is the word tilde.
+         */
+        aria-label={[t.phase[key], b.s.pt, cost.spoken].filter(Boolean).join(', ')}
+        onClick={() => setBlock(key)}
+        className={clsx(
+          'h-full rounded-card px-4 py-3 text-left font-ui',
+          'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+          'active:scale-[0.97] motion-reduce:active:scale-100',
+          selected ? 'bg-chip-selected text-chip-selected-ink' : 'bg-chip text-chip-ink',
+        )}
+      >
+        {/*
+          * Hidden from the reader, who gets the label above, and the three lines carry
+          * no colour of their own: the muted token is mixed for the page, not for a
+          * chip, and on the orange selected fill it lands at 2.9:1. The steps here are
+          * size and weight.
+          */}
+        <span aria-hidden="true" className="block text-[15px] font-700 leading-[1.2]">
+          {t.phase[key]}
+        </span>
+        <span aria-hidden="true" className="mt-0.5 block text-[11.5px] font-500 leading-[1.3]">
+          {b.s.pt}
+        </span>
+        {cost.shown ? (
+          <span
+            aria-hidden="true"
+            className="tabular mt-1.5 block text-[11px] font-600 leading-[1.3]"
+          >
+            {cost.shown}
+          </span>
+        ) : null}
+      </button>
+    );
+  }
+
+  const trainingPhases = BLOCKS.filter((b) => b.k !== 'dl');
+  const deloadPhase = BLOCKS.find((b) => b.k === 'dl');
+
   return (
     <div className="min-h-[100dvh] bg-page py-0 sm:py-8">
       <div className="relative mx-auto min-h-[100dvh] w-full max-w-[26.5rem] overflow-hidden bg-ground sm:min-h-0 sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
@@ -365,67 +422,25 @@ export function DayView() {
             * reading them all off the current block would have printed one block's
             * cost four times.
             */}
-          <div
-            className="rail -mx-6 mt-4 gap-2.5 px-6 pb-1"
-            role="tablist"
-            aria-label={t.blocksLabel}
-          >
-            {BLOCKS.map((b) => {
-              const key = b.k as BlockKey;
-              const selected = key === block;
-              const summary = blockSummary(programme.resolveIn(key, day.day ?? null, dayId).entries);
-              const cost = costOf(summary);
-              return (
-                <button
-                  key={b.k}
-                  ref={selected ? selectedPhase : undefined}
-                  role="tab"
-                  type="button"
-                  aria-selected={selected}
-                  /*
-                   * Spoken as a sentence, because the visible lines are built out of
-                   * separators and a tilde: "~27 min" read aloud is the word tilde.
-                   */
-                  aria-label={[t.phase[key], b.s.pt, cost.spoken].filter(Boolean).join(', ')}
-                  onClick={() => setBlock(key)}
-                  className={clsx(
-                    'min-w-[10.5rem] rounded-card px-4 py-3 text-left font-ui',
-                    'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-                    'active:scale-[0.97] motion-reduce:active:scale-100',
-                    selected ? 'bg-chip-selected text-chip-selected-ink' : 'bg-chip text-chip-ink',
-                    /*
-                     * A descarga fica separada das três anteriores porque não é a
-                     * quarta delas. Iniciante, Intermédio e Avançado são níveis de
-                     * treino; a descarga é a semana que fecha o ciclo. Encostada às
-                     * outras lê-se como um quarto nível, e o espaço é a maneira de o
-                     * dizer sem cor nova nem palavra a mais.
-                     */
-                    key === 'dl' && 'ml-4',
-                  )}
-                >
-                  {/*
-                    * Hidden from the reader, who gets the label above, and the three
-                    * lines carry no colour of their own: the muted token is mixed for
-                    * the page, not for a chip, and on the orange selected fill it
-                    * lands at 2.9:1. The steps here are size and weight.
-                    */}
-                  <span aria-hidden="true" className="block text-[15px] font-700 leading-[1.2]">
-                    {t.phase[key]}
-                  </span>
-                  <span aria-hidden="true" className="mt-0.5 block text-[11.5px] font-500 leading-[1.3]">
-                    {b.s.pt}
-                  </span>
-                  {cost.shown ? (
-                    <span
-                      aria-hidden="true"
-                      className="tabular mt-1.5 block text-[11px] font-600 leading-[1.3]"
-                    >
-                      {cost.shown}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+          {/*
+            * Wrapping, not scrolling. Four wide chips do not fit a phone in one line,
+            * and a scroll rail hid Iniciante off the left and clipped Recuperação off
+            * the right — the report that sent this here. The three training levels go
+            * in a two-column grid that wraps (Avançado falls to its own line), and the
+            * descarga sits below a hairline, on its own row: it is not the fourth
+            * level, it is the week that closes the cycle, and the rule says so without
+            * a new colour or an extra word. Every level is on screen at once, nothing
+            * clipped, at 390 and 430 px.
+            */}
+          <div role="tablist" aria-label={t.blocksLabel} className="mt-4">
+            <div className="grid grid-cols-2 gap-2.5">
+              {trainingPhases.map(renderPhaseTab)}
+            </div>
+            {deloadPhase ? (
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5 border-t border-rule pt-2.5">
+                {renderPhaseTab(deloadPhase)}
+              </div>
+            ) : null}
           </div>
 
           <PhaseJourney block={block} />
@@ -526,6 +541,30 @@ export function DayView() {
               ))}
             </Reorder.Group>
           )}
+
+          {/*
+            * The way back to the day's own order. It shows only when a saved order
+            * exists and there is more than one card to arrange — otherwise there is
+            * nothing to undo. Quiet, off to the side of the list it governs, the twin
+            * of the week's "Repor por defeito": direct manipulation is the loud path,
+            * and the return to factory is the small one under it.
+            */}
+          {!isRestDay && hasOrder && ordered.length > 1 ? (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={resetOrder}
+                className={clsx(
+                  'inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3',
+                  'font-ui text-[12.5px] font-600 text-accent-line',
+                  'transition-colors duration-[160ms] pointer-hover:text-text',
+                )}
+              >
+                <Icon name="back" size={15} strokeWidth={2.2} />
+                {e.resetOrderDefault}
+              </button>
+            </div>
+          ) : null}
 
           {/*
             * The keyboard alternative to dragging, spoken not shown. The instructions

@@ -11,7 +11,7 @@ import {
   type HiddenItem,
 } from '../../data/entities';
 import { firstFailure, useDeleteRow, useUpsertRow } from '../../data/mutations';
-import { useRows } from '../../data/queries';
+import { useRows, useUserId } from '../../data/queries';
 import { pt } from '../../i18n/pt';
 
 /**
@@ -194,22 +194,102 @@ export function refOfBuilt(day: Day): DayRef {
 }
 
 /**
+ * The seven weekday names, in authored order (Seg…Dom), taken from the bundle so
+ * there is one source for them and not a second list to keep in step.
+ *
+ * Since `010` the weekday is the **slot, not the content**: it comes from the
+ * position a day sits in, not from the day itself. Segunda is whatever day is first,
+ * be it the programme's Leg day, a rest, or one you made. `resolveDays` stamps these
+ * onto the first seven positions; anything past the seventh is an extra day with no
+ * weekday, and keeps the plain "own" label it had before drag ordering existed.
+ */
+const WEEKDAYS: readonly string[] = DAYS.map((day) => day.wd.pt);
+
+/**
+ * Where the drag settled, as the whole new sequence — the day-reorder rule of `004`.
+ *
+ * The rule is **not** the direct insertion the exercises use (Cenário 0). It is the
+ * asymmetric one the interaction spec writes in Cenários 1 and 2, read here as
+ * "Leitura A", confirmed with the user on 2026-09-05 ("saltar para qualquer posição,
+ * sem barreira"):
+ *
+ *   - **up, and any jump longer than one slot down → direct insertion.** The day
+ *     lands exactly where it is dropped and the rest close the gap. This reaches
+ *     every position and is what Cenário 2 asks for.
+ *   - **the one case of dropping a single slot down → Cenário 1's wrap:** the day at
+ *     `to + 1` comes round to the origin. Dragging Pernas from Segunda onto Terça
+ *     puts **Ombros** on Segunda, not Descanso — the assimetria the spec states on
+ *     purpose and forbids "correcting". When `to` is the last slot there is no
+ *     `to + 1`, so this degenerates to a swap, which direct insertion gives anyway.
+ *
+ * Pure, and given `from`/`to` as indices into the original sequence, because that is
+ * what a drop knows and what a test can ask. `motion`'s live reflow is direct
+ * insertion, so its preview matches this in every case but the single-slot-down one,
+ * where the card settles on the wrap when released.
+ */
+export function applyDayDrag(order: readonly number[], from: number, to: number): number[] {
+  const n = order.length;
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return order.slice();
+
+  const next = order.slice();
+  if (to === from + 1 && to + 1 < n) {
+    // The window [s, t, t+1], rotated right by one: the day at t+1 gives the turn
+    // and takes the vacated origin, the other two step down.
+    const window = next.slice(from, to + 2);
+    const rotated = [window[window.length - 1], ...window.slice(0, -1)];
+    next.splice(from, window.length, ...rotated);
+    return next;
+  }
+
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+/**
  * The whole week: the programme's seven in their authored order, then the user's
- * own by number, which is the order they were created in.
+ * own by number, which is the order they were created in — unless a stored day-drag
+ * order (`010`) rearranges it.
  *
  * Sorting the user's days by number rather than by name is deliberate. A list that
  * re-sorts itself when a day is renamed moves a card out from under a thumb that
  * was already reaching for it, and the day after a rename is the day you are least
  * able to find it by looking.
+ *
+ * `order` is a sequence of `day_no`. A number in it that no longer names a day is
+ * skipped, and a day that exists but is not in the order goes to the end, so a day
+ * created after the order was saved appears rather than vanishing. The weekday label
+ * is assigned last, by final position, which is the whole point of drag ordering.
  */
-export function resolveDays(customs: readonly CustomDay[]): DayRef[] {
+export function resolveDays(customs: readonly CustomDay[], order?: readonly number[]): DayRef[] {
   const own = customs
     .filter((row) => row.day_no >= FIRST_CUSTOM_DAY)
     .slice()
     .sort((a, b) => a.day_no - b.day_no)
     .map(refOfCustom);
 
-  return [...DAYS.map(refOfBuilt), ...own];
+  const base = [...DAYS.map(refOfBuilt), ...own];
+
+  let sequenced = base;
+  if (order && order.length > 0) {
+    const byNo = new Map(base.map((ref) => [ref.no, ref]));
+    const seen = new Set<number>();
+    const out: DayRef[] = [];
+    for (const no of order) {
+      const ref = byNo.get(no);
+      if (ref && !seen.has(no)) {
+        out.push(ref);
+        seen.add(no);
+      }
+    }
+    for (const ref of base) if (!seen.has(ref.no)) out.push(ref);
+    sequenced = out;
+  }
+
+  return sequenced.map((ref, index) => ({
+    ...ref,
+    label: index < WEEKDAYS.length ? WEEKDAYS[index] : t.own,
+  }));
 }
 
 /* ---------- the hooks the screens use --------------------------------------- */
@@ -223,15 +303,46 @@ export function resolveDays(customs: readonly CustomDay[]): DayRef[] {
  * as a missing day would tell a person their own training day does not exist,
  * every time they opened it cold.
  */
+/**
+ * The active day-drag order, and whose it is.
+ *
+ * RLS on `day_order` (`010`) returns at most two rows: the shared week (`user_id`
+ * null) and this account's own (`user_id = auth.uid()`). The own one wins when it
+ * exists — otherwise the first arrangement anybody made would erase everyone's the
+ * moment a second person dragged a card. `hasShared`/`hasOwn` are what the screen
+ * needs to say whose week is on show and to offer the way back to the shared one.
+ */
+export function useDayOrder() {
+  const query = useRows('day_order');
+  const rows = query.data;
+
+  const own = rows?.find((row) => row.user_id !== null) ?? null;
+  const shared = rows?.find((row) => row.user_id === null) ?? null;
+  const active = own ?? shared;
+
+  return {
+    /** The order that wins by precedence — own if it exists, else shared. */
+    order: active?.ordered_day_nos ?? null,
+    ownOrder: own?.ordered_day_nos ?? null,
+    sharedOrder: shared?.ordered_day_nos ?? null,
+    isOwn: own !== null,
+    hasOwn: own !== null,
+    hasShared: shared !== null,
+    isPending: query.isPending,
+  };
+}
+
 export function useDays() {
   const query = useRows('custom_days');
   const rows = query.data;
+  const { order } = useDayOrder();
 
-  const days = useMemo(() => resolveDays(rows ?? []), [rows]);
+  const days = useMemo(() => resolveDays(rows ?? [], order ?? undefined), [rows, order]);
 
   return {
     days,
     customs: rows,
+    order,
     isPending: query.isPending,
     isError: query.isError,
     /** One day by its number, or null when this account has no such day. */
@@ -252,6 +363,14 @@ export function useDays() {
  * device's clock would not.
  */
 const EPOCH = new Date(0).toISOString();
+
+/**
+ * The id of the shared `day_order` row. Fixed, so the upsert of the shared week
+ * always lands on the one row rather than inserting a second — the unique-scope
+ * index of `010` would refuse it, but a deterministic id means it never tries. An
+ * own row uses its `user_id` as its id, for the same reason.
+ */
+const SHARED_ORDER_ID = '00000000-0000-0000-0000-000000000000';
 
 export function useCustomDayEditing() {
   const days = useUpsertRow('custom_days');
@@ -383,6 +502,75 @@ export function useCustomDayEditing() {
       }
 
       removeDay.remove({ day_no: dayNo });
+    },
+  };
+}
+
+/**
+ * Writing the week's day-drag order, in its two scopes.
+ *
+ * Both are real, by the user's decision on 2026-09-05: the **shared** week that is
+ * everybody's, exactly like the rest of the plan since `009`, and an account's
+ * **own** arrangement. `saveShared` writes the first, `saveOwn` the second, and
+ * `resetToShared` drops the own one so the shared week shows through again — the way
+ * back that stops a personal order from making the shared one invisible for good.
+ *
+ * Optimistic like every write here; `updated_at` is the epoch on purpose, so the
+ * server's real timestamp (stamped by the `010` trigger) wins when it lands.
+ */
+export function useDayOrderEditing() {
+  const order = useUpsertRow('day_order');
+  const removeOrder = useDeleteRow('day_order');
+  const userId = useUserId();
+
+  return {
+    failure: firstFailure([
+      [order, t.failWeekOrder],
+      [removeOrder, t.failWeekOrder],
+    ]),
+
+    /** The shared week, for everybody. The fixed id keeps it to the one shared row. */
+    saveShared(orderedDayNos: readonly number[]): void {
+      order.save({
+        id: SHARED_ORDER_ID,
+        user_id: null,
+        ordered_day_nos: [...orderedDayNos],
+        updated_at: EPOCH,
+        updated_by_client: clientId(),
+      });
+    },
+
+    /**
+     * This account's own arrangement. The id is the user id, so the upsert lands on
+     * the one own row; `user_id` is filled in by `save()`'s owner default.
+     */
+    saveOwn(orderedDayNos: readonly number[]): void {
+      if (!userId) return;
+      order.save({
+        id: userId,
+        ordered_day_nos: [...orderedDayNos],
+        updated_at: EPOCH,
+        updated_by_client: clientId(),
+      });
+    },
+
+    /** Drops this account's own order, so the shared week shows through again. */
+    resetToShared(): void {
+      if (!userId) return;
+      removeOrder.remove({ id: userId });
+    },
+
+    /**
+     * Drops the shared week itself, so the programme's original order shows through
+     * again — the factory state. `resolveDays()` with no stored order returns the
+     * bundle's own sequence (`[...DAYS, ...own]`), so deleting the one shared row is
+     * the whole reset: there is nothing to write, only a row to remove. This is the
+     * way back the shared scope was missing — once dragged, the shared week had no
+     * path home to the order the plan ships. It writes everyone's week, so the screen
+     * asks first.
+     */
+    resetToDefault(): void {
+      removeOrder.remove({ id: SHARED_ORDER_ID });
     },
   };
 }
