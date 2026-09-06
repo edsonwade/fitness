@@ -130,6 +130,7 @@ describe('applyChange', () => {
       session_id: sessionId,
       idx: 0,
       user_id: USER,
+      ex_key: 'supino',
       name: 'Supino',
       target_sets: '4',
       target_reps: '10',

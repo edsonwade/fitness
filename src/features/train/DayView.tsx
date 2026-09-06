@@ -5,7 +5,12 @@ import clsx from 'clsx';
 
 import { BLOCKS, CARDIO, type BlockKey } from '../../content';
 import type { LogFields } from '../../data/mutations';
-import { useMergeExerciseLog } from '../../data/mutations';
+import {
+  firstFailure,
+  useMergeExerciseLog,
+  useRecordSession,
+  useReopenSession,
+} from '../../data/mutations';
 import { pt } from '../../i18n/pt';
 import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon, IconButton } from '../../ui/Icon';
@@ -21,6 +26,14 @@ import { blockSummary, type BlockSummary } from './block-summary';
 import { useCustomDayEditing, useDays, type DayInput } from './custom-days';
 import { useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, logId, useExerciseLogs } from './logs';
+import {
+  buildSessionEntries,
+  localDate,
+  sessionFor,
+  totalSetsDone,
+  useSessions,
+  workoutState,
+} from './sessions';
 import { useDayEditing, type ExerciseInput } from './use-day-editing';
 
 const t = pt.train;
@@ -55,7 +68,17 @@ export function DayView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const merge = useMergeExerciseLog();
+  const record = useRecordSession();
+  const reopen = useReopenSession();
   const logs = useExerciseLogs();
+  const sessions = useSessions();
+  /*
+   * Today, read once when the screen mounts rather than on every render. The clock is
+   * not render state — reading it during a render makes the same render produce two
+   * different screens either side of midnight — and this is the same initialiser form
+   * `orderKeys` below and `openSheet` already use.
+   */
+  const [today, setToday] = useState(() => localDate(new Date()));
   const [rest, setRest] = useState<Rest | null>(null);
   /*
    * The sheet stays mounted after it closes so it can animate out, and is remounted
@@ -78,6 +101,12 @@ export function DayView() {
   const dayEditing = useCustomDayEditing();
   const { entries, hiddenCount } = programme.resolve(dayRef?.day ?? null, dayId);
   const progress = dayProgress(dayId, block, entries, logs.byKey);
+  /*
+   * The workout level, which is not the sets level. It comes from the recorded session
+   * and only from there: a day with every set ticked is still a workout under way until
+   * the user finishes it. See `workoutState`.
+   */
+  const workout = workoutState(sessionFor(sessions.data ?? [], dayId, today));
 
   /*
    * The order the list is drawn in. It mirrors the resolved day, but `Reorder` needs to
@@ -139,8 +168,87 @@ export function DayView() {
     setSearchParams(next_params, { replace: true });
   }
 
+  /**
+   * One edit on a card: the load that is on the bar, and the history it belongs to.
+   *
+   * Two writes, two tables, on purpose. `exercise_logs` is the state of today — it is
+   * what fills the card back in when the day is opened again — and it is overwritten
+   * every time. `sessions` is what happened, with the date on it, and it is the whole
+   * reason the screens after this one can say anything about last week at all.
+   *
+   * **The session is only recorded once a set has actually been ticked**, which is the
+   * user's own rule (2026-09-06): opening the day, editing an exercise, writing a load,
+   * changing the reps or leaving a note are not a workout. Ticking a set is. So the
+   * snapshot is built first and the write happens only if it counts any done sets — and
+   * once it does, a load typed afterwards updates the same session, because by then the
+   * workout is a fact and this is only describing it better.
+   *
+   * The snapshot is built with `fields` laid over the fetched logs, because the tick
+   * that opens the session has not come back from the server yet, and a snapshot one
+   * render behind would leave it out of the very session it created.
+   */
   function save(exKey: string, fields: LogFields) {
     merge.log({ day_no: dayId, block, ex_key: exKey }, fields);
+
+    const snapshot = buildSessionEntries(dayId, block, entries, logs.byKey, {
+      exKey,
+      fields,
+    });
+    if (totalSetsDone(snapshot) === 0) return;
+
+    write(snapshot, false);
+  }
+
+  /**
+   * "Terminar treino": the third level, and the only thing that decides it.
+   *
+   * The workout ends because the user says it ends, not because the last set happened
+   * to be ticked — his rule, and the way Strong and Hevy behave, both of which finish a
+   * workout with exercises still untouched. So this writes the same snapshot every set
+   * writes, with the one flag that closes the session.
+   *
+   * Finishing again, or ticking a set afterwards, updates the finished workout instead
+   * of reopening it: the server keeps the end it already has (`012` §2). Nothing here
+   * has to guard that, and a guard here that the server did not share would be the kind
+   * of rule that holds on one device and not on the other.
+   */
+  function finish() {
+    write(buildSessionEntries(dayId, block, entries, logs.byKey), true);
+  }
+
+  /**
+   * "Reabrir treino": walking the end back so a finished workout is editable again.
+   *
+   * Terminar is reversible, but only here — his rule (2026-09-06). Correcting a set does
+   * not reopen a finished workout; this button does, by clearing `finished_at` on the
+   * session. The session and its numbers stay in history; the day just returns to "in
+   * curso" and the TERMINAR button comes back. It is also the only way out of a workout
+   * finished by mistake.
+   */
+  function reopenWorkout() {
+    reopen.reopen({ day_no: dayId, local_date: today });
+  }
+
+  /** The one place the session write is assembled, so both callers date it the same way. */
+  function write(entries_snapshot: ReturnType<typeof buildSessionEntries>, finished: boolean) {
+    const now = new Date();
+    const date = localDate(now);
+    /*
+     * A workout that crosses midnight writes to tomorrow's row, because the calendar day
+     * is the session's identity. The screen has to follow it there, or it would keep
+     * looking up the day it was opened on and report no workout while one is running.
+     */
+    if (date !== today) setToday(date);
+
+    record.record({
+      day_no: dayId,
+      block,
+      day_name: day.name,
+      local_date: date,
+      performed_at: now.toISOString(),
+      entries: entries_snapshot,
+      finished,
+    });
   }
 
   /**
@@ -459,12 +567,113 @@ export function DayView() {
                 style={{ width: `${progress.pct}%` }}
               />
             </div>
-            {progress.total > 0 && progress.done >= progress.total ? (
-              <p className="mt-2 flex items-center gap-1.5 font-ui text-[12.5px] font-600 text-accent-line">
-                <Icon name="check" size={15} strokeWidth={2.6} />
-                {t.allDone}
+            {/*
+              * The second level, counted: how many exercises are finished, not how many
+              * sets. "19/19 séries" alone was the figure that let the day claim to be
+              * over; beside it, the exercise count says what the sets actually completed.
+              */}
+            {progress.exercises > 0 ? (
+              <p className="mt-2 font-ui text-[12.5px] text-text-muted">
+                <span className="tabular font-600 text-text">
+                  {progress.exercisesDone}/{progress.exercises}
+                </span>{' '}
+                {progress.exercises === 1 ? t.exerciseOne : t.exerciseMany}{' '}
+                {progress.exercisesDone === 1 ? t.completeOne : t.completeMany}
               </p>
             ) : null}
+
+            {/*
+              * The third level. It is not counted from anything on this screen: a
+              * workout is under way once a set is ticked, and it is over when the user
+              * says it is over. Ticking the last set of the day leaves it under way,
+              * which is the whole correction — "Dia concluído" used to appear here on a
+              * workout nobody had finished.
+              */}
+            {workout === 'done' ? (
+              <>
+                <p className="mt-3 flex items-center gap-1.5 font-ui text-[13px] font-700 text-accent-line">
+                  <Icon name="check" size={16} strokeWidth={2.6} />
+                  {t.workoutDone}
+                </p>
+                {/*
+                  * "Concluído" diz que a sessão acabou, não que está a 100%. Um treino
+                  * terminado a 15/19 tem de o dizer, ou o visto verde mente. Contado do
+                  * mesmo `progress` que a barra, para os dois nunca discordarem — e o
+                  * que fica gravado (`session_entries`) leva os mesmos números, para o
+                  * histórico e o calendário não arredondarem depois.
+                  */}
+                <p className="mt-1 font-ui text-[12.5px] text-text-muted">
+                  {progress.total - progress.done > 0 ? (
+                    <>
+                      <span className="tabular font-600 text-text">
+                        {progress.total - progress.done}
+                      </span>{' '}
+                      {progress.total - progress.done === 1 ? t.setsPendingOne : t.setsPendingMany}
+                    </>
+                  ) : (
+                    t.allSetsDone
+                  )}
+                </p>
+                {/*
+                  * Terminar é reversível, mas só aqui. Um treino fechado sem querer não
+                  * pode ser uma prisão, e testar exige uma saída: reabrir limpa o fim, a
+                  * sessão fica no histórico, o dia volta a editável e o TERMINAR regressa.
+                  * Secundário e largo — alvo de dedo suado, cena de ginásio — mas discreto
+                  * ao lado do "concluído", sem cor nova: a borda e o texto do cartão.
+                  */}
+                <button
+                  type="button"
+                  onClick={reopenWorkout}
+                  disabled={reopen.isPending}
+                  className={clsx(
+                    'mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full',
+                    'border border-rule bg-transparent font-ui text-[13.5px] font-700 text-text',
+                    'transition-[border-color,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+                    'active:scale-[0.98] motion-reduce:active:scale-100 pointer-hover:border-edge',
+                    'disabled:cursor-not-allowed disabled:opacity-60',
+                  )}
+                >
+                  <Icon name="back" size={16} strokeWidth={2.4} />
+                  {reopen.isPending ? t.reopening : t.reopen}
+                </button>
+              </>
+            ) : (
+              <>
+                {progress.done > 0 ? (
+                  <p className="mt-3 font-ui text-[13px] font-700 text-text">{t.workoutOpen}</p>
+                ) : null}
+                {progress.total > 0 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={finish}
+                      disabled={progress.done === 0 || record.isPending}
+                      className={clsx(
+                        'mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full',
+                        'font-ui text-[15px] font-700 uppercase tracking-[0.02em]',
+                        'transition-[background-color,color,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+                        progress.done === 0
+                          ? 'cursor-not-allowed border border-rule bg-surface-sunken text-text-muted'
+                          : 'bg-accent text-accent-ink active:scale-[0.98] motion-reduce:active:scale-100',
+                      )}
+                    >
+                      <Icon name="check" size={18} strokeWidth={2.6} />
+                      {record.isPending ? t.finishing : t.finish}
+                    </button>
+                    {/*
+                      * A disabled button that does not say why is a dead end. The rule it
+                      * is enforcing is his own: no set ticked means no workout happened,
+                      * so there is nothing to close.
+                      */}
+                    {progress.done === 0 ? (
+                      <p className="mt-2 font-ui text-[12px] leading-snug text-text-muted">
+                        {t.finishHint}
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+              </>
+            )}
           </div>
 
           {day.goal ? <Callout title={t.goal}>{day.goal}</Callout> : null}
@@ -486,6 +695,18 @@ export function DayView() {
             */}
           <WriteFailureNotice failure={editing.failure} />
           <WriteFailureNotice failure={dayEditing.failure} />
+          {/*
+            * The session write, reported on its own line and in its own words. It is
+            * not the same failure as the set not saving: the set did save, on the card,
+            * and only the history did not — so one sentence for both would be wrong
+            * about the half the user is looking at.
+            */}
+          <WriteFailureNotice
+            failure={firstFailure([
+              [record, t.failRecordSession],
+              [reopen, t.failReopenSession],
+            ])}
+          />
 
           {isRestDay ? (
             <div className="mt-6 rounded-card border border-rule bg-surface p-6 text-center">

@@ -11,7 +11,7 @@ import type {
   HiddenItem,
 } from '../../data/entities';
 import { customKey, resolveDayEntries } from './day-entries';
-import { dayProgress, logId } from './logs';
+import { dayProgress, exerciseState, logId } from './logs';
 
 /**
  * The day the user actually has.
@@ -325,6 +325,49 @@ describe('dayProgress over a composed day', () => {
     const full = dayProgress(1, 'b1', resolve().entries, new Map());
     const less = dayProgress(1, 'b1', resolve({ hidden: [hidden('legpress')] }).entries, new Map());
     expect(less.total).toBe(full.total - DAY.items![0].b1.s);
+  });
+
+  it('counts complete exercises apart from complete sets', () => {
+    const { entries } = resolve();
+    const sets = DAY.items![0].b1.s;
+    const all = Array.from({ length: sets }, () => true);
+
+    const none = dayProgress(1, 'b1', entries, new Map());
+    expect(none.exercises).toBe(entries.length);
+    expect(none.exercisesDone).toBe(0);
+
+    // One exercise finished is one exercise finished, and the day is not over.
+    const one = dayProgress(1, 'b1', entries, byKey([log('legpress', all)]));
+    expect(one.exercisesDone).toBe(1);
+    expect(one.exercisesDone).toBeLessThan(one.exercises);
+  });
+});
+
+/**
+ * The middle level, on its own.
+ *
+ * It is separated from the day and from the session because it is the level that was
+ * being confused with the other two: the sets say whether an exercise is done, and an
+ * exercise being done says nothing about the workout.
+ */
+describe('exerciseState', () => {
+  it('is idle with nothing ticked', () => {
+    expect(exerciseState([false, false, false])).toBe('idle');
+  });
+
+  it('is doing with some ticked', () => {
+    expect(exerciseState([true, false, false])).toBe('doing');
+    expect(exerciseState([false, true, true])).toBe('doing');
+  });
+
+  it('is done with all ticked', () => {
+    expect(exerciseState([true, true, true])).toBe('done');
+  });
+
+  it('is idle, not done, when nothing is prescribed', () => {
+    // `every` on an empty array is true, so the naive reading would report a day full
+    // of completed exercises that nobody has touched.
+    expect(exerciseState([])).toBe('idle');
   });
 });
 
