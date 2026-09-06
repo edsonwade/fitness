@@ -43,10 +43,33 @@ export const exerciseLogSchema = z.object({
   field_updated_at: z.record(z.string(), z.string()),
 });
 
+/**
+ * One training day that actually happened, on a date.
+ *
+ * `day_no` and `local_date` are added by `011` and are nullable, because the rows the
+ * v1 mapper brought over from the old app have neither: that app recorded a session by
+ * name and by instant, and inventing a day number for those would be inventing history.
+ * Every row the live app writes has both, and together they are the row's identity —
+ * one session per training day per calendar day, enforced by `sessions_user_day_date`.
+ *
+ * `local_date` is the user's calendar day and not a slice of `performed_at`. The instant
+ * cannot answer the question it is asked: 23:30 and 00:10 are one training session for
+ * the person and two dates in UTC. The client sends the date it is living in.
+ */
 export const sessionSchema = z.object({
   ...ownedRow,
   id: z.uuid(),
   performed_at: timestamptz,
+  /*
+   * When the user pressed "terminar treino", and null while the workout is still
+   * open. Added by `012`. It is a decision and not a sum: a workout is finished
+   * because the person said so, the way Strong and Hevy finish one, and not because
+   * the last set of the day happened to be ticked. The three levels — set, exercise,
+   * workout — are independent, and this column is the third one.
+   */
+  finished_at: timestamptz.nullable(),
+  day_no: z.number().int().nullable(),
+  local_date: nullableText,
   day_name: nullableText,
   block: nullableText,
 });
@@ -55,6 +78,13 @@ export const sessionEntrySchema = z.object({
   ...ownedRow,
   session_id: z.uuid(),
   idx: z.number().int(),
+  /*
+   * Which exercise this was, added by `011`. Nullable for the same reason as
+   * `sessions.day_no`: the migrated rows carry a name and nothing else. Joining a
+   * history to an exercise by its name breaks on the day the name is edited, which is
+   * why every screen that follows one load over time reads this instead.
+   */
+  ex_key: nullableText,
   name: nullableText,
   /* Structured, not the old app's '4×10' display string. See 003. */
   target_sets: nullableText,

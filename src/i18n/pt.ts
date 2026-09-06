@@ -209,6 +209,16 @@ export const pt = {
     warmup: 'Aquecimento',
     muscles: 'Músculos',
 
+    /*
+     * O registo do treino falhou — a carga ficou guardada, o treino de hoje não.
+     *
+     * Duas escritas diferentes, por isso duas frases diferentes: a série marcada vai
+     * para `exercise_logs` (o estado de hoje) e o treino vai para `sessions` (a
+     * história). Dizer só "não foi possível guardar" juntava as duas e mentia sobre
+     * metade, porque a série no ecrã ficou mesmo guardada.
+     */
+    failRecordSession: 'A série ficou marcada, mas o treino de hoje não entrou no teu histórico.',
+
     technique: 'Execução',
     commonErrors: 'Erros comuns',
     fix: 'Corrige',
@@ -227,7 +237,52 @@ export const pt = {
     addSeconds: 'Mais 15s',
     restDone: 'Descanso terminado',
 
-    allDone: 'Dia concluído',
+    /*
+     * Os três níveis, em palavras (regra dele, 2026-09-06).
+     *
+     *   Série     — feita / não feita
+     *   Exercício — não iniciado / em curso / completo
+     *   Treino    — em curso / concluído
+     *
+     * O ecrã dizia "Dia concluído" logo que a última série ficava marcada, e isso
+     * juntava o segundo nível com o terceiro. Um exercício fica completo pelas
+     * séries; um treino acaba quando a pessoa carrega em TERMINAR TREINO. Por isso
+     * o `allDone` que aqui estava desapareceu: a frase não tinha como ser verdade.
+     */
+    exIdle: 'Não iniciado',
+    exDoing: 'Em curso',
+    exDone: 'Completo',
+
+    exerciseOne: 'exercício',
+    exerciseMany: 'exercícios',
+    completeOne: 'completo',
+    completeMany: 'completos',
+
+    workoutOpen: 'Treino em curso',
+    workoutDone: 'Treino concluído',
+    /*
+     * Um treino terminado cedo é honesto sobre o que ficou por fazer. "Concluído" diz
+     * que a SESSÃO acabou (o botão), não que está a 100%. Sem estas linhas, "Treino
+     * concluído" ao lado do visto lê-se como 19/19 mesmo num dia parado a 15/19 — regra
+     * dele, 2026-09-06: não transformar 15/19 em 19/19 nem esconder as séries por fazer.
+     */
+    setsPendingOne: 'série não concluída',
+    setsPendingMany: 'séries não concluídas',
+    allSetsDone: 'Nenhuma série pendente',
+    finish: 'Terminar treino',
+    finishing: 'A terminar…',
+    /* Um botão desligado tem de dizer o que falta, senão é um beco. */
+    finishHint: 'Marca pelo menos uma série para poderes terminar o treino.',
+    /*
+     * Terminar é reversível por decisão explícita. Reabrir só limpa o fim — a sessão e
+     * os números ficam no histórico —, o treino volta a ficar editável e o botão
+     * TERMINAR reaparece (regra dele, 2026-09-06). Corrigir uma série não reabre; só
+     * este botão reabre.
+     */
+    reopen: 'Reabrir treino',
+    reopening: 'A reabrir…',
+    failReopenSession: 'Não foi possível reabrir o treino.',
+
     progressLabel: 'Progresso do dia',
   },
 

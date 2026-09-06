@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-q
 
 import { clientId, stamp } from './client-id';
 import { deleteRow as deleteRowFromDb, parseRow, upsertRow as upsertRowInDb } from './db';
-import type { CatalogExercise, DayAddition, ExerciseLog, RowOf, TableName } from './entities';
+import type { CatalogExercise, DayAddition, ExerciseLog, RowOf, Session, TableName } from './entities';
 import { AUTHORED_TABLES, isShared, PRIMARY_KEYS, TABLES } from './entities';
 import { dbKeys, mutationKeys, scopeOfRow } from './keys';
 import { useUserId } from './queries';
@@ -133,6 +133,62 @@ export type LogKey = { day_no: number; block: string; ex_key: string };
 export type LogFields = Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'sets_done' | 'note'>>;
 export type MergeLogVars = LogKey & { user_id: string; fields: LogFields; changedAt: string };
 
+/** One exercise inside a recorded session: what was prescribed, and what was done. */
+export type SessionEntryInput = {
+  ex_key: string;
+  name: string;
+  /** The block's target, kept beside the result so 006 can compare planned with done. */
+  target_sets: string | null;
+  target_reps: string | null;
+  /** Only when a prescription could not be read apart. Nothing is thrown away. */
+  target_raw: string | null;
+  sets_done: number;
+  sets_total: number;
+  weight: string | null;
+  reps: string | null;
+  note: string | null;
+};
+
+/**
+ * One training day that happened, whole.
+ *
+ * `local_date` is the identity, with `day_no`, and it is the user's calendar day rather
+ * than a slice of `performed_at` — see `sessionSchema`. Both are taken when the user
+ * acts, not when the request leaves, for the reason `MergeLogVars.changedAt` gives:
+ * through the outbox those are an hour apart, and the honest one is the first.
+ */
+export type RecordSessionVars = {
+  user_id: string;
+  day_no: number;
+  block: string;
+  day_name: string | null;
+  local_date: string;
+  performed_at: string;
+  entries: readonly SessionEntryInput[];
+  /**
+   * True only for the press of "terminar treino". Every other write — a ticked set, a
+   * load typed in afterwards — sends false, and false never reopens a finished
+   * workout: `record_session` keeps the end it already has (`012` §2).
+   */
+  finished: boolean;
+  client: string;
+};
+
+/**
+ * Reopening one finished workout, by its identity.
+ *
+ * `(day_no, local_date)` is the same pair `record_session` keys on, and nothing else is
+ * needed: reopening walks `finished_at` back to null on that one row and leaves the
+ * session and its entries where they are. The record stays in history; only its end is
+ * cleared, so the day is editable again and can be finished afresh.
+ */
+export type ReopenSessionVars = {
+  user_id: string;
+  day_no: number;
+  local_date: string;
+  client: string;
+};
+
 /** What the optimistic copy of a row says about itself until the server answers. */
 type RowIdentity = { id: string; created_by: string; created_at: string };
 
@@ -222,6 +278,44 @@ export function registerMutationDefaults(client: QueryClient): void {
     },
     onSuccess: (stored) => writeStored(client, 'exercise_logs', stored),
   });
+
+  client.setMutationDefaults<Session, Error, RecordSessionVars>(mutationKeys.recordSession(), {
+    mutationFn: async (variables) => {
+      const { data, error } = await supabase.rpc('record_session', {
+        p_day_no: variables.day_no,
+        p_block: variables.block,
+        p_day_name: variables.day_name,
+        p_local_date: variables.local_date,
+        p_performed_at: variables.performed_at,
+        p_entries: variables.entries,
+        p_client: variables.client,
+        p_finished: variables.finished,
+      });
+      if (error) throw error;
+      return parseRow('sessions', data);
+    },
+    onSuccess: (stored) => writeStored(client, 'sessions', stored),
+  });
+
+  client.setMutationDefaults<Session | null, Error, ReopenSessionVars>(
+    mutationKeys.reopenSession(),
+    {
+      mutationFn: async (variables) => {
+        const { data, error } = await supabase.rpc('reopen_session', {
+          p_day_no: variables.day_no,
+          p_local_date: variables.local_date,
+          p_client: variables.client,
+        });
+        if (error) throw error;
+        // No row means the session was already reopened elsewhere. Not an error: the
+        // cache already holds the truth, or the next realtime echo carries it.
+        return data ? parseRow('sessions', data) : null;
+      },
+      onSuccess: (stored) => {
+        if (stored) writeStored(client, 'sessions', stored);
+      },
+    },
+  );
 
   client.setMutationDefaults<PublishedPair, Error, PublishSharedVars>(
     mutationKeys.publishShared(),
@@ -524,6 +618,78 @@ export function useMergeExerciseLog() {
     log(where: LogKey, fields: LogFields) {
       if (!userId) throw new Error('sem sessão: a escrita não tem dono');
       mutation.mutate({ ...where, user_id: userId, fields, changedAt: new Date().toISOString() });
+    },
+  };
+}
+
+/**
+ * Recording one training day, with the date it happened on.
+ *
+ * **This is the first write in the application that remembers.** `exercise_logs` holds
+ * what is on the bar now and overwrites itself; this holds what was done, on a day, and
+ * is what every trend, streak, chart and calendar after it reads.
+ *
+ * The whole day goes in one call, and `record_session` (`011`) writes the session row
+ * and every entry under it inside one transaction. Two reasons, and the second is the
+ * one that is easy to miss: the entries are keyed by position, so a day reordered
+ * mid-workout would collide with itself if the rows went separately, and a refused half
+ * would leave a session describing a workout nobody did.
+ *
+ * **No optimistic patch, on purpose.** The day screen does read `sessions` — that is
+ * where "treino concluído" comes from — and this is exactly why the row is not guessed:
+ * finishing a workout is a fact the user is being told, and drawing it before the server
+ * has stored it would mean taking it back on the failure. The button says it is working
+ * while the call is in flight, the stored row goes into the cache when the server
+ * answers, and the notice says so when it does not.
+ *
+ * Who calls this, and when, is not decided here: `totalSetsDone` in
+ * `features/train/sessions.ts` is the gate, and it opens only once a set has actually
+ * been ticked. Writing a load with no set ticked is planning, not training.
+ */
+export function useRecordSession() {
+  const userId = useUserId();
+
+  const mutation = useMutation<Session, Error, RecordSessionVars>({
+    mutationKey: mutationKeys.recordSession(),
+    onError: (error, variables) => reportWriteError('sessions', 'record', error, variables),
+  });
+
+  return {
+    ...mutation,
+    record(input: Omit<RecordSessionVars, 'user_id' | 'client'>) {
+      if (!userId) throw new Error('sem sessão: a escrita não tem dono');
+      mutation.mutate({ ...input, user_id: userId, client: clientId() });
+    },
+  };
+}
+
+/**
+ * Reopening a finished workout: walking the end back so the day is editable again.
+ *
+ * Terminar is reversible, but only by this explicit action — his rule (2026-09-06). A
+ * normal write (a ticked set, a load typed in) never reopens a finished workout; only
+ * this does, and it does it by clearing `finished_at` on the one session row. The
+ * session and every entry under it stay, so nothing leaves the history — the day simply
+ * goes back to "in curso" and can be finished afresh.
+ *
+ * **No optimistic patch**, the same reason `useRecordSession` gives: the workout state is
+ * a fact the user is being shown, and drawing "reopened" before the server has stored it
+ * would mean taking it back on the failure. The button says it is working while the call
+ * is in flight, and the stored row lands in the cache when the server answers.
+ */
+export function useReopenSession() {
+  const userId = useUserId();
+
+  const mutation = useMutation<Session | null, Error, ReopenSessionVars>({
+    mutationKey: mutationKeys.reopenSession(),
+    onError: (error, variables) => reportWriteError('sessions', 'reopen', error, variables),
+  });
+
+  return {
+    ...mutation,
+    reopen(input: Omit<ReopenSessionVars, 'user_id' | 'client'>) {
+      if (!userId) throw new Error('sem sessão: a escrita não tem dono');
+      mutation.mutate({ ...input, user_id: userId, client: clientId() });
     },
   };
 }

@@ -77,6 +77,23 @@ export const mutationKeys = {
   remove: (table: TableName) => ['db', 'delete', table] as const,
   mergeLog: () => ['db', 'merge', 'exercise_logs'] as const,
   /**
+   * Recording one training day, which is a session row and every entry under it.
+   *
+   * One key for N+1 rows, for the reason `publishShared` gives just below and for one
+   * more of its own: the entries are keyed by position, so replaying half of them would
+   * leave a session describing a day nobody did.
+   */
+  recordSession: () => ['db', 'record', 'sessions'] as const,
+  /**
+   * Reopening a finished workout, which clears `finished_at` on the one session row.
+   *
+   * Its own key, not `recordSession`, because it is a different action with a different
+   * server function: recording writes the day's snapshot, reopening only walks the end
+   * back so the day is editable again. Keeping them apart lets the outbox replay each as
+   * itself after a reload.
+   */
+  reopenSession: () => ['db', 'reopen', 'sessions'] as const,
+  /**
    * Publishing, which is two tables and one key on purpose.
    *
    * A published exercise is a `catalog_exercises` row and a `day_additions` row, and

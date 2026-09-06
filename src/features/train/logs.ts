@@ -37,7 +37,37 @@ export function useExerciseLogs() {
   return { ...query, byKey };
 }
 
-export type DayProgress = { done: number; total: number; pct: number };
+/**
+ * The second of the three levels: **not started, under way, complete.**
+ *
+ * The levels are independent, and that is the whole rule (user, 2026-09-06): a set is
+ * done or not, an exercise is these three, and a workout is open or finished. Only the
+ * first two are decided by counting. The third is a decision, and it lives in
+ * `sessions.ts` — reading "all sets ticked" as "workout finished" is the exact bug this
+ * split exists to remove.
+ *
+ * An exercise with no sets prescribed is `idle` and not `done`. `every` on an empty
+ * array is true, so the naive reading would report a workout's worth of complete
+ * exercises for a day nobody has touched.
+ */
+export type ExerciseState = 'idle' | 'doing' | 'done';
+
+export function exerciseState(done: readonly boolean[]): ExerciseState {
+  if (done.length === 0) return 'idle';
+  let count = 0;
+  for (const set of done) if (set) count += 1;
+  if (count === 0) return 'idle';
+  return count === done.length ? 'done' : 'doing';
+}
+
+export type DayProgress = {
+  done: number;
+  total: number;
+  pct: number;
+  /** Exercises in the day, and how many of them are complete. */
+  exercises: number;
+  exercisesDone: number;
+};
 
 /**
  * How far through a day the user is, for one block.
@@ -51,6 +81,10 @@ export type DayProgress = { done: number; total: number; pct: number };
  * Done is capped per exercise at what this block prescribes: a log carried over from
  * a block with more sets cannot report more than this block asks for, which would
  * otherwise show 120 percent on a deload.
+ *
+ * It counts both levels in one pass — sets, and the exercises those sets complete —
+ * because the day's card states them side by side ("19/19 séries · 5 de 5 exercícios")
+ * and two functions walking the same list would be two chances for them to disagree.
  */
 export function dayProgress(
   dayNo: number,
@@ -60,18 +94,26 @@ export function dayProgress(
 ): DayProgress {
   let total = 0;
   let done = 0;
+  let exercisesDone = 0;
   for (const entry of entries) {
     const prescribed = entry.prescription.s;
     total += prescribed;
-    done += setsDoneFor(byKey.get(logId(dayNo, block, entry.key)), prescribed).filter(Boolean).length;
+    const sets = setsDoneFor(byKey.get(logId(dayNo, block, entry.key)), prescribed);
+    done += sets.filter(Boolean).length;
+    if (exerciseState(sets) === 'done') exercisesDone += 1;
   }
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  return { done, total, pct };
+  return { done, total, pct, exercises: entries.length, exercisesDone };
 }
 
-/** Reads a set-completion array for an exercise, padded or trimmed to the block's count. */
+/**
+ * Reads a set-completion array for an exercise, padded or trimmed to the block's count.
+ *
+ * Typed by shape rather than by row: the session snapshot counts a log with the edit the
+ * user has just made laid over it, and that value is a log's fields and not a whole row.
+ */
 export function setsDoneFor(
-  log: ExerciseLog | undefined,
+  log: { sets_done?: boolean[] | null } | undefined,
   prescribed: number,
 ): boolean[] {
   const base = log?.sets_done ?? [];

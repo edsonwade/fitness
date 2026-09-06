@@ -9,7 +9,7 @@ import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { VideoFacade } from './VideoFacade';
 import type { DayEntry } from './day-entries';
-import { parseRestSeconds, setsDoneFor } from './logs';
+import { exerciseState, parseRestSeconds, setsDoneFor } from './logs';
 import { ReorderContext, type CardReorder } from './reorder-context';
 
 const t = pt.train;
@@ -54,6 +54,7 @@ export function ExerciseCard({
   const [open, setOpen] = useState(false);
   const p = entry.prescription;
   const done = setsDoneFor(log, p.s);
+  const state = exerciseState(done);
 
   function toggleSet(index: number) {
     const next = done.slice();
@@ -119,7 +120,24 @@ export function ExerciseCard({
 
         {/* Set tracker. */}
         <div className="mt-4">
-          <p className="mb-2 font-ui text-[12px] font-600 text-text-muted">{t.sets}</p>
+          {/*
+            * The exercise's own state, beside its sets and nowhere else. This is the
+            * middle of the three levels: the sets decide it, and it decides nothing
+            * about the workout — a card saying "Completo" does not finish a training
+            * session, which is what the day's card used to claim. The word carries the
+            * meaning, so it still reads with the colour ignored.
+            */}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="font-ui text-[12px] font-600 text-text-muted">{t.sets}</p>
+            <p
+              className={clsx(
+                'font-ui text-[11px] font-700 uppercase tracking-[0.04em]',
+                state === 'done' ? 'text-accent-line' : 'text-text-muted',
+              )}
+            >
+              {state === 'done' ? t.exDone : state === 'doing' ? t.exDoing : t.exIdle}
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             {done.map((isDone, index) => (
               <button
