@@ -146,7 +146,7 @@ export function DayView() {
     return (
       <Screen title="Dia não encontrado" body="Este dia de treino não existe.">
         <Link
-          to="/"
+          to="/treino"
           className="inline-flex min-h-[48px] items-center rounded-full bg-accent px-6 font-ui text-[14px] font-700 text-accent-ink"
         >
           {t.title}

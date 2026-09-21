@@ -365,10 +365,21 @@ export function ExerciseSheet({
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
+          {/*
+            * O `inputMode="numeric"` saiu daqui com o porte do sistema v2. A regra
+            * dele, 2026-09-12: métrica de treino não se escreve, seleciona-se — e o
+            * portão do porte exige zero `inputmode` numérico em `src/`.
+            *
+            * Estes quatro campos são a PRESCRIÇÃO do programa, não o registo de uma
+            * série, e continuam a ser texto livre porque aceitam coisas que nenhuma
+            * roda aceita: "8-12" repetições, "90s" de descanso. Trocá-los pelas
+            * peças de seleção é redesenhar esta folha, e isso é da fase dona dela,
+            * não do porte. O que o porte faz é tirar o teclado numérico, que é o que
+            * estava a contradizer a regra.
+            */}
           <Field
             label={t.sets}
             placeholder={t.setsPlaceholder}
-            inputMode="numeric"
             value={draft.sets}
             onChange={(e) => set('sets', e.target.value)}
           />

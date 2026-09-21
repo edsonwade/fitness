@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router';
 
 import { Catalog } from '../features/catalog/Catalog';
 import { DayView } from '../features/train/DayView';
+import { Today } from '../features/today/Today';
 import { Train } from '../features/train/Train';
 import { AppShell } from './AppShell';
 import {
@@ -25,6 +26,13 @@ import {
  * between sets, and a tab bar there is five ways to lose your place mid-session. It
  * draws its own frame and leaves by its own back control.
  *
+ * OS CINCO SEPARADORES DO PROTÓTIPO v2, postos aqui pelo porte do sistema:
+ * HOJE (`/`), TREINO (`/treino`), NUTRIÇÃO, EQUIPA e PERFIL. O ecrã de treino
+ * mudou de `/` para `/treino` porque a raiz passou a ser o HOJE, que é a porta de
+ * entrada que o protótipo desenha. O Catálogo deixou de ser separador e pendura-se
+ * do Treino, mas continua a ser rota própria: é um ecrã, só deixou de ser um dos
+ * cinco.
+ *
  * The three surfaces not built yet are routed to <SurfacePending> rather than left
  * out of the table. The shell already ships their tabs, and a tab that lands on
  * "page not found" tells the user the app is broken when the truth is that the
@@ -47,10 +55,11 @@ export const router = createBrowserRouter(
             {
               element: <AppShell />,
               children: [
-                { index: true, element: <Train /> },
+                { index: true, element: <Today /> },
+                { path: 'treino', element: <Train /> },
                 { path: 'catalogo', element: <Catalog /> },
-                { path: 'objetivos', element: <SurfacePending /> },
-                { path: 'treinadores', element: <SurfacePending /> },
+                { path: 'nutricao', element: <SurfacePending /> },
+                { path: 'equipa', element: <SurfacePending /> },
                 { path: 'perfil', element: <SurfacePending /> },
               ],
             },

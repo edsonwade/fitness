@@ -345,7 +345,13 @@ function LogInput({
 }: {
   label: string;
   placeholder: string;
-  inputMode: 'text' | 'decimal';
+  /*
+   * Só 'text'. O 'decimal' saiu com o porte do sistema v2: ninguém o passava, e
+   * deixar a opção aberta era deixar a porta aberta ao teclado numérico que a regra
+   * de 2026-09-12 tirou. Peso e reps de uma série passam a entrar pelas peças de
+   * seleção (`ValuePill`), e quem as liga ao registo é a fase 011.
+   */
+  inputMode: 'text';
   remote: string;
   onCommit: (value: string) => void;
 }) {

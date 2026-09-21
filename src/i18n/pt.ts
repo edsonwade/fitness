@@ -61,12 +61,30 @@ export const pt = {
     resetNeedEmail: 'Escreve o teu email primeiro.',
   },
 
+  /*
+   * Os cinco separadores do protótipo v2, por esta ordem. O Catálogo deixou de ser
+   * separador e passou a pendurar-se do Treino, que é onde `proto/v2` o põe.
+   */
   nav: {
+    today: 'Hoje',
     train: 'Treino',
-    catalog: 'Catálogo',
-    goals: 'Objetivos',
-    trainers: 'Treinadores',
+    nutrition: 'Nutrição',
+    team: 'Equipa',
     profile: 'Perfil',
+    catalog: 'Catálogo',
+  },
+
+  /**
+   * O ecrã HOJE, tal como o porte o deixa: a prontidão, que já existe desde a fase
+   * 007 e que no §11 pertence a este ecrã, e o que ainda não está construído dito
+   * pelo nome em vez de escondido. As fases 008 a 019 enchem-no.
+   */
+  today: {
+    greeting: 'Olá',
+    pendingTitle: 'O resto do teu dia chega a seguir',
+    pendingBody:
+      'O objetivo de hoje, o coach e o plano da semana entram nas próximas fases. A prontidão acima já lê o teu registo.',
+    toTrain: 'Ver o treino',
   },
 
   pending: {
@@ -284,6 +302,80 @@ export const pt = {
     failReopenSession: 'Não foi possível reabrir o treino.',
 
     progressLabel: 'Progresso do dia',
+
+    /*
+     * A prontidão de hoje (fase 007), lida do registo e nunca inventada.
+     *
+     * A palavra que a app escolhe não pode fazer crer que mede o que não mede: não há sono,
+     * nem HRV, nem peso corporal aqui. Por isso "Recuperação: Boa" é uma leitura do intervalo
+     * entre treinos, e a frase final di-lo em voz alta — uma leitura do registo, não uma
+     * medição médica. O número (0–100) tem sempre a explicação à vista, sem ser preciso tocar
+     * em nada (§10.2): sem essa explicação seria o "dashboard administrativo" que o §0 recusa.
+     *
+     * O "Por quê?" monta-se no componente a partir destes pedaços, com os números reais da
+     * pessoa. A carga é a da última sessão — o esforço de que o corpo recupera —, mostrada
+     * como facto; não vira percentagem, porque sem um peso de referência dela dizer "muito" ou
+     * "pouco" seria inventar (§14).
+     */
+    readiness: {
+      title: 'Prontidão de hoje',
+      label: 'Prontidão',
+      outOf: '/ 100',
+      recoveryLabel: 'Recuperação',
+      loadLabel: 'Carga',
+      lastSession: 'última sessão',
+      recovery: {
+        'treino-hoje': 'Treino hoje',
+        recente: 'Recente',
+        boa: 'Boa',
+        completa: 'Completa',
+        'pausa-longa': 'Pausa longa',
+      },
+      whyLabel: 'Por quê?',
+      trainedToday: 'Treinaste hoje.',
+      trainedYesterday: 'Treinaste ontem.',
+      /* "Treinaste há N dias." — o número entra no meio, no componente. */
+      trainedAgoPre: 'Treinaste há',
+      trainedAgoPost: 'dias.',
+      window: 'O intervalo de 2 a 3 dias é o de melhor recuperação.',
+      dense: 'Muitas sessões seguidas — a prontidão baixa para dar margem à recuperação.',
+      /* "N sessão/sessões nos últimos 7 dias." */
+      sessionsWeekOne: 'sessão nos últimos 7 dias.',
+      sessionsWeekMany: 'sessões nos últimos 7 dias.',
+      lastLoadPre: 'Última sessão:',
+      kg: 'kg',
+      noLoad: 'sem carga registada',
+      disclaimer: 'Uma leitura do teu registo, não uma medição médica.',
+      /* Conta sem histórico: nada de número, nada de anel — diz-se o que falta. */
+      emptyTitle: 'Ainda sem prontidão',
+      emptyBody:
+        'Regista uma sessão de treino e a app passa a ler a tua prontidão a partir dela. Sem treinos com data, não há nada para ler — e não inventamos um número.',
+    },
+
+    /*
+     * O objetivo de hoje com contexto (fase 008): o quê, porquê e quanto custa.
+     *
+     * O objetivo do dia deixa de ser uma frase parada e passa a ser uma recomendação — mas só
+     * quando há uma razão que se possa mostrar. A postura (`stance`) sai da prontidão (fase 007) e
+     * da forma do dia; a razão é montada no componente a partir dos mesmos pedaços do "Por quê?" da
+     * prontidão, com os números reais da pessoa. Sem prontidão (conta sem histórico) não há
+     * moldura: mostra-se o objetivo autorado cru, e nunca um motivo inventado (§4).
+     *
+     * O custo — "~45 min · Volume" — deriva do plano do dia: os minutos de `blockSummary` (fase
+     * 001) e o foco do bloco (autorado). Os exemplos do plano ("45 min", "7/10") não entram como
+     * valores (§4.3, §14); o "~" diz que é uma estimativa, não uma medição. O dia de descanso
+     * também tem objetivo: descansar, lido como decisão do plano e não como ausência de conteúdo.
+     */
+    recommend: {
+      title: 'Objetivo de hoje',
+      stanceTrain: 'Bom dia para treinar',
+      stanceModerate: 'Treina com margem para recuperar',
+      stanceRest: 'Dia de descanso',
+      restWhy: 'O teu plano marca hoje como descanso.',
+      restBody: 'Descansar faz parte do plano: recupera, dorme e come bem para a próxima sessão.',
+      whyLabel: 'Por quê?',
+      minutes: 'min',
+    },
   },
 
   /**

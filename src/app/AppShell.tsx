@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router';
-import clsx from 'clsx';
 
 import { pt } from '../i18n/pt';
 
@@ -15,6 +14,12 @@ import { pt } from '../i18n/pt';
  * Each surface renders its own header and wash inside the scroll region; the shell
  * owns only the frame and the bar. That split is why a surface can be read on its
  * own and why adding one is a route entry plus a file, not a change here.
+ *
+ * A BARRA É A `.tabbar` DO SISTEMA v2, portada de `proto/v2/system.css` — não é
+ * mais um desenho escrito à mão em utilidades. Os cinco separadores, os ícones e os
+ * rótulos são os de `proto/v2/02-hoje.html`, e o estado ativo passa por
+ * `aria-current="page"`, que é o que a folha usa para pintar o ícone a accent: o
+ * estado chega à tecnologia de apoio pelo atributo, não só pela cor.
  */
 export function AppShell() {
   return (
@@ -32,84 +37,90 @@ export function AppShell() {
 type Tab = {
   to: string;
   label: string;
-  /** The two SVG path strokes: outline first, kept simple so one weight reads at 24px. */
+  /** O traço do protótipo, tal e qual. Um peso só, para ler a 22px. */
   icon: React.ReactNode;
   end?: boolean;
 };
 
+/*
+ * Os cinco do protótipo, por esta ordem. O Catálogo saiu daqui: no v2 pendura-se do
+ * Treino, e o ecrã do Treino leva a ligação para ele.
+ */
 const TABS: Tab[] = [
   {
     to: '/',
     end: true,
+    label: pt.nav.today,
+    icon: <path d="m3 11 9-8 9 8v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />,
+  },
+  {
+    to: '/treino',
     label: pt.nav.train,
-    icon: <path d="M6.5 9v6M17.5 9v6M4 12h16M4 10.5v3M20 10.5v3M9 8v8M15 8v8" />,
+    icon: <path d="M6 6v12M18 6v12M2 10v4M22 10v4M6 12h12" />,
   },
   {
-    to: '/catalogo',
-    label: pt.nav.catalog,
-    icon: <path d="M5 4h9l5 5v11H5zM14 4v5h5M8 13h7M8 16.5h7" />,
+    to: '/nutricao',
+    label: pt.nav.nutrition,
+    icon: (
+      <>
+        <path d="M5 3v8a3 3 0 0 0 6 0V3M8 11v10M17 3c-1.5 2-2 4-2 6s.5 3 2 3 2-1 2-3-.5-4-2-6Z" />
+        <path d="M17 12v9" />
+      </>
+    ),
   },
   {
-    to: '/objetivos',
-    label: pt.nav.goals,
-    icon: <path d="M12 3v18M3 12h18M12 12l6-3v6zM7.5 7.5a6.4 6.4 0 1 0 9 9" />,
-  },
-  {
-    to: '/treinadores',
-    label: pt.nav.trainers,
-    icon: <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 20a5.5 5.5 0 0 1 11 0M16 7.5a3 3 0 0 1 0 6M17 14.5a5 5 0 0 1 3.5 5.5" />,
+    to: '/equipa',
+    label: pt.nav.team,
+    icon: (
+      <>
+        <circle cx="9" cy="8" r="3.2" />
+        <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+        <circle cx="17.5" cy="9.5" r="2.6" />
+        <path d="M17.5 14a5 5 0 0 1 4 6" />
+      </>
+    ),
   },
   {
     to: '/perfil',
     label: pt.nav.profile,
-    icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20a7 7 0 0 1 14 0" />,
+    icon: (
+      <>
+        <circle cx="12" cy="8" r="3.4" />
+        <path d="M4 20a8 8 0 0 1 16 0" />
+      </>
+    ),
   },
 ];
 
 function BottomNav() {
   return (
-    <nav
-      aria-label="Secções"
-      className="z-20 shrink-0 border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)]"
-    >
-      <ul className="flex items-stretch justify-around px-1">
-        {TABS.map((tab) => (
-          <li key={tab.to} className="flex-1">
-            <NavLink
-              to={tab.to}
-              end={tab.end}
-              className={({ isActive }) =>
-                clsx(
-                  'flex min-h-[58px] flex-col items-center justify-center gap-1 pt-2 pb-1.5',
-                  'font-ui text-[10.5px] font-600',
-                  'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-                  isActive ? 'text-accent-line' : 'text-text-muted pointer-hover:text-text',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="23"
-                    height="23"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={isActive ? 2.1 : 1.7}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="transition-[stroke-width] duration-[180ms]"
-                  >
-                    {tab.icon}
-                  </svg>
-                  <span>{tab.label}</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+    <nav aria-label="Principal" className="tabbar z-20">
+      {TABS.map((tab) => (
+        <NavLink key={tab.to} to={tab.to} end={tab.end}>
+          {({ isActive }) => (
+            <>
+              {/*
+                * `aria-current` é o que a folha lê, e o NavLink já o põe sozinho.
+                * O `isActive` aqui só engrossa o traço, que é a diferença que se vê
+                * antes de se ler a cor — e é por isso que o estado não depende dela.
+                */}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={isActive ? 2.2 : 1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="transition-[stroke-width] duration-[180ms]"
+              >
+                {tab.icon}
+              </svg>
+              <span>{tab.label}</span>
+            </>
+          )}
+        </NavLink>
+      ))}
     </nav>
   );
 }

@@ -284,6 +284,22 @@ export function Train() {
         </header>
 
         {/*
+          * A prontidão VIVIA AQUI e mudou-se para o ecrã HOJE com o porte do sistema v2:
+          * em `proto/v2/02-hoje.html` ela é o primeiro cartão desse ecrã, e este passou a
+          * ser o ecrã do plano da semana. O cálculo, o texto e o caso de conta sem
+          * histórico são os mesmos da fase 007 — só mudou o sítio, por escolha dele.
+          *
+          * O catálogo também perdeu o separador de baixo, porque no v2 pendura-se daqui.
+          * Esta é a sua porta, e sem ela ficava sem nenhuma.
+          */}
+        <p className="mt-5">
+          <Link to="/catalogo" className="chip">
+            <Icon name="search" size={15} strokeWidth={2} />
+            {pt.nav.catalog}
+          </Link>
+        </p>
+
+        {/*
           * The week's rail names the phase, not its number. These four names wrap rather
           * than scroll, so every phase is one tap away and nothing hides.
           */}
