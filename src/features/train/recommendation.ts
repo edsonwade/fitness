@@ -1,5 +1,8 @@
+import { BLOCKS, type BlockKey } from '../../content';
+import type { Session } from '../../data/entities';
+import type { DayType } from './custom-days';
 import type { Metric } from './metrics';
-import type { Readiness, RecoveryReading } from './readiness';
+import type { Readiness } from './readiness';
 
 /**
  * A recomendação de hoje: o objetivo do dia com contexto e o "Por quê?" (§4).
@@ -17,8 +20,8 @@ import type { Readiness, RecoveryReading } from './readiness';
  * um motivo. Por isso o retorno é um `Metric<Recommendation>`: quem se esquecer do caso vazio
  * apanha um erro de tipo, não uma razão fabricada.
  *
- * Tudo aqui é puro — `import type` e funções sem React nem rede. A prontidão já calculada
- * (fase 007) entra pronta; este ficheiro só a interpreta.
+ * Tudo aqui é puro — sem React e sem rede. A prontidão já calculada (fase 007) entra pronta;
+ * este ficheiro só a interpreta. O único valor importado é `BLOCKS`, que é conteúdo do pacote.
  */
 
 /** A forma do dia. Um dia de descanso também tem objetivo — descansar é decisão do plano. */
@@ -37,21 +40,22 @@ export type DayShape = 'strength' | 'rest';
 export type Stance = 'treinar' | 'moderar' | 'descanso';
 
 /**
- * A recomendação, com a prontidão que a justifica à vista.
+ * A recomendação, com as parcelas da prontidão que a justificam à vista.
  *
- * A prontidão inteira viaja para o ecrã montar o "Por quê?" com os números reais, sem
- * recalcular nada — é a mesma leitura que o cartão da fase 007 mostra, e por isso os dois
- * nunca podem discordar.
+ * As parcelas viajam para o ecrã montar o "Por quê?" com os números reais, sem recalcular
+ * nada — são as mesmas que o cartão da fase 007 mostra, e por isso os dois nunca podem
+ * discordar.
  *
- * `readiness` é `null` num caso e só num: **o dia de descanso de quem ainda não registou
- * nada**. Aí a razão não vem do registo, vem do plano ("hoje é descanso"), e continua a ser
- * uma razão verdadeira. Num dia de treino sem histórico não há recomendação nenhuma —
- * `ok:false` — porque aí a razão teria de ser inventada.
+ * Não há aqui um caso de recomendação sem prontidão: sem histórico o retorno é `ok:false`
+ * (ver `recommendation`), porque aí a razão teria de ser inventada.
  */
 export type Recommendation = {
   shape: DayShape;
   stance: Stance;
-  readiness: Readiness | null;
+  score: number;
+  recovery: Readiness['recovery'];
+  daysSinceLast: number;
+  sessionsLast7: number;
 };
 
 /**
@@ -95,4 +99,53 @@ export function recommendation(
     },
     excluded: [],
   };
+}
+
+/* ---------- o que o ecrã HOJE precisa de saber antes de perguntar ------------ */
+
+/**
+ * A forma do dia, a partir do tipo autorado.
+ *
+ * `DayType` tem três valores e a recomendação só distingue dois, porque só há duas posturas
+ * possíveis: ou hoje se treina, ou hoje se descansa. **Cardio é treino** — o Dia 6 do programa é
+ * `cardio` e o protótipo recomenda-o como dia de treino, com o seu custo e a sua razão. Só o
+ * `rest` é descanso, e essa é uma decisão do plano que a prontidão não pode contrariar.
+ */
+export function shapeOf(type: DayType): DayShape {
+  return type === 'rest' ? 'rest' : 'strength';
+}
+
+/**
+ * A ranhura da semana em que hoje cai, para ler o dia que lá está.
+ *
+ * A semana ordenada começa na Segunda (`WEEKDAYS` sai de `DAYS` por ordem autorada, Seg…Dom),
+ * e `Date.getDay()` começa no Domingo com 0. A rotação de seis põe as duas a falar a mesma
+ * língua. É a ranhura que se lê, não o conteúdo: desde a fase 004 o dia da semana vem da
+ * posição, e quem estiver na primeira posição é a Segunda, tenha o nome que tiver.
+ */
+export function weekSlot(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}
+
+/**
+ * A fase do programa em que a pessoa está, lida da última sessão que registou.
+ *
+ * O custo do dia — os minutos de `blockSummary` — muda com a fase, porque as séries mudam. O
+ * ecrã do Treino tem chips para a escolher; o HOJE não tem nenhum, e inventar aqui uma fase
+ * fixa mostraria o custo de Volume a quem está em Deload. A última sessão registada é a resposta
+ * verdadeira, e existe sempre que existe recomendação: sem sessões não há prontidão, e sem
+ * prontidão não há moldura nenhuma para pôr um custo dentro.
+ *
+ * `block` é texto livre na base (`nullableText`), por isso é confrontado com as quatro fases que
+ * o programa autora antes de passar por uma. Sem sessões, ou com um valor que não é fase
+ * nenhuma, fica `b1` — a primeira, que é onde a app abre.
+ */
+export function blockOfLatest(sessions: readonly Session[], dateOf: (s: Session) => string): BlockKey {
+  let latest: Session | null = null;
+  for (const session of sessions) {
+    if (latest === null || dateOf(session).localeCompare(dateOf(latest)) > 0) latest = session;
+  }
+
+  const key = latest?.block ?? null;
+  return BLOCKS.some((block) => block.k === key) ? (key as BlockKey) : 'b1';
 }

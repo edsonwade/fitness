@@ -1,7 +1,6 @@
-import { Link } from 'react-router';
-
 import { pt } from '../../i18n/pt';
 import { ReadinessCard } from '../train/ReadinessCard';
+import { RecommendationCard } from '../train/RecommendationCard';
 
 /**
  * O ecrã HOJE — o separador que abre a aplicação.
@@ -11,9 +10,10 @@ import { ReadinessCard } from '../train/ReadinessCard';
  *
  * O QUE ESTE ECRÃ É, HOJE, E PORQUÊ
  *
- * O porte do sistema cria o SÍTIO; as fases 008 a 019 é que o enchem — o objetivo do
- * dia com o "Por quê?" (008), a hierarquia (009), a ação principal (010), o
- * progresso com contexto (013), o coach (016), a evolução (017) e a montagem final
+ * O porte do sistema criou o SÍTIO; as fases 008 a 019 é que o enchem. A **008** já
+ * entrou: o objetivo do dia com o "Por quê?", logo abaixo da prontidão, que é a
+ * ordem do frame 1 do protótipo. Faltam a hierarquia (009), a ação principal (010),
+ * o progresso com contexto (013), o coach (016), a evolução (017) e a montagem final
  * do §11 (019). Escrever aqui qualquer uma dessas coisas seria andar as fases fora
  * de ordem, e a regra do projeto é uma fase de cada vez.
  *
@@ -23,9 +23,12 @@ import { ReadinessCard } from '../train/ReadinessCard';
  * escolha dele — "HOJE com a prontidão" — e o componente não foi tocado: é o mesmo
  * cálculo, o mesmo texto e o mesmo caso de conta sem histórico.
  *
- * O resto do ecrã diz o que falta pelo nome, com o padrão de estado do protótipo
- * (`.empty`). Um ecrã que promete e não entrega é pior do que um que diz o que
- * ainda não faz — e isto é a porta de entrada da app, por isso tem de ser honesta.
+ * O ecrã acaba aqui, e acaba de propósito. O frame 1 do protótipo continua com o
+ * cartão do dia, o `Começar treino`, o progresso, o plano da semana e o coach — e
+ * nenhum deles é desta fase. **O que o protótipo não desenha não entra**, nem sequer
+ * como aviso do que está para vir: um bloco a dizer "o resto chega a seguir" é peça
+ * que nenhum frame tem, e a regra do projeto manda-a sair. Um ecrã curto e verdadeiro
+ * é a forma honesta de estar a meio da construção; um ecrã cheio de andaimes não é.
  *
  * SEM NÚMEROS INVENTADOS (§14). O protótipo mostra aqui um chip de "5 dias" de
  * sequência com a etiqueta *exemplo*; a sequência não está calculada em lado nenhum
@@ -55,30 +58,7 @@ export function Today() {
 
       <div className="screen-pad stack-lg">
         <ReadinessCard />
-
-        {/* O padrão `.empty` de `proto/v2/09-estados.html`, com as medidas de lá:
-            ícone a 40px e traço de 1,6, título em `.title-2`, e a ação a `--sp-4`. */}
-        <div className="empty">
-          <svg
-            viewBox="0 0 24 24"
-            width="40"
-            height="40"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" />
-          </svg>
-          <p className="title-2">{t.pendingTitle}</p>
-          <p>{t.pendingBody}</p>
-          <Link to="/treino" className="btn btn-primary mt-4">
-            {t.toTrain}
-          </Link>
-        </div>
+        <RecommendationCard />
       </div>
     </div>
   );

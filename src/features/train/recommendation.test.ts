@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import type { Session } from '../../data/entities';
 import { readiness } from './readiness';
-import { recommendation, stanceFor, type DayShape } from './recommendation';
+import { sessionDate } from './sessions';
+import {
+  blockOfLatest,
+  recommendation,
+  shapeOf,
+  stanceFor,
+  weekSlot,
+  type DayShape,
+} from './recommendation';
 import type { Readiness } from './readiness';
 
 /**
@@ -109,5 +117,49 @@ describe('stanceFor', () => {
     expect(stanceFor('strength', { ...base, recovery: 'pausa-longa', daysSinceLast: 14 })).toBe(
       'treinar',
     );
+  });
+});
+
+describe('shapeOf', () => {
+  it('treats cardio as a training day — only rest is rest', () => {
+    // O Dia 6 do programa é `cardio`, e o protótipo recomenda-o como dia de treino.
+    expect(shapeOf('cardio')).toBe('strength');
+    expect(shapeOf('strength')).toBe('strength');
+    expect(shapeOf('rest')).toBe('rest');
+  });
+});
+
+describe('weekSlot', () => {
+  it('maps a date onto the Monday-first slot the ordered week uses', () => {
+    // 2026-09-07 é uma segunda-feira; 2026-09-13 o domingo que a fecha.
+    const slots = [
+      ['2026-09-07', 0],
+      ['2026-09-08', 1],
+      ['2026-09-09', 2],
+      ['2026-09-10', 3],
+      ['2026-09-11', 4],
+      ['2026-09-12', 5],
+      ['2026-09-13', 6],
+    ] as const;
+    for (const [date, slot] of slots) {
+      expect(weekSlot(new Date(`${date}T12:00:00`))).toBe(slot);
+    }
+  });
+});
+
+describe('blockOfLatest', () => {
+  it('reads the phase off the most recent session, whatever order they arrive in', () => {
+    const rows = [
+      session({ local_date: '2026-09-04', block: 'b1' }),
+      session({ local_date: '2026-09-09', block: 'dl' }),
+      session({ local_date: '2026-09-06', block: 'b3' }),
+    ];
+    expect(blockOfLatest(rows, sessionDate)).toBe('dl');
+  });
+
+  it('falls back to the first phase with no sessions, or with a phase that is not one', () => {
+    expect(blockOfLatest([], sessionDate)).toBe('b1');
+    expect(blockOfLatest([session({ block: null })], sessionDate)).toBe('b1');
+    expect(blockOfLatest([session({ block: 'bloco-inventado' })], sessionDate)).toBe('b1');
   });
 });

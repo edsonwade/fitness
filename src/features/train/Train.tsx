@@ -272,7 +272,7 @@ export function Train() {
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-wash-from from-15% via-wash-from/75 via-45% to-wash-to"
       />
 
-      <div className="relative px-7 pb-10">
+      <div className="relative px-5 pb-10">
         <header className="flex items-center gap-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
           <div className="min-w-0 flex-1">
             <h1 className="font-ui text-[26px] font-700 leading-[1.1] tracking-[-0.02em] text-text">
@@ -566,11 +566,19 @@ function DayCard({
         {isRest ? (
           <p className="mt-1.5 font-ui text-[12px] text-text-muted">{t.restDay}</p>
         ) : (
-          <p className="mt-1.5 flex items-center gap-1.5 font-ui text-[12px] text-text-muted">
-            <Icon name="dumbbell" size={13} strokeWidth={1.8} />
-            {entries.length} {entries.length === 1 ? t.exercise : t.exercises}
-            <span aria-hidden="true">·</span>
-            {setCount} {setCount === 1 ? t.serie : t.series}
+          <p className="mt-1.5 flex items-start gap-1.5 font-ui text-[12px] leading-[1.45] text-text-muted">
+            <Icon name="dumbbell" size={13} strokeWidth={1.8} className="mt-0.5 shrink-0" />
+            {/*
+              * Uma frase num elemento só. Em items de flex anónimos cada pedaço de
+              * texto era uma caixa sua, e a 360 a linha partia-se a meio de
+              * "exercícios"; assim, se tiver mesmo de passar a duas linhas, parte
+              * entre palavras e o ícone fica onde está.
+              */}
+            <span className="min-w-0">
+              {entries.length} {entries.length === 1 ? t.exercise : t.exercises}{' '}
+              <span aria-hidden="true">·</span> {setCount}{' '}
+              {setCount === 1 ? t.serie : t.series}
+            </span>
           </p>
         )}
 
@@ -584,7 +592,7 @@ function DayCard({
             <Link
               to={`/treino/${dayRef.no}?bloco=${block}`}
               aria-label={`${dayRef.name}. ${progress.pct}% concluído.`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2.5 font-ui text-[12px] font-700 text-accent-ink transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:active:scale-100"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-accent px-4 py-2.5 font-ui text-[12px] font-700 text-accent-ink transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:active:scale-100"
             >
               {t.open}
               <Icon name="forward" size={13} strokeWidth={2.4} />
@@ -611,12 +619,12 @@ function DayCard({
             if (!fallback || e.currentTarget.src.endsWith(fallback)) return;
             e.currentTarget.src = fallback;
           }}
-          className="h-[108px] w-[108px] shrink-0 rounded-[16px] object-cover"
+          className="h-[86px] w-[86px] shrink-0 rounded-[16px] object-cover min-[380px]:h-[108px] min-[380px]:w-[108px]"
         />
       ) : (
         <span
           aria-hidden="true"
-          className="grid h-[108px] w-[108px] shrink-0 place-items-center rounded-[16px] bg-surface-sunken text-text-muted"
+          className="grid h-[86px] w-[86px] shrink-0 place-items-center rounded-[16px] bg-surface-sunken text-text-muted min-[380px]:h-[108px] min-[380px]:w-[108px]"
         >
           <Icon name="dumbbell" size={30} strokeWidth={1.5} />
         </span>

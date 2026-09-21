@@ -75,16 +75,13 @@ export const pt = {
   },
 
   /**
-   * O ecrã HOJE, tal como o porte o deixa: a prontidão, que já existe desde a fase
-   * 007 e que no §11 pertence a este ecrã, e o que ainda não está construído dito
-   * pelo nome em vez de escondido. As fases 008 a 019 enchem-no.
+   * O ecrã HOJE. Só a saudação vive aqui: a prontidão (007) e o objetivo de hoje
+   * (008) trazem o seu próprio texto. O que o protótipo não desenha não tem copy —
+   * os avisos de "isto chega numa próxima fase" saíram a 2026-09-21, com a regra de
+   * que a app é o protótipo.
    */
   today: {
     greeting: 'Olá',
-    pendingTitle: 'O resto do teu dia chega a seguir',
-    pendingBody:
-      'O objetivo de hoje, o coach e o plano da semana entram nas próximas fases. A prontidão acima já lê o teu registo.',
-    toTrain: 'Ver o treino',
   },
 
   pending: {
@@ -374,7 +371,16 @@ export const pt = {
       restWhy: 'O teu plano marca hoje como descanso.',
       restBody: 'Descansar faz parte do plano: recupera, dorme e come bem para a próxima sessão.',
       whyLabel: 'Por quê?',
+      /* "~45 min": o til diz que é estimativa, e os minutos saem de `blockSummary`. */
       minutes: 'min',
+      /* "A prontidão está em 74." — o número entra no meio, no componente. */
+      scorePre: 'A prontidão está em',
+      /*
+       * Conta sem histórico: o objetivo autorado do dia, cru, e uma linha que diz porque é que
+       * não há razão nenhuma por baixo dele. Não repete o convite da prontidão vazia, que está
+       * no cartão logo acima — diz só o que falta para haver moldura.
+       */
+      noReason: 'Sem treinos com data ainda não há razão para mostrar — e não inventamos uma.',
     },
   },
 

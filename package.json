@@ -27,7 +27,8 @@
     "verify:009": "node scripts/verify-009.mjs",
     "gate:nova:001": "node scripts/gate-nova-001.mjs",
     "gate:nova:007": "node scripts/gate-nova-007.mjs",
-    "gate:porte:v2": "node scripts/gate-porte-v2.mjs"
+    "gate:porte:v2": "node scripts/gate-porte-v2.mjs",
+    "gate:nova:008": "node scripts/gate-nova-008.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
