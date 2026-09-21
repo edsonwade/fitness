@@ -146,7 +146,7 @@ export function DayView() {
     return (
       <Screen title="Dia não encontrado" body="Este dia de treino não existe.">
         <Link
-          to="/"
+          to="/treino"
           className="inline-flex min-h-[48px] items-center rounded-full bg-accent px-6 font-ui text-[14px] font-700 text-accent-ink"
         >
           {t.title}
@@ -493,7 +493,7 @@ export function DayView() {
           className="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-wash-from from-15% via-wash-from/75 via-45% to-wash-to"
         />
 
-        <div className="relative px-6 pb-40">
+        <div className="relative px-5 pb-40">
           <header className="flex items-center gap-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
             <IconButton icon="back" label={pt.common.back} onClick={goBack} />
             <div className="min-w-0 flex-1 text-center">

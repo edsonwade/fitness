@@ -41,25 +41,40 @@ export function RequireNoSession() {
 }
 
 /**
- * A tab whose surface phase 4 has not written yet.
+ * A casca honesta de um separador que ainda não tem ecrã: Nutrição (fase 020),
+ * Equipa (021) e Perfil (023).
  *
  * It renders inside <AppShell>, so it draws no frame of its own: the shell already
  * owns the panel and the bottom bar stays under the thumb, which is what makes this
  * read as a screen of this app rather than as an error. It says plainly that the
  * screen does not exist yet, and offers the one place that does.
+ *
+ * Desde o porte do sistema v2 usa o padrão `.empty` de `proto/v2/09-estados.html`,
+ * que é o mesmo vazio que todos os outros ecrãs vão usar. Um separador que leva a
+ * lado nenhum diz à pessoa que a app está partida; este diz a verdade, que é que o
+ * ecrã ainda não foi escrito.
  */
 export function SurfacePending() {
   return (
-    <div className="grid min-h-full place-items-center px-8 py-16 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <h1 className="font-ui text-[19px] font-700 leading-[1.2] text-text">{pt.pending.title}</h1>
-        <p className="max-w-[28ch] font-ui text-[13.5px] leading-relaxed text-text-muted">
-          {pt.pending.body}
-        </p>
-        <Link
-          to="/"
-          className="mt-1 inline-flex min-h-[48px] items-center rounded-full bg-accent px-6 font-ui text-[14px] font-700 text-accent-ink transition-colors duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] pointer-hover:bg-accent-hover active:scale-[0.98] motion-reduce:active:scale-100"
+    <div className="grid min-h-full place-items-center">
+      <div className="empty">
+        <svg
+          viewBox="0 0 24 24"
+          width="40"
+          height="40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
         >
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M3 10h18M9 4v6" />
+        </svg>
+        <p className="title-2">{pt.pending.title}</p>
+        <p className="max-w-[28ch]">{pt.pending.body}</p>
+        <Link to="/treino" className="btn btn-primary mt-4">
           {pt.pending.action}
         </Link>
       </div>

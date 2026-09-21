@@ -8,6 +8,9 @@ import { useEffect, useState } from 'react';
  * follows their phone. An explicit choice stamps `data-theme` and wins in both
  * directions, including against a phone that disagrees.
  *
+ * Desde o porte do sistema v2, o padrão de quem nunca escolheu é **escuro**: é esse
+ * o mundo primário do protótipo aprovado. Ver `readStored` mais abaixo.
+ *
  * Stored locally for now. Per the approved plan (section 8.1) theme is *synced*
  * user state and belongs in `user_settings` alongside `lang`, so choosing dark on
  * the phone turns the PC dark too. That is Phase 3. This is deliberately not
@@ -37,13 +40,21 @@ function readStored(): ThemePreference {
     // Private mode, or site data blocked. Fall through to the brand default.
   }
   /*
-   * Light, not 'system'. The pinned reference is a light product, so the brand
-   * insists on a mode and the OS preference does not get to override it on first
-   * run. Leaving this as 'system' meant a user whose phone is in dark mode saw a
-   * brown-and-dark app that looked nothing like the reference, which is exactly
-   * what happened. The user can still choose dark; it is just not the default.
+   * ESCURO, e não 'system' nem 'light'.
+   *
+   * Até ao porte do sistema v2 isto devolvia 'light', porque a referência de agosto
+   * era um produto claro — areia quente e laranja — e deixar 'system' fazia com que
+   * um telemóvel em modo escuro mostrasse uma app que não se parecia nada com a
+   * referência.
+   *
+   * O v2 inverteu isso: em `proto/v2/tokens.css` **o escuro é o mundo primário e o
+   * claro é o derivado**, e o próprio protótipo abre em escuro. Manter 'light' aqui
+   * era mostrar a app no mundo secundário a quem nunca escolheu nada.
+   *
+   * A marca continua a insistir num modo em vez de seguir o sistema: quem escolheu
+   * claro fica com claro, e essa escolha está guardada e não é tocada por isto.
    */
-  return 'light';
+  return 'dark';
 }
 
 export function useTheme() {

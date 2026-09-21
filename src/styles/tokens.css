@@ -1,332 +1,316 @@
 /**
  * Vanilson Workout: design tokens.
  *
- * BRIEF-PINNED WORLD, and this pin is the STANDING REFERENCE. The user pinned it on
- * 2026-08-31 and asked that every screen be checked against it:
+ * PORTE DO SISTEMA PREMIUM v2 (skill `porte-do-sistema-premium-v2`, 2026-09-21).
  *
- *   Warm sand ground, white cards on top of it, a peach wash bleeding down from the
- *   status bar, vivid orange as the primary accent, magenta as the second data
- *   colour, photography inside heavily rounded cards, pill-shaped everything, soft
- *   geometric sans in sentence case, dark text.
+ * Os valores deste ficheiro são os de `proto/v2/tokens.css`, o protótipo que o
+ * utilizador aprovou no browser — `.impeccable/gate-proto-v2.json`, palavras dele:
+ * "Ja vi o prototype e esta como quero (...) exactly the prototype".
  *
- * impeccable SKILL.md: "The brief wins." A pinned direction beats the roll, always.
- * The mint world and the lime world before it are replaced in full, not blended.
+ * A REGRA DO PORTE: os nomes `--ui-*` FICAM, os valores MUDAM. Trocar os nomes
+ * obrigaria a reescrever todos os componentes num único passo, que é exatamente o
+ * tipo de mudança que não se consegue validar no browser. Mantendo a API dos
+ * tokens, a troca de paleta repinta a app inteira sem tocar na lógica, e o que
+ * partir aparece à vista no portão.
  *
- * LIGHT AND DARK ARE BOTH REQUIRED, and THEY ARE TWO SEPARATE PINS. Light follows
- * the sand-and-orange reference above. Dark follows a second image the user pinned
- * on 2026-08-31 and asked to be matched exactly: the dark Sportio screens, cool
- * near-black with a pale mint primary. Dark is therefore NOT the light world after
- * sundown, and the accent DOES change hue between modes. That was a deliberate
- * instruction, overriding the earlier note here that said it must not. The dark
- * block carries the full reasoning.
+ * O MUNDO PRIMÁRIO PASSOU A SER O ESCURO. O mundo de agosto — areia quente, laranja
+ * vivo, lavagem de pêssego, Poppins — está substituído por inteiro, não misturado:
  *
- * Every pairing is measured by scripts/contrast.mjs against WCAG 2.2 AA in BOTH
- * modes. Change a value, re-run it.
+ *   Preto NEUTRO (#0A0A0B), uma folha cinzenta por cima, o volt #D2F53C como ÚNICA
+ *   cor saturada e que significa sempre "a ação" ou "agora", nunca decoração. Anton
+ *   em maiúsculas para display, Archivo para tudo o resto. Sem dourado, sem
+ *   gradiente, sem vidro, sem brilho: o §13 do plano vale inteiro, e premium
+ *   paga-se com informação interpretada, não com enfeite.
+ *
+ * NO TEMA CLARO O VOLT NUNCA É COR DE TEXTO. A ação passa a verde-tinta (#1C3A21),
+ * e o volt sobrevive só como preenchimento de destaque (`--ui-volt`), com tinta
+ * escura por cima.
+ *
+ * Três estados de tema, como antes: sem atributo segue o sistema, `data-theme`
+ * ganha nos dois sentidos. A diferença é que agora o escuro é o que está em
+ * `:root` — é ele o mundo primário, e o claro é o derivado.
+ *
+ * Cada par é medido por `scripts/contrast.mjs` contra WCAG 2.2 AA nos DOIS mundos,
+ * incluindo os que assentam sobre media, compostos contra branco puro porque por
+ * baixo de um frame de vídeo não há token nenhum. Mudar um valor obriga a correr
+ * `npm run check:contrast` outra vez.
  */
 
 /* ---------- faces ---------------------------------------------------------- */
 
+/*
+ * `format('woff2')` e NÃO `'woff2-variations'`: o Safari deixou de aceitar a
+ * segunda e a spec substituiu-a. Com ela, as duas faces caíam para `system-ui` e o
+ * desenho aparecia partido — foi esse o defeito do protótipo v1.
+ *
+ * O Poppins reformou-se com o porte e deixou de ser referenciado. Os quatro
+ * `.woff2` ficam no disco: `rm` é proibido neste projeto e apagá-los não é trabalho
+ * desta fase.
+ */
+
 @font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/poppins-400.woff2') format('woff2');
+  font-family: 'Anton';
+  src: url('/fonts/anton.woff2') format('woff2');
   font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/poppins-500.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/poppins-600.woff2') format('woff2');
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/poppins-700.woff2') format('woff2');
-  font-weight: 700;
+  font-style: normal;
   font-display: swap;
 }
 
-/* ---------- light, the reference ------------------------------------------- */
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/archivo-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
-:root {
-  /* Sampled directly from the pinned reference, not estimated by eye. */
+/* ---------- escuro: o mundo primário --------------------------------------- */
+
+:root,
+[data-theme='dark'] {
   /*
-   * The browser page background, sampled from the reference at #D7CEC9. The app
-   * itself sits centred on top of it like the phone in the mockup, so on a wide
-   * window this colour is what frames it. Explicitly requested.
+   * A moldura por trás do telefone numa janela larga. É o sunken, um degrau ABAIXO
+   * do ground, para o painel do ecrã se ler como objeto pousado.
    */
-  --ui-page: #d7cec9;
-  --ui-ground: #f4f3f1;
-  --ui-surface: #ffffff;
-  --ui-surface-raised: #faf9f7;
-  --ui-surface-sunken: #e4e2df;
+  --ui-page: #050506;
+  --ui-ground: #0a0a0b;
+  --ui-surface: #191a1c;
+  --ui-surface-raised: #26282b;
+  --ui-surface-sunken: #050506;
 
-  /* The peach wash bleeding down from the top of every screen. */
-  --ui-wash-from: #f0c9a1;
-  --ui-wash-to: #f4f3f1;
+  /*
+   * A lavagem de pêssego era do mundo de agosto e não existe na v2: o topo do ecrã
+   * é o ground, liso. O gradiente que os ecrãs desenham resolve-se numa cor só em
+   * vez de ser suavizado — mesmo elemento, sem brilho nenhum.
+   */
+  --ui-wash-from: #0a0a0b;
+  --ui-wash-to: #0a0a0b;
 
-  --ui-text: #1f1b19;
-  --ui-text-muted: #5f5651;
+  --ui-text: #f2f2f0; /* 17.65:1 no ground */
+  --ui-text-muted: #a2a3a8; /* 7.86:1 no ground, 5.87:1 no raised */
+  --ui-on-media: #ffffff;
   --ui-text-on-photo: #ffffff;
 
+  /* O volt. No escuro é cor de texto de pleno direito: 15.89:1 no ground. */
+  --ui-accent: #d2f53c;
+  --ui-accent-ink: #0a0a0b;
+  --ui-accent-hover: #ddf862;
+  --ui-accent-soft: #2a3015; /* o azeitonado da linha ativa */
+  --ui-accent-soft-raised: #39411d; /* a pílula de valor DENTRO da linha ativa */
   /*
-   * The orange, exactly as sampled: #EE8F33. Its ink is dark, not white. The
-   * reference sets white on this orange, which measures 2.4:1 and fails the AA gate
-   * PRODUCT.md commits to. Dark ink on the same vivid fill measures 7.4:1.
+   * Arcos, riscos de 1px, anéis de foco e texto em cor de ação. No mundo de agosto
+   * isto tinha de ser uma cor à parte, porque o laranja vivo não chegava a 4.5:1
+   * como texto. O volt chega, e o verde-tinta do claro também: nos dois mundos a
+   * linha é o próprio accent, e o nome fica por ser API que os componentes usam.
    */
-  --ui-accent: #ee8f33;
-  --ui-accent-ink: #1f1508;
-  --ui-accent-soft: #fbe3c9;
-  /*
-   * The accent at INK strength: progress arcs, focus rings, 1px marks, and accent
-   * coloured text. The vivid fill cannot reach 3:1 as a hairline on a light surface,
-   * let alone 4.5:1 as text, and thinning the brand colour is not an option, so
-   * anything thin or read as text gets this instead. It measures 5.21:1 on the card
-   * and 4.70:1 on the ground.
-   */
-  --ui-accent-line: #a85700;
+  --ui-accent-line: #d2f53c;
 
-  /* Second data colour, sampled from the chart bars. Magenta, not green. */
-  --ui-accent-2: #b7275c;
+  /* O volt existe nos dois temas como preenchimento; no escuro é o próprio accent. */
+  --ui-volt: #d2f53c;
+  --ui-volt-ink: #0a0a0b;
+
+  --ui-accent-2: #ffa23a;
+  --ui-accent-2-ink: #1a0f00;
+  --ui-accent-2-soft: #2e2214;
+
+  --ui-danger: #ff8577;
+  --ui-danger-ink: #2a0704;
+  --ui-danger-soft: #2a1613;
+
+  /* A borda que responde ao ponteiro. No v2 é o texto apagado que a faz. */
+  --ui-edge: #a2a3a8;
+  --ui-rule: #2b2d31;
+  --ui-focus: #d2f53c;
+  --ui-scrim: rgb(0 0 0 / 0.62);
+
+  /*
+   * Chips. O chip escolhido é o accent cheio com a sua tinta; o não escolhido é a
+   * folha levantada com texto de pleno valor. O estado também chega à tecnologia de
+   * apoio por `aria-selected`/`aria-pressed`, que é quem o carrega quando as duas
+   * superfícies estão perto.
+   */
+  --ui-chip: #26282b;
+  --ui-chip-ink: #f2f2f0;
+  --ui-chip-selected: #d2f53c;
+  --ui-chip-selected-ink: #0a0a0b;
+
+  /* O disco pequeno de ação sobre um cartão: `.btn-icon` do sistema. */
+  --ui-control: #26282b;
+  --ui-control-ink: #f2f2f0;
+
+  /*
+   * TRÊS camadas e não duas. Contacto, corpo e ambiente — é a distância entre elas
+   * que faz um cartão pousar em vez de flutuar num borrão só.
+   */
+  --ui-shadow-contact: 0 1px 2px -1px rgb(0 0 0 / 0.6);
+  --ui-shadow-body: 0 10px 24px -8px rgb(0 0 0 / 0.66);
+  --ui-shadow-ambient: 0 32px 64px -22px rgb(0 0 0 / 0.74);
+  --ui-shadow-card: var(--ui-shadow-contact), var(--ui-shadow-body), var(--ui-shadow-ambient);
+  --ui-shadow-float:
+    0 2px 5px -2px rgb(0 0 0 / 0.64), 0 20px 40px -12px rgb(0 0 0 / 0.74),
+    0 56px 96px -32px rgb(0 0 0 / 0.82);
+  /*
+   * Sobre quase-preto uma sombra sozinha não separa: por baixo dela o fundo já é
+   * preto. O que separa é um degrau de LUZ no topo da peça.
+   */
+  --ui-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.06);
+
+  color-scheme: dark;
+}
+
+/* ---------- claro: o mundo derivado ---------------------------------------- */
+
+/*
+ * As duas regras abaixo TÊM de carregar declarações idênticas: uma serve quem nunca
+ * escolheu tema e tem o sistema em claro, a outra quem escolheu claro à mão. O CSS
+ * não partilha um bloco de declarações com uma media query, por isso estão
+ * duplicadas de propósito. Mudar uma é mudar a outra.
+ */
+
+:root:not([data-theme='dark']) {
+  @media (prefers-color-scheme: light) {
+    --ui-page: #e0e0dc;
+    --ui-ground: #f3f3f1;
+    --ui-surface: #ffffff;
+    --ui-surface-raised: #ebebe8;
+    --ui-surface-sunken: #e0e0dc;
+
+    --ui-wash-from: #f3f3f1;
+    --ui-wash-to: #f3f3f1;
+
+    --ui-text: #17181a; /* 15.99:1 no ground */
+    --ui-text-muted: #55575c; /* 6.51:1 no ground, 6.05:1 no raised */
+    --ui-on-media: #ffffff;
+    --ui-text-on-photo: #ffffff;
+
+    /* No claro o volt NUNCA é cor de texto. A ação passa a verde-tinta fundo. */
+    --ui-accent: #1c3a21; /* 12.53:1 sobre branco */
+    --ui-accent-ink: #ffffff;
+    --ui-accent-hover: #152c19;
+    --ui-accent-soft: #e4eddd;
+    --ui-accent-soft-raised: #d6e3cb;
+    --ui-accent-line: #1c3a21;
+
+    /* O volt continua a existir no claro, mas só como preenchimento de destaque. */
+    --ui-volt: #d2f53c;
+    --ui-volt-ink: #17181a; /* 14.27:1 sobre o volt */
+
+    --ui-accent-2: #8a4b00;
+    --ui-accent-2-ink: #ffffff;
+    --ui-accent-2-soft: #f3e4cf;
+
+    --ui-danger: #b3261e;
+    --ui-danger-ink: #ffffff;
+    --ui-danger-soft: #f6dedc;
+
+    --ui-edge: #55575c;
+    --ui-rule: #dcdcd7;
+    --ui-focus: #1c3a21;
+    --ui-scrim: rgb(20 20 22 / 0.46);
+
+    --ui-chip: #ebebe8;
+    --ui-chip-ink: #17181a;
+    --ui-chip-selected: #1c3a21;
+    --ui-chip-selected-ink: #ffffff;
+
+    --ui-control: #ebebe8;
+    --ui-control-ink: #17181a;
+
+    --ui-shadow-contact: 0 1px 2px -1px rgb(30 30 32 / 0.1);
+    --ui-shadow-body: 0 8px 18px -6px rgb(30 30 32 / 0.14);
+    --ui-shadow-ambient: 0 26px 50px -18px rgb(30 30 32 / 0.16);
+    --ui-shadow-card: var(--ui-shadow-contact), var(--ui-shadow-body), var(--ui-shadow-ambient);
+    --ui-shadow-float:
+      0 2px 4px -2px rgb(30 30 32 / 0.12), 0 16px 32px -10px rgb(30 30 32 / 0.18),
+      0 44px 80px -28px rgb(30 30 32 / 0.22);
+    /* Sobre uma folha clara a sombra chega, e o degrau de luz não teria o que fazer. */
+    --ui-edge-light: none;
+
+    color-scheme: light;
+  }
+}
+
+[data-theme='light'] {
+  --ui-page: #e0e0dc;
+  --ui-ground: #f3f3f1;
+  --ui-surface: #ffffff;
+  --ui-surface-raised: #ebebe8;
+  --ui-surface-sunken: #e0e0dc;
+
+  --ui-wash-from: #f3f3f1;
+  --ui-wash-to: #f3f3f1;
+
+  --ui-text: #17181a; /* 15.99:1 no ground */
+  --ui-text-muted: #55575c; /* 6.51:1 no ground, 6.05:1 no raised */
+  --ui-on-media: #ffffff;
+  --ui-text-on-photo: #ffffff;
+
+  /* No claro o volt NUNCA é cor de texto. A ação passa a verde-tinta fundo. */
+  --ui-accent: #1c3a21; /* 12.53:1 sobre branco */
+  --ui-accent-ink: #ffffff;
+  --ui-accent-hover: #152c19;
+  --ui-accent-soft: #e4eddd;
+  --ui-accent-soft-raised: #d6e3cb;
+  --ui-accent-line: #1c3a21;
+
+  /* O volt continua a existir no claro, mas só como preenchimento de destaque. */
+  --ui-volt: #d2f53c;
+  --ui-volt-ink: #17181a; /* 14.27:1 sobre o volt */
+
+  --ui-accent-2: #8a4b00;
   --ui-accent-2-ink: #ffffff;
-  --ui-accent-2-soft: #f7dce6;
-
-  --ui-edge: #6e645e;
-  --ui-rule: #e7e4e0;
+  --ui-accent-2-soft: #f3e4cf;
 
   --ui-danger: #b3261e;
   --ui-danger-ink: #ffffff;
+  --ui-danger-soft: #f6dedc;
 
-  --ui-shadow-card: 0 6px 20px -8px rgb(70 55 45 / 0.22), 0 2px 6px -2px rgb(70 55 45 / 0.14);
-  --ui-shadow-float: 0 14px 34px -10px rgb(70 55 45 / 0.3), 0 4px 10px -4px rgb(70 55 45 / 0.2);
+  --ui-edge: #55575c;
+  --ui-rule: #dcdcd7;
+  --ui-focus: #1c3a21;
+  --ui-scrim: rgb(20 20 22 / 0.46);
 
-  /*
-   * Filter chips, named as their own role rather than assembled at the call site,
-   * because the dark reference styles them completely differently: see the dark
-   * block. Here the selected chip is the orange fill from the reference.
-   */
-  --ui-chip: #d7cec9;
-  --ui-chip-ink: #1f1b19;
-  --ui-chip-selected: #ee8f33;
-  --ui-chip-selected-ink: #1f1508;
+  --ui-chip: #ebebe8;
+  --ui-chip-ink: #17181a;
+  --ui-chip-selected: #1c3a21;
+  --ui-chip-selected-ink: #ffffff;
 
-  /* The small circular action on a card: near-black disc, white icon. */
-  --ui-control: #1f1b19;
-  --ui-control-ink: #ffffff;
+  --ui-control: #ebebe8;
+  --ui-control-ink: #17181a;
 
-  /* Pointer hover on the primary fill. Was a stray lime left over from the old world. */
-  --ui-accent-hover: #e07f22;
+  --ui-shadow-contact: 0 1px 2px -1px rgb(30 30 32 / 0.1);
+  --ui-shadow-body: 0 8px 18px -6px rgb(30 30 32 / 0.14);
+  --ui-shadow-ambient: 0 26px 50px -18px rgb(30 30 32 / 0.16);
+  --ui-shadow-card: var(--ui-shadow-contact), var(--ui-shadow-body), var(--ui-shadow-ambient);
+  --ui-shadow-float:
+    0 2px 4px -2px rgb(30 30 32 / 0.12), 0 16px 32px -10px rgb(30 30 32 / 0.18),
+    0 44px 80px -28px rgb(30 30 32 / 0.22);
+  --ui-edge-light: none;
 
   color-scheme: light;
 }
 
-/* ---------- dark, the pinned dark reference -------------------------------- */
+/* ---------- espaço, e os alvos de toque ------------------------------------ */
 
-/*
- * SECOND BRIEF-PINNED WORLD, pinned 2026-08-31 alongside the light one: the dark
- * Sportio screens. Every value below is sampled from that image, not estimated.
- *
- *   Cool near-black ground, one step up to a flat card, no wash, no shadow doing
- *   the separating, white text on grey-green muted text, and a pale mint pill as
- *   the primary action with near-black ink in it.
- *
- * The two rules below MUST carry identical declarations: one serves the user who
- * never chose a theme and whose OS is dark, the other the user who chose dark
- * explicitly. CSS cannot share a declaration block across a media query, so they
- * are duplicated on purpose. Change one, change the other.
- */
-
-:root:not([data-theme='light']) {
-  @media (prefers-color-scheme: dark) {
-    /*
-     * Ground and card, sampled at #151919 and #282D2D. Cool near-black with a faint
-     * teal cast, not the warm espresso this used to be: the reference is decidedly
-     * cool and the two do not read alike side by side.
-     */
-    --ui-page: #0b0e0e;
-    --ui-ground: #151919;
-    --ui-surface: #282d2d;
-    --ui-surface-raised: #333939;
-    --ui-surface-sunken: #0b0e0e;
-
-    /*
-     * Flat. The reference's dark screens carry no wash under the status bar at all,
-     * so the gradient that defines the light screens resolves to a single colour
-     * here rather than being softened. Same element, no glow.
-     */
-    --ui-wash-from: #151919;
-    --ui-wash-to: #151919;
-
-    --ui-text: #ecefef;
-    /*
-     * Sampled at #8D8F8F, lifted to #A2A7A7. The sampled value measures 4.30:1 on
-     * the card and 3.62:1 on a raised chip, both under AA; the lift clears 4.5:1 on
-     * ground, card and chip alike and is imperceptible beside the original.
-     */
-    --ui-text-muted: #a2a7a7;
-    --ui-text-on-photo: #ffffff;
-
-    /*
-     * THE ONE DELIBERATE BRAND MOVE. The light reference is an orange product; the
-     * dark reference is a mint one, and every primary pill in it — Get Started,
-     * Start workout, Edit Profile — is #D7F2F4 with near-black ink. Matching the
-     * reference exactly means the primary accent changes hue between modes, which
-     * the previous note in this file explicitly ruled out. The user overrode that on
-     * 2026-08-31: the dark screens must look exactly like the pinned dark image.
-     * Ink measures 15.10:1 on the mint, so the fill needs no compromise here.
-     */
-    --ui-accent: #d7f2f4;
-    --ui-accent-ink: #151919;
-    --ui-accent-hover: #c2e4e7;
-    /* The ring track, sampled from the arcs' unfilled remainder. */
-    --ui-accent-soft: #2e3a3b;
-    /* Mint reads 11.90:1 on the card, so strokes and accent text reuse the fill. */
-    --ui-accent-line: #d7f2f4;
-
-    /*
-     * The orange survives as the second colour, exactly as the reference uses it:
-     * the chart line, the flame, the Premium tag. It is no longer the primary, so
-     * it takes the accent-2 slot that magenta holds in light.
-     */
-    --ui-accent-2: #ec9933;
-    --ui-accent-2-ink: #1f1508;
-    --ui-accent-2-soft: #3a2a16;
-
-    --ui-edge: #8e9494;
-    --ui-rule: #2e3434;
-
-    --ui-danger: #ff8577;
-    --ui-danger-ink: #1f0a08;
-
-    /*
-     * Filter chips. The reference's dark segmented control does not use the accent
-     * at all: the selected chip is a raised card-coloured pill with full-strength
-     * text, the rest sit bare on the ground in muted text. In light the same chip is
-     * an orange fill. State also reaches assistive tech through aria-selected, which
-     * is what carries it when the fills are this close.
-     */
-    --ui-chip: #151919;
-    --ui-chip-ink: #a2a7a7;
-    --ui-chip-selected: #282d2d;
-    --ui-chip-selected-ink: #ecefef;
-
-    /*
-     * The small circular action sitting on a card. The reference sinks it to the
-     * ground colour and strokes the icon in mint; light does the inverse, a
-     * near-black disc with a white icon. Both are the same idea: the disc reverses
-     * against whatever it sits on.
-     */
-    --ui-control: #151919;
-    --ui-control-ink: #d7f2f4;
-
-    /*
-     * Barely there. In the reference the step from #151919 to #282D2D is what
-     * separates a card from the screen; a heavy shadow on near-black only smudges
-     * the ground around it.
-     */
-    --ui-shadow-card: 0 2px 8px -4px rgb(0 0 0 / 0.5);
-    --ui-shadow-float: 0 10px 26px -12px rgb(0 0 0 / 0.75), 0 3px 8px -4px rgb(0 0 0 / 0.5);
-
-    color-scheme: dark;
-  }
-}
-
-[data-theme='dark'] {
-  /*
-   * Ground and card, sampled at #151919 and #282D2D. Cool near-black with a faint
-   * teal cast, not the warm espresso this used to be: the reference is decidedly
-   * cool and the two do not read alike side by side.
-   */
-  --ui-page: #0b0e0e;
-  --ui-ground: #151919;
-  --ui-surface: #282d2d;
-  --ui-surface-raised: #333939;
-  --ui-surface-sunken: #0b0e0e;
+:root {
+  /* Escala de espaço, base 4px. Vem tal e qual de proto/v2/tokens.css. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+  --sp-10: 72px;
 
   /*
-   * Flat. The reference's dark screens carry no wash under the status bar at all,
-   * so the gradient that defines the light screens resolves to a single colour
-   * here rather than being softened. Same element, no glow.
+   * 24px é o mínimo da norma, 44 o chão prático, e 56 para tudo o que se toca a
+   * meio de uma série, com a mão a tremer e o telemóvel no chão do ginásio.
    */
-  --ui-wash-from: #151919;
-  --ui-wash-to: #151919;
-
-  --ui-text: #ecefef;
-  /*
-   * Sampled at #8D8F8F, lifted to #A2A7A7. The sampled value measures 4.30:1 on
-   * the card and 3.62:1 on a raised chip, both under AA; the lift clears 4.5:1 on
-   * ground, card and chip alike and is imperceptible beside the original.
-   */
-  --ui-text-muted: #a2a7a7;
-  --ui-text-on-photo: #ffffff;
-
-  /*
-   * THE ONE DELIBERATE BRAND MOVE. The light reference is an orange product; the
-   * dark reference is a mint one, and every primary pill in it — Get Started,
-   * Start workout, Edit Profile — is #D7F2F4 with near-black ink. Matching the
-   * reference exactly means the primary accent changes hue between modes, which
-   * the previous note in this file explicitly ruled out. The user overrode that on
-   * 2026-08-31: the dark screens must look exactly like the pinned dark image.
-   * Ink measures 15.10:1 on the mint, so the fill needs no compromise here.
-   */
-  --ui-accent: #d7f2f4;
-  --ui-accent-ink: #151919;
-  --ui-accent-hover: #c2e4e7;
-  /* The ring track, sampled from the arcs' unfilled remainder. */
-  --ui-accent-soft: #2e3a3b;
-  /* Mint reads 11.90:1 on the card, so strokes and accent text reuse the fill. */
-  --ui-accent-line: #d7f2f4;
-
-  /*
-   * The orange survives as the second colour, exactly as the reference uses it:
-   * the chart line, the flame, the Premium tag. It is no longer the primary, so
-   * it takes the accent-2 slot that magenta holds in light.
-   */
-  --ui-accent-2: #ec9933;
-  --ui-accent-2-ink: #1f1508;
-  --ui-accent-2-soft: #3a2a16;
-
-  --ui-edge: #8e9494;
-  --ui-rule: #2e3434;
-
-  --ui-danger: #ff8577;
-  --ui-danger-ink: #1f0a08;
-
-  /*
-   * Filter chips. The reference's dark segmented control does not use the accent
-   * at all: the selected chip is a raised card-coloured pill with full-strength
-   * text, the rest sit bare on the ground in muted text. In light the same chip is
-   * an orange fill. State also reaches assistive tech through aria-selected, which
-   * is what carries it when the fills are this close.
-   */
-  --ui-chip: #151919;
-  --ui-chip-ink: #a2a7a7;
-  --ui-chip-selected: #282d2d;
-  --ui-chip-selected-ink: #ecefef;
-
-  /*
-   * The small circular action sitting on a card. The reference sinks it to the
-   * ground colour and strokes the icon in mint; light does the inverse, a
-   * near-black disc with a white icon. Both are the same idea: the disc reverses
-   * against whatever it sits on.
-   */
-  --ui-control: #151919;
-  --ui-control-ink: #d7f2f4;
-
-  /*
-   * Barely there. In the reference the step from #151919 to #282D2D is what
-   * separates a card from the screen; a heavy shadow on near-black only smudges
-   * the ground around it.
-   */
-  --ui-shadow-card: 0 2px 8px -4px rgb(0 0 0 / 0.5);
-  --ui-shadow-float: 0 10px 26px -12px rgb(0 0 0 / 0.75), 0 3px 8px -4px rgb(0 0 0 / 0.5);
-
-  color-scheme: dark;
+  --tap-min: 44px;
+  --tap-set: 56px;
 }
 
 /* ---------- Tailwind theme ------------------------------------------------- */
@@ -344,12 +328,17 @@
   --color-text: var(--ui-text);
   --color-text-muted: var(--ui-text-muted);
   --color-text-on-photo: var(--ui-text-on-photo);
+  --color-on-media: var(--ui-on-media);
 
   --color-accent: var(--ui-accent);
   --color-accent-ink: var(--ui-accent-ink);
   --color-accent-soft: var(--ui-accent-soft);
+  --color-accent-soft-raised: var(--ui-accent-soft-raised);
   --color-accent-line: var(--ui-accent-line);
   --color-accent-hover: var(--ui-accent-hover);
+
+  --color-volt: var(--ui-volt);
+  --color-volt-ink: var(--ui-volt-ink);
 
   --color-accent-2: var(--ui-accent-2);
   --color-accent-2-ink: var(--ui-accent-2-ink);
@@ -360,6 +349,7 @@
 
   --color-danger: var(--ui-danger);
   --color-danger-ink: var(--ui-danger-ink);
+  --color-danger-soft: var(--ui-danger-soft);
 
   --color-chip: var(--ui-chip);
   --color-chip-ink: var(--ui-chip-ink);
@@ -369,15 +359,23 @@
   --color-control: var(--ui-control);
   --color-control-ink: var(--ui-control-ink);
 
-  --font-ui: 'Poppins', ui-rounded, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: 'Poppins', ui-rounded, ui-sans-serif, system-ui, sans-serif;
+  /*
+   * Anton só existe em 400 e é o display; Archivo é variável e serve tudo o resto.
+   * As caudas de sistema estão lá para o primeiro frame e para quem bloqueia
+   * fontes, e a cobertura de diacríticos pt-PT foi confirmada à vista nas duas
+   * faces: Á É Í Ó Ú Ã Õ Â Ê Ô Ç ç ü.
+   */
+  --font-ui: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Anton', 'Archivo Narrow', 'Arial Narrow', system-ui, sans-serif;
 
-  /* Shape lock, read off the reference. Soft everywhere, pill on anything pressed. */
+  /* Forma, lida do protótipo. Macio em todo o lado, pílula no que se carrega. */
   --radius-media: 22px;
   --radius-card: 20px;
-  --radius-field: 16px;
+  --radius-sheet: 26px;
+  --radius-field: 14px;
   --radius-pill: 9999px;
 
+  --shadow-contact: var(--ui-shadow-contact);
   --shadow-card: var(--ui-shadow-card);
   --shadow-float: var(--ui-shadow-float);
 
@@ -505,7 +503,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--ui-accent-line);
+  outline: 2px solid var(--ui-focus);
   outline-offset: 2px;
 }
 

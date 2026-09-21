@@ -1,11 +1,20 @@
 import clsx from 'clsx';
+import type { ReactNode } from 'react';
 
 type Props = {
   /** 0 to 100. */
   value: number;
   label: string;
   size?: number;
+  stroke?: number;
   className?: string;
+  /**
+   * What sits in the middle of the ring. The default is the value as a percentage, for
+   * the completion rings it was drawn for; readiness passes its own node, because a
+   * readiness score is a reading out of 100 and not a percentage of anything, so "72%"
+   * there would be a wrong unit rather than a smaller number.
+   */
+  center?: ReactNode;
 };
 
 /**
@@ -19,9 +28,8 @@ type Props = {
  * calculation, not an animation: this number is functional data the user reads, and
  * counting it up would slow down the answer to "how far am I".
  */
-export function ProgressRing({ value, label, size = 52, className }: Props) {
+export function ProgressRing({ value, label, size = 52, stroke = 4, className, center }: Props) {
   const clamped = Math.max(0, Math.min(100, value));
-  const stroke = 4;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const dash = (clamped / 100) * circumference;
@@ -58,9 +66,11 @@ export function ProgressRing({ value, label, size = 52, className }: Props) {
           className="text-accent"
         />
       </svg>
-      <span className="tabular absolute font-ui text-[12px] font-600 leading-none text-text">
-        {clamped}%
-      </span>
+      {center ?? (
+        <span className="tabular absolute font-ui text-[12px] font-600 leading-none text-text">
+          {clamped}%
+        </span>
+      )}
     </div>
   );
 }

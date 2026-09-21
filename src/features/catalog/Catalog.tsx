@@ -99,7 +99,7 @@ export function Catalog() {
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-wash-from from-15% via-wash-from/75 via-45% to-wash-to"
       />
 
-      <div className="relative px-7 pb-10">
+      <div className="relative px-5 pb-10">
         <header className="flex items-center gap-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
           <div className="min-w-0 flex-1">
             <h1 className="font-ui text-[26px] font-700 leading-[1.1] tracking-[-0.02em] text-text">
