@@ -4,7 +4,7 @@ import { clientId } from '../../data/client-id';
 import type { CatalogExercise, DayAddition } from '../../data/entities';
 import { firstFailure, usePublishShared, useUpsertRow } from '../../data/mutations';
 import { useRows } from '../../data/queries';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import type { ExerciseInput } from '../train/use-day-editing';
 
 /**
@@ -25,7 +25,6 @@ import type { ExerciseInput } from '../train/use-day-editing';
  */
 
 const EPOCH = new Date(0).toISOString();
-const t = pt.catalog;
 
 export type CatalogItem = {
   row: CatalogExercise;
@@ -77,6 +76,7 @@ export function useCatalog() {
  * day open has no business adding or removing one.
  */
 export function useCatalogEditing() {
+  const t = useT().catalog;
   const catalog = useUpsertRow('catalog_exercises');
   const additions = useUpsertRow('day_additions');
 
@@ -167,6 +167,7 @@ export function useCatalogEditing() {
  * signal.
  */
 export function useCatalogPlacement() {
+  const t = useT().catalog;
   const publish = usePublishShared();
 
   /** The one live addition of this exercise on that day, if it is already there. */

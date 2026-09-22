@@ -1,10 +1,8 @@
 import { useState } from 'react';
 
 import type { WriteFailure } from '../data/mutations';
-import { pt } from '../i18n/pt';
+import { useT } from '../i18n/locale-context';
 import { Icon } from './Icon';
-
-const c = pt.common;
 
 /**
  * What a refused write looks like.
@@ -37,6 +35,7 @@ export function WriteFailureNotice({
   failure: WriteFailure | null;
   className?: string;
 }) {
+  const c = useT().common;
   const [open, setOpen] = useState(false);
 
   if (!failure) return null;

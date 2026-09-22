@@ -1,15 +1,12 @@
 import { useMemo } from 'react';
 
-import { pt } from '../../i18n/pt';
+import { INTL_LOCALE } from '../../i18n';
+import { useLocale } from '../../i18n/locale-context';
 import { ProgressRing } from '../../ui/ProgressRing';
 import { useRows } from '../../data/queries';
 import { localDate, sessionDate, useSessions } from './sessions';
 import { readiness } from './readiness';
 
-const t = pt.train.readiness;
-
-/** The load, with the user's thousands grouping — "2 500 kg", never "2500". */
-const kg = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 0 });
 
 /**
  * The readiness surface: the first thing the week screen answers — "how ready am I today?" —
@@ -23,6 +20,17 @@ const kg = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 0 });
  * the card says what the app needs to see instead of inventing one.
  */
 export function ReadinessCard() {
+  const { locale, t: copy } = useLocale();
+  const t = copy.train.readiness;
+  /*
+   * The load, with the reader's own thousands grouping: "2 500 kg" in Portuguese and
+   * French, "2,500 kg" in English. It used to be pinned to `pt-PT`, which put a thin
+   * space in an English sentence. A number is copy too.
+   */
+  const kg = useMemo(
+    () => new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 0 }),
+    [locale],
+  );
   const sessions = useSessions();
   const rows = useMemo(() => sessions.data ?? [], [sessions.data]);
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DAYS } from '../../content';
 import type { CustomDay, CustomExercise, DayAddition } from '../../data/entities';
-import { pt } from '../../i18n/pt';
+import { pt } from '../../i18n';
 import {
   applyDayDrag,
   dayCleanup,
@@ -84,14 +84,14 @@ describe('numbering a day added to the week', () => {
 
 describe('the week', () => {
   it('is the programme’s seven when the user has made none', () => {
-    const week = resolveDays([]);
+    const week = resolveDays(pt.days, []);
     expect(week).toHaveLength(DAYS.length);
     expect(week.every((d) => d.kind === 'built')).toBe(true);
     expect(week.map((d) => d.no)).toEqual(DAYS.map((d) => d.id));
   });
 
   it('puts the added days after the programme, in the order they were created', () => {
-    const week = resolveDays([
+    const week = resolveDays(pt.days, [
       day({ day_no: 103, name: 'Terceiro' }),
       day({ day_no: 101, name: 'Primeiro' }),
       day({ day_no: 102, name: 'Segundo' }),
@@ -109,29 +109,29 @@ describe('the week', () => {
     // Postgres refuses this with a check constraint, so it can only arrive from a
     // hand-edited row or a future migration. Reading it would draw a second card
     // over an authored day, which is the one outcome the preservation rule forbids.
-    const week = resolveDays([day({ day_no: 3, name: 'Não é meu' })]);
+    const week = resolveDays(pt.days, [day({ day_no: 3, name: 'Não é meu' })]);
     expect(week).toHaveLength(DAYS.length);
     expect(week.map((d) => d.name)).not.toContain('Não é meu');
   });
 
   it('names a day the user left unnamed rather than drawing an empty heading', () => {
-    const [own] = resolveDays([day({ name: null })]).slice(DAYS.length);
+    const [own] = resolveDays(pt.days, [day({ name: null })]).slice(DAYS.length);
     expect(own.name.trim().length).toBeGreaterThan(0);
   });
 
   it('reads a type it does not recognise as a training day', () => {
-    const [own] = resolveDays([day({ type: 'nonsense' })]).slice(DAYS.length);
+    const [own] = resolveDays(pt.days, [day({ type: 'nonsense' })]).slice(DAYS.length);
     expect(own.type).toBe('strength');
   });
 
   it('carries the goal and the warm-up a programme day carries', () => {
-    const [own] = resolveDays([day({ goal: 'Bíceps e deltoide', warm: '5 min bike' })]).slice(
+    const [own] = resolveDays(pt.days, [day({ goal: 'Bíceps e deltoide', warm: '5 min bike' })]).slice(
       DAYS.length,
     );
     expect(own.goal).toBe('Bíceps e deltoide');
     expect(own.warm).toBe('5 min bike');
     // Whitespace is not content: a field the user opened and closed is still empty.
-    const [blank] = resolveDays([day({ goal: '   ', warm: '' })]).slice(DAYS.length);
+    const [blank] = resolveDays(pt.days, [day({ goal: '   ', warm: '' })]).slice(DAYS.length);
     expect(blank.goal).toBeNull();
     expect(blank.warm).toBeNull();
   });
@@ -193,19 +193,19 @@ describe('the day-drag rule (Leitura A)', () => {
 
 describe('the week under a stored day order', () => {
   it('rearranges the seven to the stored sequence', () => {
-    const week = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
+    const week = resolveDays(pt.days, [], [3, 1, 2, 4, 5, 6, 7]);
     expect(week.map((d) => d.no)).toEqual([3, 1, 2, 4, 5, 6, 7]);
   });
 
   it('takes the weekday from the position, not from the day', () => {
     // Day 3 now sits first, so it is Segunda; day 1 sits second, so it is Terça.
-    const week = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
+    const week = resolveDays(pt.days, [], [3, 1, 2, 4, 5, 6, 7]);
     expect(week[0].label).toBe(WEEKDAYS[0]);
     expect(week[1].label).toBe(WEEKDAYS[1]);
   });
 
   it('gives an own day a weekday when it is dragged into the first seven', () => {
-    const week = resolveDays([day({ day_no: 101, name: 'Meu' })], [101, 1, 2, 3, 4, 5, 6, 7]);
+    const week = resolveDays(pt.days, [day({ day_no: 101, name: 'Meu' })], [101, 1, 2, 3, 4, 5, 6, 7]);
     expect(week[0].no).toBe(101);
     expect(week[0].label).toBe(WEEKDAYS[0]);
     // A programme day pushed past the seventh position loses its weekday.
@@ -213,19 +213,19 @@ describe('the week under a stored day order', () => {
   });
 
   it('skips a stored number that no longer names a day', () => {
-    const week = resolveDays([], [999, 1, 2, 3, 4, 5, 6, 7]);
+    const week = resolveDays(pt.days, [], [999, 1, 2, 3, 4, 5, 6, 7]);
     expect(week.map((d) => d.no)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('appends a day that exists but is missing from the stored order', () => {
     // A day created after the order was saved appears rather than vanishing.
-    const week = resolveDays([day({ day_no: 101, name: 'Novo' })], [1, 2, 3, 4, 5, 6, 7]);
+    const week = resolveDays(pt.days, [day({ day_no: 101, name: 'Novo' })], [1, 2, 3, 4, 5, 6, 7]);
     expect(week[week.length - 1].no).toBe(101);
     expect(week).toHaveLength(DAYS.length + 1);
   });
 
   it('keeps the authored weekday labels when there is no stored order', () => {
-    const week = resolveDays([]);
+    const week = resolveDays(pt.days, []);
     expect(week.map((d) => d.label)).toEqual(WEEKDAYS);
   });
 
@@ -234,8 +234,8 @@ describe('the week under a stored day order', () => {
     // stored row and writes nothing else, so the week it lands on is exactly this —
     // resolveDays with no order, the sequence the bundle ships. A dragged week and a
     // reset week are the two calls below, and the reset one is the factory state.
-    const dragged = resolveDays([], [3, 1, 2, 4, 5, 6, 7]);
-    const reset = resolveDays([]);
+    const dragged = resolveDays(pt.days, [], [3, 1, 2, 4, 5, 6, 7]);
+    const reset = resolveDays(pt.days, []);
     expect(dragged.map((d) => d.no)).not.toEqual(reset.map((d) => d.no));
     expect(reset.map((d) => d.no)).toEqual(DAYS.map((d) => d.id));
   });

@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import type { BlockKey } from '../../content';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 
-const t = pt.train;
 
 /**
  * What the chosen phase is, said in a line — and made to change like a focus pull.
@@ -12,7 +11,7 @@ const t = pt.train;
  * The rail names the four phases; this panel underneath says what the selected one
  * trains for. It used to narrate position ("second phase, after Iniciante"), which is
  * only the order the chips already show. Now it carries a short title and a sentence
- * per phase (`pt.train.phaseInfo`), the deload's being the one that explains why its
+ * per phase (`train.phaseInfo`, in each of the four dictionaries), the deload's being the one that explains why its
  * demand drops (§8.1) rather than reading as a fault.
  *
  * Changing phase is not a swap but a transition, because the product owner asked for
@@ -62,7 +61,7 @@ export function PhaseJourney({ block }: { block: BlockKey }) {
  * whole panel's furniture and is the same on both, deload included.
  */
 function PhaseInfo({ block, variant }: { block: BlockKey; variant: 'enter' | 'leave' }) {
-  const info = t.phaseInfo[block];
+  const info = useT().train.phaseInfo[block];
   return (
     <div
       aria-hidden={variant === 'leave'}

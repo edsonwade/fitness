@@ -4,7 +4,7 @@ import { Reorder } from 'motion/react';
 import clsx from 'clsx';
 
 import { BLOCKS, type BlockKey } from '../../content';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 import { Icon, IconButton } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
@@ -25,8 +25,6 @@ import { ReorderContext, type CardReorder } from './reorder-context';
 import { dayPoster, useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, useExerciseLogs } from './logs';
 
-const t = pt.train;
-const d = pt.days;
 
 /** Which week is being shown and edited: everybody's, or this account's own. */
 type Scope = 'shared' | 'own';
@@ -55,6 +53,9 @@ const SCOPE_STORAGE = 'week-order-scope';
  * this list, so the control belongs on this list.
  */
 export function Train() {
+  const copy = useT();
+  const t = copy.train;
+  const d = copy.days;
   const navigate = useNavigate();
   const [block, setBlock] = useState<BlockKey>('b1');
   const logs = useExerciseLogs();
@@ -106,8 +107,8 @@ export function Train() {
 
   /* The canonical sequence the server says this scope has, resolved to the real days. */
   const canonicalNos = useMemo(
-    () => resolveDays(week.customs ?? [], chosenOrder ?? undefined).map((day) => day.no),
-    [week.customs, chosenOrder],
+    () => resolveDays(d, week.customs ?? [], chosenOrder ?? undefined).map((day) => day.no),
+    [d, week.customs, chosenOrder],
   );
   const sig = canonicalNos.join(',');
 
@@ -145,8 +146,8 @@ export function Train() {
 
   /* The days in the order the list is drawn in, with the weekday label per position. */
   const days = useMemo(
-    () => resolveDays(week.customs ?? [], liveOrder),
-    [week.customs, liveOrder],
+    () => resolveDays(d, week.customs ?? [], liveOrder),
+    [d, week.customs, liveOrder],
   );
 
   function persist(next: number[]) {
@@ -295,7 +296,7 @@ export function Train() {
         <p className="mt-5">
           <Link to="/catalogo" className="chip">
             <Icon name="search" size={15} strokeWidth={2} />
-            {pt.nav.catalog}
+            {copy.nav.catalog}
           </Link>
         </p>
 
@@ -508,6 +509,9 @@ function DayCard({
   /** Opens the day's own form, delete included. Only a day the user added has one. */
   onEdit?: () => void;
 }) {
+  const copy = useT();
+  const t = copy.train;
+  const d = copy.days;
   const reorder = useContext(ReorderContext);
 
   /*
@@ -657,6 +661,7 @@ function DayCard({
  * that replaces them.
  */
 function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }) {
+  const d = useT().days;
   return (
     <button
       type="button"
@@ -677,6 +682,7 @@ function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }
 
 /** The reference's progress ring, wired to a real completion figure. */
 function Ring({ value }: { value: number }) {
+  const t = useT().train;
   const size = 38;
   const stroke = 4;
   const radius = (size - stroke) / 2;

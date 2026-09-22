@@ -3,7 +3,7 @@ import { Drawer } from '@base-ui/react/drawer';
 import clsx from 'clsx';
 
 import { useRepaintHold } from '../data/repaint-guard';
-import { pt } from '../i18n/pt';
+import { useT } from '../i18n/locale-context';
 import { Icon } from './Icon';
 
 /**
@@ -41,6 +41,7 @@ export function Sheet({
   footer?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useT();
   useRepaintHold(open);
 
   return (
@@ -91,7 +92,7 @@ export function Sheet({
                 * forwards neither.
                 */}
               <Drawer.Close
-                aria-label={pt.common.close}
+                aria-label={t.common.close}
                 className={clsx(
                   'grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface text-text',
                   'shadow-[var(--shadow-card)]',

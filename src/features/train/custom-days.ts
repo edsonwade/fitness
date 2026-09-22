@@ -12,7 +12,8 @@ import {
 } from '../../data/entities';
 import { firstFailure, useDeleteRow, useUpsertRow } from '../../data/mutations';
 import { useRows, useUserId } from '../../data/queries';
-import { pt } from '../../i18n/pt';
+import type { Copy } from '../../i18n';
+import { useT } from '../../i18n/locale-context';
 
 /**
  * The week, once days have been added to it.
@@ -50,7 +51,15 @@ import { pt } from '../../i18n/pt';
  */
 export { FIRST_CUSTOM_DAY };
 
-const t = pt.days;
+/**
+ * As palavras dos dias, passadas como argumento.
+ *
+ * `refOfCustom` e `resolveDays` são funções simples, não componentes nem hooks: não
+ * podem chamar `useT()`. A alternativa era um `const t = pt.days` no topo do módulo,
+ * e esse ficava preso em português para sempre, porque um módulo lê-se uma vez.
+ * Receber o dicionário é a forma honesta — quem chama já o tem.
+ */
+type Days = Copy['days'];
 
 export type DayKind = 'built' | 'own';
 export type DayType = 'strength' | 'cardio' | 'rest';
@@ -165,13 +174,13 @@ export function dayCleanup(dayNo: number, contents: DayContents): DayCleanup {
 }
 
 /** One `custom_days` row as the screens read it. */
-export function refOfCustom(row: CustomDay): DayRef {
+export function refOfCustom(d: Days, row: CustomDay): DayRef {
   return {
     no: row.day_no,
     kind: 'own',
     day: null,
-    label: t.own,
-    name: text(row.name) ?? t.untitled,
+    label: d.own,
+    name: text(row.name) ?? d.untitled,
     goal: text(row.goal),
     warm: text(row.warm),
     type: isDayType(row.type) ? row.type : 'strength',
@@ -261,12 +270,16 @@ export function applyDayDrag(order: readonly number[], from: number, to: number)
  * created after the order was saved appears rather than vanishing. The weekday label
  * is assigned last, by final position, which is the whole point of drag ordering.
  */
-export function resolveDays(customs: readonly CustomDay[], order?: readonly number[]): DayRef[] {
+export function resolveDays(
+  d: Days,
+  customs: readonly CustomDay[],
+  order?: readonly number[],
+): DayRef[] {
   const own = customs
     .filter((row) => row.day_no >= FIRST_CUSTOM_DAY)
     .slice()
     .sort((a, b) => a.day_no - b.day_no)
-    .map(refOfCustom);
+    .map((row) => refOfCustom(d, row));
 
   const base = [...DAYS.map(refOfBuilt), ...own];
 
@@ -288,7 +301,7 @@ export function resolveDays(customs: readonly CustomDay[], order?: readonly numb
 
   return sequenced.map((ref, index) => ({
     ...ref,
-    label: index < WEEKDAYS.length ? WEEKDAYS[index] : t.own,
+    label: index < WEEKDAYS.length ? WEEKDAYS[index] : d.own,
   }));
 }
 
@@ -333,11 +346,12 @@ export function useDayOrder() {
 }
 
 export function useDays() {
+  const d = useT().days;
   const query = useRows('custom_days');
   const rows = query.data;
   const { order } = useDayOrder();
 
-  const days = useMemo(() => resolveDays(rows ?? [], order ?? undefined), [rows, order]);
+  const days = useMemo(() => resolveDays(d, rows ?? [], order ?? undefined), [d, rows, order]);
 
   return {
     days,
@@ -373,6 +387,7 @@ const EPOCH = new Date(0).toISOString();
 const SHARED_ORDER_ID = '00000000-0000-0000-0000-000000000000';
 
 export function useCustomDayEditing() {
+  const t = useT().days;
   const days = useUpsertRow('custom_days');
   const removeDay = useDeleteRow('custom_days');
   const removeExercise = useDeleteRow('custom_exercises');
@@ -519,6 +534,7 @@ export function useCustomDayEditing() {
  * server's real timestamp (stamped by the `010` trigger) wins when it lands.
  */
 export function useDayOrderEditing() {
+  const t = useT().days;
   const order = useUpsertRow('day_order');
   const removeOrder = useDeleteRow('day_order');
   const userId = useUserId();

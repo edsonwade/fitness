@@ -55,7 +55,7 @@ function override(over: Partial<ExerciseOverride> = {}): ExerciseOverride {
     user_id: USER,
     updated_at: '2026-01-01T00:00:00Z',
     day_no: 1,
-    ex_key: 'legpress',
+    ex_key: 'dbbench',
     name: null,
     equipment: null,
     sets: null,
@@ -157,25 +157,25 @@ describe('resolveDayEntries', () => {
     expect(entries.map((e) => e.key)).toEqual(DAY.items!.map((i) => i.ex));
     expect(hiddenCount).toBe(0);
     expect(entries[0].prescription).toEqual(DAY.items![0].b1);
-    expect(entries[0].exercise).toBe(EXERCISES.legpress);
+    expect(entries[0].exercise).toBe(EXERCISES.dbbench);
   });
 
   it('takes hidden exercises out and reports how many', () => {
-    const { entries, hiddenCount } = resolve({ hidden: [hidden('legpress'), hidden('plank')] });
-    expect(entries.map((e) => e.key)).not.toContain('legpress');
+    const { entries, hiddenCount } = resolve({ hidden: [hidden('dbbench'), hidden('pushdown')] });
+    expect(entries.map((e) => e.key)).not.toContain('dbbench');
     expect(hiddenCount).toBe(2);
   });
 
   it('ignores a hidden row belonging to another day', () => {
-    const { entries, hiddenCount } = resolve({ hidden: [hidden('legpress', 2)] });
-    expect(entries.map((e) => e.key)).toContain('legpress');
+    const { entries, hiddenCount } = resolve({ hidden: [hidden('dbbench', 2)] });
+    expect(entries.map((e) => e.key)).toContain('dbbench');
     expect(hiddenCount).toBe(0);
   });
 
   it('applies an override field by field and leaves the rest of the prescription alone', () => {
     const base = DAY.items![0].b1;
     const { entries } = resolve({ overrides: [override({ sets: '5', load: '80 kg' })] });
-    const entry = entries.find((e) => e.key === 'legpress')!;
+    const entry = entries.find((e) => e.key === 'dbbench')!;
 
     expect(entry.prescription.s).toBe(5);
     expect(entry.prescription.l).toBe('80 kg');
@@ -189,15 +189,15 @@ describe('resolveDayEntries', () => {
 
   it('renames a baseline exercise without losing its technique text', () => {
     const { entries } = resolve({ overrides: [override({ name: 'Leg press meu' })] });
-    const entry = entries.find((e) => e.key === 'legpress')!;
+    const entry = entries.find((e) => e.key === 'dbbench')!;
     expect(entry.name).toBe('Leg press meu');
-    expect(entry.exercise).toBe(EXERCISES.legpress);
+    expect(entry.exercise).toBe(EXERCISES.dbbench);
   });
 
   it('refuses a blank override field rather than blanking the card', () => {
     const { entries } = resolve({ overrides: [override({ name: '   ', sets: '' })] });
-    const entry = entries.find((e) => e.key === 'legpress')!;
-    expect(entry.name).toBe(EXERCISES.legpress.nPT);
+    const entry = entries.find((e) => e.key === 'dbbench')!;
+    expect(entry.name).toBe(EXERCISES.dbbench.nPT);
     expect(entry.prescription.s).toBe(DAY.items![0].b1.s);
   });
 
@@ -250,9 +250,9 @@ describe('resolveDayEntries', () => {
     const key = customKey(row);
     const { entries } = resolve({
       customs: [row],
-      order: [order([key, 'plank', 'legpress'])],
+      order: [order([key, 'pushdown', 'dbbench'])],
     });
-    expect(entries.slice(0, 3).map((e) => e.key)).toEqual([key, 'plank', 'legpress']);
+    expect(entries.slice(0, 3).map((e) => e.key)).toEqual([key, 'pushdown', 'dbbench']);
   });
 
   it('puts a key with no saved position at the end, in natural order', () => {
@@ -261,16 +261,16 @@ describe('resolveDayEntries', () => {
     const row = custom();
     const { entries } = resolve({
       customs: [row],
-      order: [order(['plank', 'legpress'])],
+      order: [order(['pushdown', 'dbbench'])],
     });
-    expect(entries[0].key).toBe('plank');
-    expect(entries[1].key).toBe('legpress');
+    expect(entries[0].key).toBe('pushdown');
+    expect(entries[1].key).toBe('dbbench');
     expect(entries.at(-1)!.key).toBe(customKey(row));
     expect(entries).toHaveLength(DAY.items!.length + 1);
   });
 
   it('ignores an order saved for another day', () => {
-    const { entries } = resolve({ order: [order(['plank', 'legpress'], 2)] });
+    const { entries } = resolve({ order: [order(['pushdown', 'dbbench'], 2)] });
     expect(entries.map((e) => e.key)).toEqual(DAY.items!.map((i) => i.ex));
   });
 
@@ -315,7 +315,7 @@ describe('dayProgress over a composed day', () => {
 
   it('measures against the set count the user changed, not the one that shipped', () => {
     const { entries } = resolve({ overrides: [override({ sets: '2' })] });
-    const progress = dayProgress(1, 'b1', entries, byKey([log('legpress', [true, true, true, true])]));
+    const progress = dayProgress(1, 'b1', entries, byKey([log('dbbench', [true, true, true, true])]));
     // Four sets ticked under a prescription of two counts as two. The cap is what stops
     // a deload reading 120 percent.
     expect(progress.done).toBe(2);
@@ -323,7 +323,7 @@ describe('dayProgress over a composed day', () => {
 
   it('drops a hidden exercise out of the total', () => {
     const full = dayProgress(1, 'b1', resolve().entries, new Map());
-    const less = dayProgress(1, 'b1', resolve({ hidden: [hidden('legpress')] }).entries, new Map());
+    const less = dayProgress(1, 'b1', resolve({ hidden: [hidden('dbbench')] }).entries, new Map());
     expect(less.total).toBe(full.total - DAY.items![0].b1.s);
   });
 
@@ -337,7 +337,7 @@ describe('dayProgress over a composed day', () => {
     expect(none.exercisesDone).toBe(0);
 
     // One exercise finished is one exercise finished, and the day is not over.
-    const one = dayProgress(1, 'b1', entries, byKey([log('legpress', all)]));
+    const one = dayProgress(1, 'b1', entries, byKey([log('dbbench', all)]));
     expect(one.exercisesDone).toBe(1);
     expect(one.exercisesDone).toBeLessThan(one.exercises);
   });
@@ -428,11 +428,11 @@ describe('exercises published to the shared catalogue', () => {
     // Before it, this test was unwritable — the other account's rows never arrived.
     const { entries, hiddenCount } = resolve({
       customs: [custom({ user_id: OTHER, name: 'Remada dela' })],
-      hidden: [hidden('legpress', 1, OTHER)],
+      hidden: [hidden('dbbench', 1, OTHER)],
     });
 
     expect(entries.map((row) => row.name)).toContain('Remada dela');
-    expect(entries.some((row) => row.key === 'legpress')).toBe(false);
+    expect(entries.some((row) => row.key === 'dbbench')).toBe(false);
     expect(hiddenCount).toBe(1);
   });
 

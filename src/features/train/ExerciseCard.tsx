@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import type { Exercise } from '../../content';
 import type { ExerciseLog } from '../../data/entities';
 import type { LogFields } from '../../data/mutations';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { VideoFacade } from './VideoFacade';
@@ -12,8 +12,6 @@ import type { DayEntry } from './day-entries';
 import { exerciseState, parseRestSeconds, setsDoneFor } from './logs';
 import { ReorderContext, type CardReorder } from './reorder-context';
 
-const t = pt.train;
-const e = pt.editor;
 
 /**
  * One exercise, and the only place a set is actually logged.
@@ -50,6 +48,9 @@ export function ExerciseCard({
     onHide?: () => void;
   };
 }) {
+  const copy = useT();
+  const t = copy.train;
+  const e = copy.editor;
   const reorder = useContext(ReorderContext);
   const [open, setOpen] = useState(false);
   const p = entry.prescription;
@@ -231,6 +232,7 @@ export function ExerciseCard({
  * requirement's ban on chevrons is not undone by the alternative that replaces them.
  */
 function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }) {
+  const e = useT().editor;
   return (
     <button
       type="button"
@@ -267,10 +269,12 @@ function Controls({
   /** Published for everybody, which changes what the hide control is called. */
   shared: boolean;
 }) {
+  const copy = useT();
+  const e = copy.editor;
   return (
     <div className="mt-4 flex items-center gap-2 border-t border-rule pt-3">
       <span className="flex-1" />
-      <SmallButton icon="edit" label={`${pt.common.edit}: ${name}`} onClick={controls.onEdit} />
+      <SmallButton icon="edit" label={`${copy.common.edit}: ${name}`} onClick={controls.onEdit} />
       {controls.onHide ? (
         <SmallButton
           icon="x"
@@ -384,6 +388,7 @@ function LogInput({
 }
 
 function Technique({ exercise }: { exercise: Exercise }) {
+  const t = useT().train;
   return (
     <div className="mt-3 flex flex-col gap-4">
       <Block title={t.technique}>

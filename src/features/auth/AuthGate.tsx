@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { authErrorCode, supabase } from '../../data/supabase';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { dayPoster } from '../train/day-entries';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
@@ -11,7 +11,6 @@ import { checkEmail, checkPassword, passwordRules } from './validation';
 type Tab = 'signin' | 'signup';
 type Errors = Partial<Record<'name' | 'email' | 'password' | 'confirm' | 'form', string>>;
 
-const c = pt.gate;
 
 /**
  * The gate. Structure: Segmentado, candidate 3 of seven, seed f6923411.
@@ -23,6 +22,7 @@ const c = pt.gate;
  * deeper in the app.
  */
 export function AuthGate() {
+  const c = useT().gate;
   const [tab, setTab] = useState<Tab>('signin');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
@@ -251,6 +251,7 @@ export function AuthGate() {
  * The scrim is measured, not decorative: white on the darkened photograph is 4.5:1.
  */
 function GateBanner({ tab }: { tab: Tab }) {
+  const c = useT().gate;
   return (
     <header className="relative px-7 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <div className="relative overflow-hidden rounded-media shadow-[var(--shadow-float)]">
@@ -279,6 +280,7 @@ function GateBanner({ tab }: { tab: Tab }) {
  * keyboard and a screen reader both get the behaviour they expect.
  */
 function Segmented({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  const c = useT().gate;
   const options: { id: Tab; label: string }[] = [
     { id: 'signin', label: c.tabSignIn },
     { id: 'signup', label: c.tabSignUp },
@@ -287,7 +289,7 @@ function Segmented({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) 
   return (
     <div
       role="tablist"
-      aria-label="Entrar ou criar conta"
+      aria-label={c.tablist}
       className="grid grid-cols-2 gap-1 rounded-full bg-chip p-1"
     >
       {options.map((option) => {
@@ -321,6 +323,7 @@ function Segmented({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) 
  * stated in the accent and unmet ones stay muted.
  */
 function PasswordRules({ rules }: { rules: ReturnType<typeof passwordRules> }) {
+  const c = useT().gate;
   const labels: Record<string, string> = {
     short: c.pwRuleShort,
     letter: c.pwRuleLetter,
@@ -350,6 +353,7 @@ function PasswordRules({ rules }: { rules: ReturnType<typeof passwordRules> }) {
 }
 
 function ForgotPassword({ email }: { email: string }) {
+  const c = useT().gate;
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'need-email'>('idle');
 
   async function send() {

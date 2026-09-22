@@ -2,7 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 
 import { useUserId } from '../../data/queries';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
@@ -14,8 +14,6 @@ import { derivePrescription } from '../train/day-entries';
 import type { ExerciseInput } from '../train/use-day-editing';
 import { useCatalog, useCatalogEditing, useCatalogPlacement, type CatalogItem } from './catalog';
 
-const t = pt.catalog;
-const e = pt.editor;
 
 /**
  * Everything the accounts have published, in one list.
@@ -30,6 +28,9 @@ const e = pt.editor;
  * other person's open app without a reload. The word on the delete says so.
  */
 export function Catalog() {
+  const copy = useT();
+  const t = copy.catalog;
+  const e = copy.editor;
   const { items, isPending, isError } = useCatalog();
   const editing = useCatalogEditing();
   const placement = useCatalogPlacement();
@@ -123,7 +124,7 @@ export function Catalog() {
 
         {isPending ? (
           <ul className="mt-5 flex flex-col gap-2.5" aria-busy="true">
-            <span className="sr-only">{pt.common.loading}</span>
+            <span className="sr-only">{copy.common.loading}</span>
             {[0, 1, 2].map((i) => (
               <li
                 key={i}
@@ -178,7 +179,7 @@ export function Catalog() {
           description={t.addToDayHint}
           footer={
             <Button variant="ghost" onClick={() => setPickerOpen(false)}>
-              {pt.common.close}
+              {copy.common.close}
             </Button>
           }
         >
@@ -210,6 +211,7 @@ function DayPicker({
   days: readonly DayRef[];
   onPick: (day: DayRef) => void;
 }) {
+  const t = useT().catalog;
   const on = new Set(item.days.map((addition) => addition.day_no));
 
   if (days.length === 0) {
@@ -266,6 +268,8 @@ function Row({
   onEdit: () => void;
   onPlace: () => void;
 }) {
+  const copy = useT();
+  const t = copy.catalog;
   const { row } = item;
   /*
    * Block 1 is what the list shows. An exercise periodizes into four targets and
@@ -342,7 +346,7 @@ function Row({
         <button
           type="button"
           onClick={onEdit}
-          aria-label={`${pt.common.edit}: ${row.name_pt}`}
+          aria-label={`${copy.common.edit}: ${row.name_pt}`}
           className={clsx(
             'grid h-11 w-11 place-items-center rounded-full',
             'border border-rule bg-surface-raised text-text',

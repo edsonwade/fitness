@@ -2,6 +2,7 @@ import clsx from 'clsx';
 
 import type { ThemePreference } from '../app/theme';
 import { useThemeState } from '../app/theme-context';
+import { useT } from '../i18n/locale-context';
 import { Icon, type IconName } from './Icon';
 
 /**
@@ -18,12 +19,6 @@ const NEXT: Record<ThemePreference, ThemePreference> = {
   dark: 'system',
 };
 
-const LABEL: Record<ThemePreference, string> = {
-  system: 'Sistema',
-  light: 'Claro',
-  dark: 'Escuro',
-};
-
 const GLYPH: Record<ThemePreference, IconName> = {
   system: 'system',
   light: 'sun',
@@ -32,12 +27,13 @@ const GLYPH: Record<ThemePreference, IconName> = {
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useThemeState();
+  const t = useT().theme;
 
   return (
     <button
       type="button"
       onClick={() => setTheme(NEXT[theme])}
-      aria-label={`Tema: ${LABEL[theme]}. Tocar para mudar.`}
+      aria-label={`${t.label}: ${t[theme]}. ${t.hint}`}
       className={clsx(
         'grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface text-text',
         'shadow-[var(--shadow-card)]',

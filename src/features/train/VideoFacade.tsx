@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 
-const t = pt.train;
 
 /**
  * A video that costs nothing until it is wanted.
@@ -31,6 +30,8 @@ export function VideoFacade({
   fallbackPoster: string | null;
   name: string;
 }) {
+  const copy = useT();
+  const t = copy.train;
   const [playing, setPlaying] = useState(false);
 
   if (playing && videoId) {
@@ -100,7 +101,7 @@ export function VideoFacade({
           poster ? 'text-white/90' : 'text-text-muted',
         )}
       >
-        {videoId ? t.watchVideo : pt.editor.videoNone}
+        {videoId ? t.watchVideo : copy.editor.videoNone}
       </span>
     </button>
   );
