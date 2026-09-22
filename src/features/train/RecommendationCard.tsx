@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { blockSummary } from './block-summary';
 import { useDays, type DayRef } from './custom-days';
 import { useProgramme } from './day-entries';
@@ -8,8 +8,6 @@ import { readiness } from './readiness';
 import { blockOfLatest, recommendation, shapeOf, weekSlot } from './recommendation';
 import { localDate, sessionDate, useSessions } from './sessions';
 
-const t = pt.train.recommend;
-const r = pt.train.readiness;
 
 /**
  * O objetivo de hoje, com contexto — a fase 008.
@@ -42,6 +40,9 @@ const r = pt.train.readiness;
  * cria o sítio onde ele vai ficar, e mais nada.
  */
 export function RecommendationCard() {
+  const copy = useT();
+  const t = copy.train.recommend;
+  const r = copy.train.readiness;
   const days = useDays();
   const sessions = useSessions();
 
@@ -175,6 +176,7 @@ export function RecommendationCard() {
  * leva `py-1` para passar os 24px do critério de tamanho com a mão suada do §Operating Context.
  */
 function Why({ children }: { children: string }) {
+  const t = useT().train.recommend;
   return (
     <details className="mt-4">
       <summary className="body-2 body-med cursor-pointer py-1">{t.whyLabel}</summary>

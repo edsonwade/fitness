@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 
-const t = pt.train;
 
 /**
  * The rest clock, shown only while a rest is running.
@@ -25,6 +24,7 @@ export function RestTimer({
   exerciseName: string;
   onClose: () => void;
 }) {
+  const t = useT().train;
   const [remaining, setRemaining] = useState(seconds);
   const [total, setTotal] = useState(seconds);
   const done = remaining <= 0;

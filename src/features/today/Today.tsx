@@ -1,4 +1,5 @@
-import { pt } from '../../i18n/pt';
+import { INTL_LOCALE } from '../../i18n';
+import { useLocale } from '../../i18n/locale-context';
 import { ReadinessCard } from '../train/ReadinessCard';
 import { RecommendationCard } from '../train/RecommendationCard';
 
@@ -36,12 +37,12 @@ import { RecommendationCard } from '../train/RecommendationCard';
  * nenhum — e o frame 2 do protótipo mostra exatamente "Olá", sem nome.
  */
 
-const t = pt.today;
-
 export function Today() {
+  const { locale, t: copy } = useLocale();
+  const t = copy.today;
   const today = new Date();
   /* "sábado, 12 de setembro", que é como a barra de topo do protótipo o escreve. */
-  const stamp = new Intl.DateTimeFormat('pt-PT', {
+  const stamp = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

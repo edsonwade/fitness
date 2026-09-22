@@ -1,7 +1,8 @@
 import { Link, Navigate, Outlet, useRouteError } from 'react-router';
 
 import { AuthGate } from '../features/auth/AuthGate';
-import { pt } from '../i18n/pt';
+import { LocalePicker } from '../i18n/LocalePicker';
+import { useT } from '../i18n/locale-context';
 import { useSessionState } from '../features/auth/session-context';
 import { Screen, SessionSplash } from '../ui/Screen';
 
@@ -55,6 +56,7 @@ export function RequireNoSession() {
  * ecrã ainda não foi escrito.
  */
 export function SurfacePending() {
+  const t = useT();
   return (
     <div className="grid min-h-full place-items-center">
       <div className="empty">
@@ -72,10 +74,43 @@ export function SurfacePending() {
           <rect x="3" y="4" width="18" height="16" rx="3" />
           <path d="M3 10h18M9 4v6" />
         </svg>
-        <p className="title-2">{pt.pending.title}</p>
-        <p className="max-w-[28ch]">{pt.pending.body}</p>
+        <p className="title-2">{t.pending.title}</p>
+        <p className="max-w-[28ch]">{t.pending.body}</p>
         <Link to="/treino" className="btn btn-primary mt-4">
-          {pt.pending.action}
+          {t.pending.action}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * O Perfil pendente, que é o mesmo vazio mais uma coisa que já funciona: a língua.
+ *
+ * O sítio da escolha de língua são as Definições, dentro do Perfil, e as Definições
+ * chegam na fase 023. Esperar por ela seria ter quatro dicionários traduzidos e
+ * nenhuma forma de os alcançar sem mexer no browser — uma funcionalidade inteira
+ * escondida atrás de uma fase que ainda não começou.
+ *
+ * Por isso o seletor vive aqui, por cima do vazio e não escondido nele, com o título
+ * "Definições" que é o nome do sítio onde vai ficar. Quando a 023 escrever o ecrã a
+ * peça MUDA DE SÍTIO — não se reescreve, porque já é a peça certa.
+ */
+export function ProfilePending() {
+  const t = useT();
+  return (
+    <div className="screen-pad stack-lg">
+      <div className="appbar pt-[max(0.75rem,env(safe-area-inset-top))] -mx-5 px-5">
+        <p className="title-3">{t.settings.title}</p>
+      </div>
+
+      <LocalePicker />
+
+      <div className="empty">
+        <p className="title-2">{t.pending.title}</p>
+        <p className="max-w-[28ch]">{t.pending.body}</p>
+        <Link to="/treino" className="btn btn-primary mt-4">
+          {t.pending.action}
         </Link>
       </div>
     </div>
@@ -83,12 +118,10 @@ export function SurfacePending() {
 }
 
 export function NotFound() {
+  const t = useT();
   return (
-    <Screen
-      title="Página não encontrada"
-      body="O endereço não corresponde a nenhum ecrã da aplicação."
-    >
-      <BackHome label="Ir para os programas" />
+    <Screen title={t.errors.notFoundTitle} body={t.errors.notFoundBody}>
+      <BackHome label={t.errors.notFoundAction} />
     </Screen>
   );
 }
@@ -101,15 +134,13 @@ export function NotFound() {
  * happened and offers the one action that recovers.
  */
 export function RouteError() {
+  const t = useT();
   const error = useRouteError();
   const detail = error instanceof Error ? error.message : null;
 
   return (
-    <Screen
-      title="Alguma coisa correu mal"
-      body="O ecrã não conseguiu abrir. Voltar aos programas costuma resolver."
-    >
-      <BackHome label="Voltar aos programas" />
+    <Screen title={t.errors.crashTitle} body={t.errors.crashBody}>
+      <BackHome label={t.errors.crashAction} />
       {detail ? (
         <p className="max-w-[30ch] font-ui text-[12px] leading-relaxed text-text-muted">{detail}</p>
       ) : null}

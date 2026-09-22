@@ -1,3 +1,4 @@
+import { useT } from '../i18n/locale-context';
 import { EFFORT_STEPS, formatValue } from './scales';
 
 /**
@@ -18,15 +19,16 @@ import { EFFORT_STEPS, formatValue } from './scales';
 export function EffortPicker({
   value,
   onChange,
-  label = 'Esforço',
+  label,
 }: {
   /** O degrau escolhido, ou `null` enquanto o esforço não foi dito. */
   value: number | null;
   onChange: (value: number) => void;
   label?: string;
 }) {
+  const t = useT();
   return (
-    <div className="effortpicker" role="radiogroup" aria-label={label}>
+    <div className="effortpicker" role="radiogroup" aria-label={label ?? t.common.effort}>
       {EFFORT_STEPS.map((step) => (
         <button
           key={step}

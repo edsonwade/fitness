@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
@@ -9,7 +9,6 @@ import { Sheet } from '../../ui/Sheet';
 import { TextArea } from '../../ui/TextArea';
 import type { DayInput, DayRef, DayType } from './custom-days';
 
-const t = pt.days;
 
 /**
  * The form that makes a training day of your own, and edits it afterwards.
@@ -36,9 +35,14 @@ const t = pt.days;
 
 export type DaySheetMode = { kind: 'new' } | { kind: 'edit'; ref: DayRef };
 
-const TYPES: readonly { value: DayType; label: string }[] = [
-  { value: 'strength', label: t.typeStrength },
-  { value: 'rest', label: t.typeRest },
+/*
+ * A CHAVE, e não a palavra — a mesma correção da barra dos separadores. Uma
+ * constante de módulo é lida uma vez, quando o ficheiro carrega, e ficava presa na
+ * língua em que a app arrancou.
+ */
+const TYPES: readonly { value: DayType; label: 'typeStrength' | 'typeRest' }[] = [
+  { value: 'strength', label: 'typeStrength' },
+  { value: 'rest', label: 'typeRest' },
 ];
 
 type Draft = { name: string; goal: string; warm: string; type: DayType };
@@ -70,6 +74,8 @@ export function DaySheet({
   /** Only when editing a day that exists. */
   onDelete?: () => void;
 }) {
+  const copy = useT();
+  const t = copy.days;
   const [draft, setDraft] = useState<Draft>(() => draftFrom(mode));
   const [nameError, setNameError] = useState<string | null>(null);
 
@@ -96,7 +102,7 @@ export function DaySheet({
       description={isNew ? t.newHint : undefined}
       footer={
         <div className="flex flex-col gap-2.5">
-          <Button onClick={submit}>{isNew ? t.create : pt.common.save}</Button>
+          <Button onClick={submit}>{isNew ? t.create : copy.common.save}</Button>
           {onDelete ? (
             <Button variant="ghost" onClick={onDelete} className="text-danger">
               <Icon name="trash" size={17} strokeWidth={1.9} />
@@ -138,7 +144,7 @@ export function DaySheet({
                       : 'bg-chip text-chip-ink',
                   )}
                 >
-                  {option.label}
+                  {t[option.label]}
                 </button>
               );
             })}

@@ -5,7 +5,7 @@ import { BLOCKS, prog, type ProgKind } from '../../content';
 import { PHOTO_ACCEPT, PhotoError, uploadExercisePhoto } from '../../data/photos';
 import type { CatalogExercise } from '../../data/entities';
 import { useUserId } from '../../data/queries';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
@@ -14,7 +14,6 @@ import { isProgKind, type DayEntry } from './day-entries';
 import type { ExerciseInput, Visibility } from './use-day-editing';
 import { youtubeId } from './video-id';
 
-const t = pt.editor;
 
 /**
  * The one form that creates and changes an exercise.
@@ -60,16 +59,24 @@ export type SheetMode =
   /** The same published exercise, edited from the catalogue, with no day around it. */
   | { kind: 'catalog'; row: CatalogExercise };
 
-const VISIBILITIES: readonly { value: Visibility; label: string }[] = [
-  { value: 'day', label: t.visPrivate },
-  { value: 'catalog', label: t.visShared },
+/*
+ * A CHAVE, e não a palavra. Uma constante de módulo é lida uma vez, quando o
+ * ficheiro carrega, e ficava presa na língua em que a app arrancou; a chave
+ * resolve-se a cada render, onde o `useT()` a pode ouvir mudar.
+ */
+const VISIBILITIES: readonly { value: Visibility; label: 'visPrivate' | 'visShared' }[] = [
+  { value: 'day', label: 'visPrivate' },
+  { value: 'catalog', label: 'visShared' },
 ];
 
-const KINDS: readonly { value: ProgKind; label: string }[] = [
-  { value: 'comp', label: t.kindComp },
-  { value: 'acc', label: t.kindAcc },
-  { value: 'iso', label: t.kindIso },
-  { value: 'core', label: t.kindCore },
+const KINDS: readonly {
+  value: ProgKind;
+  label: 'kindComp' | 'kindAcc' | 'kindIso' | 'kindCore';
+}[] = [
+  { value: 'comp', label: 'kindComp' },
+  { value: 'acc', label: 'kindAcc' },
+  { value: 'iso', label: 'kindIso' },
+  { value: 'core', label: 'kindCore' },
 ];
 
 type Draft = {
@@ -176,6 +183,8 @@ export function ExerciseSheet({
   /** Only for a baseline exercise that currently carries an override. */
   onRestore?: () => void;
 }) {
+  const copy = useT();
+  const t = copy.editor;
   const userId = useUserId();
   const [draft, setDraft] = useState<Draft>(() => draftFrom(mode));
   const [nameError, setNameError] = useState<string | null>(null);
@@ -267,7 +276,7 @@ export function ExerciseSheet({
       footer={
         <div className="flex flex-col gap-2.5">
           <Button onClick={submit} loading={uploading}>
-            {isNew ? t.create : pt.common.save}
+            {isNew ? t.create : copy.common.save}
           </Button>
           {onDelete ? (
             <Button variant="ghost" onClick={onDelete} className="text-danger">
@@ -316,7 +325,7 @@ export function ExerciseSheet({
                         : 'bg-chip text-chip-ink',
                     )}
                   >
-                    {option.label}
+                    {t[option.label]}
                   </button>
                 );
               })}
@@ -355,7 +364,7 @@ export function ExerciseSheet({
                         : 'bg-chip text-chip-ink',
                     )}
                   >
-                    {option.label}
+                    {t[option.label]}
                   </button>
                 );
               })}
@@ -482,6 +491,8 @@ export function ExerciseSheet({
  * consequence of the choice is visible while the choice is being made.
  */
 function BlockPreview({ draft, id }: { draft: Draft; id: string }) {
+  const copy = useT();
+  const t = copy.editor;
   const sets = Number.parseInt(draft.sets.trim(), 10);
   const slots = prog(
     Number.isFinite(sets) && sets > 0 ? Math.min(sets, 12) : 3,
@@ -501,7 +512,7 @@ function BlockPreview({ draft, id }: { draft: Draft; id: string }) {
           const p = slots[b.k];
           return (
             <li key={b.k} className="flex items-baseline justify-between gap-3 font-ui text-[12.5px]">
-              <span className="font-600 text-text-muted">{pt.train.phase[b.k]}</span>
+              <span className="font-600 text-text-muted">{copy.train.phase[b.k]}</span>
               <span className="tabular text-text">
                 {p.s} × {reps || p.r}
                 <span className="text-text-muted"> · RPE {p.rpe}</span>

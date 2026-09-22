@@ -10,6 +10,8 @@ export const pt = {
   gate: {
     tabSignIn: 'Entrar',
     tabSignUp: 'Criar conta',
+    /* O rótulo do par de separadores, que estava preso em código. */
+    tablist: 'Entrar ou criar conta',
 
     welcomeBack: 'Bem-vindo de volta',
     createAccount: 'Cria a tua conta',
@@ -72,6 +74,31 @@ export const pt = {
     team: 'Equipa',
     profile: 'Perfil',
     catalog: 'Catálogo',
+    /* O rótulo da barra para quem navega por marcos, não a olho. */
+    landmark: 'Principal',
+  },
+
+  /*
+   * O tema, que estava escrito dentro do `ThemeToggle` em português. É o vizinho da
+   * língua nas Definições e, como ela, tem de se dizer na língua de quem lê.
+   */
+  theme: {
+    label: 'Tema',
+    hint: 'Tocar para mudar.',
+    system: 'Sistema',
+    light: 'Claro',
+    dark: 'Escuro',
+  },
+
+  /*
+   * As Definições, que ainda não têm ecrã próprio — a fase 023 escreve-o. Até lá o
+   * seletor de língua vive no Perfil pendente: alcançável, e não escondido atrás de
+   * uma fase que ainda não chegou.
+   */
+  settings: {
+    title: 'Definições',
+    language: 'Idioma',
+    languageHint: 'Muda a app inteira, e fica guardado neste aparelho.',
   },
 
   /**
@@ -88,6 +115,22 @@ export const pt = {
     title: 'Ainda não construído',
     body: 'Este ecrã chega numa próxima fase. O treino da semana já está a funcionar.',
     action: 'Voltar ao treino',
+  },
+
+  /*
+   * Os três ecrãs que um router entrega em branco: a página que não existe e o erro
+   * de render. Estavam escritos dentro de `route-elements.tsx`, em português, e
+   * diziam "voltar aos programas" — um ecrã que já não existe, porque o Programas
+   * passou a ser o Treino. Traduzir obrigou a lê-los, e ler mostrou que estavam
+   * desatualizados.
+   */
+  errors: {
+    notFoundTitle: 'Página não encontrada',
+    notFoundBody: 'O endereço não corresponde a nenhum ecrã da aplicação.',
+    notFoundAction: 'Ir para o treino',
+    crashTitle: 'Alguma coisa correu mal',
+    crashBody: 'O ecrã não conseguiu abrir. Voltar ao treino costuma resolver.',
+    crashAction: 'Voltar ao treino',
   },
 
   common: {
@@ -107,6 +150,15 @@ export const pt = {
     offlineNote: 'Sem ligação. As alterações ficam guardadas e sobem quando voltares a ter internet.',
     required: 'Este campo é obrigatório.',
     optional: 'opcional',
+
+    /*
+     * Duas palavras que estavam presas em código, e não aqui: o rótulo que o leitor
+     * de ecrã ouve enquanto a sessão é lida (`SessionSplash`) e o rótulo por defeito
+     * da fila do esforço (`EffortPicker`). Uma frase portuguesa escrita dentro de um
+     * componente é uma frase que nenhuma tradução alcança.
+     */
+    opening: 'A abrir a aplicação',
+    effort: 'Esforço',
 
     /*
      * O aviso de uma escrita recusada. O título muda conforme o que falhou — cada
@@ -209,6 +261,8 @@ export const pt = {
 
     // Day view
     dayOf: 'Dia',
+    dayNotFoundTitle: 'Dia não encontrado',
+    dayNotFoundBody: 'Este dia de treino não existe.',
     sets: 'Séries',
     setLabel: 'Série',
     weight: 'Carga',
@@ -662,4 +716,19 @@ export const pt = {
   },
 } as const;
 
-export type Copy = typeof pt;
+/**
+ * The contract the other three dictionaries have to meet.
+ *
+ * `typeof pt` under `as const` is made of LITERAL types: `tabSignIn` is not `string`,
+ * it is `'Entrar'`. No `en.ts` could ever satisfy that, because `'Sign in'` is not
+ * `'Entrar'`. `Widen` replaces every literal with `string` and leaves the SHAPE
+ * untouched.
+ *
+ * That shape is the whole point. It is the only thing standing between four
+ * dictionaries and silent drift: with `satisfies Copy`, a missing key fails the
+ * build, and so does a key that exists in one language and nowhere else. Nobody has
+ * to remember to check.
+ */
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+
+export type Copy = Widen<typeof pt>;

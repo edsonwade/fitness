@@ -28,10 +28,14 @@ export const CONTENT_INVARIANTS = {
   videos: 38,
   cardio: 2,
   days: 7,
-  daySlots: 36,
+  // A semana partilhada de 2026-09-21: 6+6+6+0+6+18+0. Dois dias de descanso (4 e 7)
+  // e o Full Body de sábado com os seus 18, que sozinho vale quase metade da semana.
+  daySlots: 42,
   blocks: 4,
   muscles: 17,
-  distinctPrescribed: 34,
+  // Caiu de 34 porque a semana nova tem menos dias de treino e repete mais: os 18 do
+  // sábado são, tirando o Tríceps Testa, os mesmos que já aparecem de segunda a sexta.
+  distinctPrescribed: 25,
 } as const;
 
 export function countDaySlots(): number {

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { useT } from '../i18n/locale-context';
+
 /**
  * A whole screen carrying one short message: the session splash, a route error, a
  * page that does not exist.
@@ -50,7 +52,13 @@ export function Screen({
  * only what a screen reader is told differs, and it should not be told the app is
  * opening when the app is already open.
  */
-export function SessionSplash({ label = 'A abrir a aplicação' }: { label?: string }) {
+export function SessionSplash({ label }: { label?: string }) {
+  /*
+   * O rótulo por defeito vem do dicionário e não de uma frase escrita aqui. Quem
+   * passa um `label` próprio continua a mandar: o caso do dia que chega da base de
+   * dados, em que dizer "a abrir a aplicação" seria mentira.
+   */
+  const t = useT();
   return (
     <div
       className="min-h-[100dvh] bg-page py-0 sm:py-8"
@@ -58,7 +66,7 @@ export function SessionSplash({ label = 'A abrir a aplicação' }: { label?: str
       role="status"
       aria-live="polite"
     >
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{label ?? t.common.opening}</span>
       <div className="mx-auto min-h-[100dvh] w-full max-w-[26.5rem] bg-ground sm:min-h-[32rem] sm:rounded-[40px] sm:shadow-[var(--shadow-float)]" />
     </div>
   );

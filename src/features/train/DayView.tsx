@@ -11,7 +11,7 @@ import {
   useRecordSession,
   useReopenSession,
 } from '../../data/mutations';
-import { pt } from '../../i18n/pt';
+import { useT, type LocaleState } from '../../i18n/locale-context';
 import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon, IconButton } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
@@ -36,9 +36,6 @@ import {
 } from './sessions';
 import { useDayEditing, type ExerciseInput } from './use-day-editing';
 
-const t = pt.train;
-const e = pt.editor;
-const d = pt.days;
 
 function isBlockKey(value: string | null): value is BlockKey {
   return value !== null && (BLOCK_KEYS as readonly string[]).includes(value);
@@ -64,6 +61,10 @@ type Rest = { id: number; seconds: number; name: string };
  * a time. A new tick replaces the running clock rather than stacking a second one.
  */
 export function DayView() {
+  const copy = useT();
+  const t = copy.train;
+  const e = copy.editor;
+  const d = copy.days;
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -139,12 +140,12 @@ export function DayView() {
    * time they open it from a link, is the failure this guard exists to prevent.
    */
   if (!dayRef && week.isPending) {
-    return <SessionSplash label={pt.common.loading} />;
+    return <SessionSplash label={copy.common.loading} />;
   }
 
   if (!dayRef) {
     return (
-      <Screen title="Dia não encontrado" body="Este dia de treino não existe.">
+      <Screen title={t.dayNotFoundTitle} body={t.dayNotFoundBody}>
         <Link
           to="/treino"
           className="inline-flex min-h-[48px] items-center rounded-full bg-accent px-6 font-ui text-[14px] font-700 text-accent-ink"
@@ -438,7 +439,7 @@ export function DayView() {
     const key = b.k as BlockKey;
     const selected = key === block;
     const summary = blockSummary(programme.resolveIn(key, day.day ?? null, dayId).entries);
-    const cost = costOf(summary);
+    const cost = costOf(summary, t);
     return (
       <button
         key={b.k}
@@ -495,7 +496,7 @@ export function DayView() {
 
         <div className="relative px-5 pb-40">
           <header className="flex items-center gap-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
-            <IconButton icon="back" label={pt.common.back} onClick={goBack} />
+            <IconButton icon="back" label={copy.common.back} onClick={goBack} />
             <div className="min-w-0 flex-1 text-center">
               <p className="font-ui text-[11px] font-600 uppercase tracking-[0.05em] text-text-muted">
                 {day.label}
@@ -885,7 +886,15 @@ export function DayView() {
  * that printed a duration would be inventing exactly the number that section warns
  * about. The rest day already says what it is, in words, below the rail.
  */
-function costOf(summary: BlockSummary): { shown: string | null; spoken: string | null } {
+function costOf(
+  summary: BlockSummary,
+  /*
+   * A plain function, so it takes the words instead of reaching for them. A hook
+   * cannot be called outside a component, and a module-level `pt.train` would pin
+   * this line to Portuguese whatever language the screen is in.
+   */
+  t: LocaleState['t']['train'],
+): { shown: string | null; spoken: string | null } {
   if (summary.count === 0) return { shown: null, spoken: null };
 
   const unit = summary.count === 1 ? t.exercise : t.exercises;

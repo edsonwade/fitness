@@ -8,7 +8,7 @@ import type {
 import { firstFailure, useDeleteRow, usePublishShared, useUpsertRow } from '../../data/mutations';
 import { useUserId } from '../../data/queries';
 import type { ProgKind } from '../../content';
-import { pt } from '../../i18n/pt';
+import { useT } from '../../i18n/locale-context';
 import { customKey, type DayEntry } from './day-entries';
 
 /**
@@ -31,7 +31,6 @@ import { customKey, type DayEntry } from './day-entries';
  */
 
 const EPOCH = new Date(0).toISOString();
-const e = pt.editor;
 
 /**
  * Where an exercise lives.
@@ -70,6 +69,7 @@ function orNull(value: string): string | null {
 }
 
 export function useDayEditing(dayNo: number) {
+  const e = useT().editor;
   const userId = useUserId();
   const customs = useUpsertRow('custom_exercises');
   const removeCustom = useDeleteRow('custom_exercises');

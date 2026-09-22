@@ -1,19 +1,24 @@
 /**
- * The preservation test (plan sections 7 and 12).
+ * The content test: schema, invariants and counts.
  *
- * D2 preserves the exercises and the videos; D3 preserves the photographs. This
- * file is what makes those promises checkable rather than stated. It asserts the
- * ported counts, then diffs the ported content field by field against the original
- * `old/js/data.js`, because a count can pass while a line of technique text has
- * silently changed.
+ * This file used to carry a second half — `describe('port fidelity against
+ * old/js/data.js')` — that loaded `old/js/data.js` at test time and asserted that
+ * every exercise, video and day slot still matched it field for field. That half
+ * was removed on 2026-09-21.
  *
- * The diff half of this file stops being runnable when `old/` is deleted at cutover
- * (plan M4), which is the correct lifetime for it: it exists to prove the port, and
- * the port happens once. The count and schema assertions outlive it.
+ * Why: the app is new and `old/` is not the source of anything. The folder stays on
+ * disk, but nothing reads it ("deixa a pasta aí e para de olhar nesta pasta"). A test
+ * that pins the new content to the old file makes the old app the specification,
+ * which is the opposite of the rule — see `.claude/memory/app-nova-old-nao-e-fonte`
+ * and the *App nova* section of `CLAUDE.md`. What the app prescribes now comes from
+ * the approved prototype in `proto/v2/`, so that is what a divergence must be checked
+ * against, by eye, frame by frame.
+ *
+ * What stays here outlives the port and does not look at `old/`: the schema check,
+ * the invariants, the counts, and the handful of product truths that a generated
+ * progression would have got wrong.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -29,15 +34,6 @@ import {
   validateContent,
 } from './index';
 
-const OLD_DATA = join(process.cwd(), 'old', 'js', 'data.js');
-
-/** Loads the original module, or null once `old/` has been removed at cutover. */
-function loadOriginal(): Record<string, never> | null {
-  if (!existsSync(OLD_DATA)) return null;
-  const source = readFileSync(OLD_DATA, 'utf8');
-  const names = ['EX', 'VIDEOS', 'CARDIO', 'DAYS', 'BLOCKS', 'MUSNAME', 'MUSNAME_EN'];
-  return new Function(`${source}\nreturn {${names.join(',')}};`)();
-}
 
 describe('preserved content', () => {
   it('passes its own schema and invariant validation', () => {
@@ -63,11 +59,26 @@ describe('preserved content', () => {
     const prescribed = distinctPrescribedKeys();
     expect(prescribed.size).toBe(CONTENT_INVARIANTS.distinctPrescribed);
 
-    // legcurl_l and birddog are defined with videos and technique text but appear on
-    // no day. They are referenced as swap alternatives inside other exercises' notes,
-    // so they are preserved rather than pruned as dead content.
+    // Exercises defined with videos and technique text that appear on no day. Two of
+    // them (birddog, legcurl_l) were already here: they are named as swap alternatives
+    // inside other exercises' notes. The other nine dropped out of the weekly plan on
+    // 2026-09-21, when the shared week went from five training days to four plus the
+    // Full Body. They stay in the catalogue and stay addable to any day; what they lost
+    // is a prescribed slot — and with it the per-slot note some of them carried.
     const unprescribed = Object.keys(EXERCISES).filter((key) => !prescribed.has(key));
-    expect(unprescribed.sort()).toEqual(['birddog', 'legcurl_l']);
+    expect(unprescribed.sort()).toEqual([
+      'birddog',
+      'cablecrunch',
+      'dbrdl',
+      'dip',
+      'facepull',
+      'kickback',
+      'legcurl_l',
+      'legpress_h',
+      'legraise',
+      'pallof',
+      'plank',
+    ]);
   });
 
   it('never prescribes an exercise it does not define', () => {
@@ -77,19 +88,38 @@ describe('preserved content', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('keeps the rest day empty and day 4 at eight slots', () => {
-    expect(DAYS.map((day) => day.items?.length ?? 0)).toEqual([6, 6, 6, 8, 6, 4, 0]);
-    expect(DAYS[6].type).toBe('rest');
-    expect(DAYS[6].items).toBeUndefined();
+  it('keeps both rest days empty and the Full Body at eighteen slots', () => {
+    // The shared week of 2026-09-21. Thursday joined Sunday as a rest day, and
+    // Saturday became the Full Body, which is why the shape is so lopsided.
+    expect(DAYS.map((day) => day.items?.length ?? 0)).toEqual([6, 6, 6, 0, 6, 18, 0]);
+    for (const rest of [DAYS[3], DAYS[6]]) {
+      expect(rest.type).toBe('rest');
+      expect(rest.items).toBeUndefined();
+    }
+  });
+
+  it('gives the Full Body six groups of three and sixty sets', () => {
+    // His order, in two sentences of his own: "peito + costa + bíceps + shoulder +
+    // triceps + legs, é combinação de todos" and "full body é 3 exercícios por grupo".
+    // The sets are counted off the prescriptions rather than restated, so a changed
+    // prescription cannot leave this number quietly wrong.
+    const full = DAYS[5];
+    expect(full.name.pt).toBe('Full Body');
+    expect(full.items).toHaveLength(18);
+    const sets = (full.items ?? []).reduce((total, item) => total + item.b1.s, 0);
+    expect(sets).toBe(60);
   });
 
   it('keeps weight, reps and RPE as text, never coerced to numbers', () => {
-    // "10/lado" and "—" are real values in this programme. A numeric field would
-    // have destroyed both, which is why the schema types them as strings.
-    const perSide = DAYS.flatMap((day) => day.items ?? []).filter((item) =>
-      item.b1.r.includes('/'),
+    // "— preencher" is a real load in this programme: a lift whose working weight has
+    // not been set yet. A numeric field would have destroyed it, which is why the
+    // schema types these as strings. (The per-side rep count "10/lado" used to be the
+    // example here; it belonged to the Pallof press, which the week of 2026-09-21
+    // dropped from the plan.)
+    const unset = DAYS.flatMap((day) => day.items ?? []).filter(
+      (item) => item.b1.l === '— preencher',
     );
-    expect(perSide.length).toBeGreaterThan(0);
+    expect(unset.length).toBeGreaterThan(0);
     for (const item of DAYS.flatMap((day) => day.items ?? [])) {
       expect(typeof item.b1.r).toBe('string');
       expect(typeof item.b1.l).toBe('string');
@@ -97,47 +127,23 @@ describe('preserved content', () => {
     }
   });
 
-  it('caps RPE on the Romanian deadlift even in the heavy block', () => {
-    // Product truth, not a generated progression: the note reads "BACK CAUTION:
-    // RPE 8 max even in the heavy block." prog() would have written 8-9 here.
-    const dbrdl = DAYS.flatMap((day) => day.items ?? []).find((item) => item.ex === 'dbrdl');
-    expect(dbrdl?.b3.rpe).toBe('7-8');
-    expect(dbrdl?.note?.en).toContain('RPE 8 max');
-  });
-});
-
-describe('port fidelity against old/js/data.js', () => {
-  const original = loadOriginal();
-
-  it.skipIf(!original)('carries every exercise field verbatim', () => {
-    const { EX } = original as never as { EX: Record<string, unknown> };
-    expect(Object.keys(EXERCISES).sort()).toEqual(Object.keys(EX).sort());
-    for (const key of Object.keys(EX)) {
-      expect(EXERCISES[key], `exercise ${key} diverged from the source`).toEqual(EX[key]);
-    }
-  });
-
-  it.skipIf(!original)('carries videos, cardio, blocks and muscles verbatim', () => {
-    const src = original as never as {
-      VIDEOS: Record<string, string>;
-      CARDIO: Record<string, unknown>;
-      BLOCKS: unknown[];
-      MUSNAME: Record<string, string>;
-      MUSNAME_EN: Record<string, string>;
-    };
-    expect(VIDEOS).toEqual(src.VIDEOS);
-    expect(CARDIO).toEqual(src.CARDIO);
-    expect(BLOCKS).toEqual(src.BLOCKS);
-    for (const key of Object.keys(src.MUSNAME)) {
-      expect(MUSCLES[key]).toEqual({ pt: src.MUSNAME[key], en: src.MUSNAME_EN[key] });
-    }
-  });
-
-  it.skipIf(!original)('re-expands every day slot to the exact source prescription', () => {
-    const { DAYS: srcDays } = original as never as { DAYS: { id: number; items?: unknown[] }[] };
-    expect(DAYS.map((d) => d.id)).toEqual(srcDays.map((d) => d.id));
-    for (const [index, day] of DAYS.entries()) {
-      expect(day, `day ${day.id} diverged from the source`).toEqual(srcDays[index]);
+  it('keeps the authored per-slot notes that a generator would not have written', () => {
+    // This used to assert the Romanian deadlift's back caution — "RPE 8 max even in
+    // the heavy block", where prog() would have written 8-9. That slot is gone: the
+    // week of 2026-09-21 dropped dbrdl from the plan, and its prescription went with
+    // it. The exercise and its technique text stay in the catalogue; the cap does not.
+    // Worth saying out loud rather than deleting the test in silence.
+    const noted = DAYS.flatMap((day) => day.items ?? []).filter((item) => item.note);
+    // cablecurl carries its note twice: it is prescribed on Friday and again inside
+    // Saturday's Full Body, and the note travels with the slot.
+    expect([...new Set(noted.map((item) => item.ex))].sort()).toEqual([
+      'cablecurl',
+      'hack',
+      'ohext',
+    ]);
+    for (const item of noted) {
+      expect(item.note?.pt.length).toBeGreaterThan(0);
+      expect(item.note?.en.length).toBeGreaterThan(0);
     }
   });
 });

@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router';
 
-import { pt } from '../i18n/pt';
+import type { Copy } from '../i18n';
+import { useT } from '../i18n/locale-context';
 
 /**
  * The application frame every tabbed surface lives inside.
@@ -36,7 +37,13 @@ export function AppShell() {
 
 type Tab = {
   to: string;
-  label: string;
+  /*
+   * A CHAVE, e não a palavra. Um `label: pt.nav.today` numa constante de módulo é
+   * lido UMA vez, quando o ficheiro carrega, e ficava preso na língua em que a app
+   * arrancou: trocar para francês deixava a barra em português. A chave resolve-se
+   * a cada render, dentro do componente, onde o `useT()` a pode ouvir mudar.
+   */
+  label: keyof Copy['nav'];
   /** O traço do protótipo, tal e qual. Um peso só, para ler a 22px. */
   icon: React.ReactNode;
   end?: boolean;
@@ -50,17 +57,17 @@ const TABS: Tab[] = [
   {
     to: '/',
     end: true,
-    label: pt.nav.today,
+    label: 'today',
     icon: <path d="m3 11 9-8 9 8v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />,
   },
   {
     to: '/treino',
-    label: pt.nav.train,
+    label: 'train',
     icon: <path d="M6 6v12M18 6v12M2 10v4M22 10v4M6 12h12" />,
   },
   {
     to: '/nutricao',
-    label: pt.nav.nutrition,
+    label: 'nutrition',
     icon: (
       <>
         <path d="M5 3v8a3 3 0 0 0 6 0V3M8 11v10M17 3c-1.5 2-2 4-2 6s.5 3 2 3 2-1 2-3-.5-4-2-6Z" />
@@ -70,7 +77,7 @@ const TABS: Tab[] = [
   },
   {
     to: '/equipa',
-    label: pt.nav.team,
+    label: 'team',
     icon: (
       <>
         <circle cx="9" cy="8" r="3.2" />
@@ -82,7 +89,7 @@ const TABS: Tab[] = [
   },
   {
     to: '/perfil',
-    label: pt.nav.profile,
+    label: 'profile',
     icon: (
       <>
         <circle cx="12" cy="8" r="3.4" />
@@ -93,8 +100,9 @@ const TABS: Tab[] = [
 ];
 
 function BottomNav() {
+  const t = useT();
   return (
-    <nav aria-label="Principal" className="tabbar z-20">
+    <nav aria-label={t.nav.landmark} className="tabbar z-20">
       {TABS.map((tab) => (
         <NavLink key={tab.to} to={tab.to} end={tab.end}>
           {({ isActive }) => (
@@ -116,7 +124,7 @@ function BottomNav() {
               >
                 {tab.icon}
               </svg>
-              <span>{tab.label}</span>
+              <span>{t.nav[tab.label]}</span>
             </>
           )}
         </NavLink>

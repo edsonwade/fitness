@@ -7,6 +7,7 @@ import { Train } from '../features/train/Train';
 import { AppShell } from './AppShell';
 import {
   NotFound,
+  ProfilePending,
   RequireNoSession,
   RequireSession,
   RouteError,
@@ -38,6 +39,12 @@ import {
  * "page not found" tells the user the app is broken when the truth is that the
  * screen is not written yet.
  *
+ * O PERFIL É A EXCEÇÃO, e por uma razão: a escolha de língua vive nas Definições,
+ * que são dentro do Perfil, e as Definições chegam na fase 023. Até lá o Perfil é o
+ * mesmo vazio mais o seletor de língua, em <ProfilePending>. Quatro dicionários sem
+ * nenhuma forma de lá chegar seriam uma funcionalidade escondida atrás de uma fase
+ * que ainda não começou.
+ *
  * `basename` comes from Vite rather than being written literally. This deploys to
  * GitHub Pages, which serves from a repository subpath; a hardcoded '/' would work
  * in dev and 404 on every deep link in production. `BASE_URL` is '/' until
@@ -60,7 +67,7 @@ export const router = createBrowserRouter(
                 { path: 'catalogo', element: <Catalog /> },
                 { path: 'nutricao', element: <SurfacePending /> },
                 { path: 'equipa', element: <SurfacePending /> },
-                { path: 'perfil', element: <SurfacePending /> },
+                { path: 'perfil', element: <ProfilePending /> },
               ],
             },
             { path: 'treino/:dia', element: <DayView /> },
