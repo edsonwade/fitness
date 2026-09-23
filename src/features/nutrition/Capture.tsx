@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useUpsertRow } from '../../data/mutations';
+import { uploadFoodPhoto } from '../../data/photos';
+import { useUserId } from '../../data/queries';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
-import { Stepper } from '../../ui/Stepper';
-import { ThemeToggle } from '../../ui/ThemeToggle';
+import { ValuePill } from '../../ui/ValuePill';
 import { MEALS, type Meal } from './nutrition';
 
 /**
@@ -22,7 +23,7 @@ import { MEALS, type Meal } from './nutrition';
  *  - **Código**: o `BarcodeDetector` do browser lê o código e a Open Food Facts devolve os
  *    valores por 100 g — medidos, não estimados.
  *
- * Confirmar (frame 3): a estimativa diz que é estimativa; os macros corrigem-se por stepper.
+ * Confirmar (frame 3): a estimativa diz que é estimativa; os macros corrigem-se na roda (B4).
  */
 type Mode = 'voice' | 'text' | 'ai' | 'code';
 
@@ -95,9 +96,16 @@ export function Capture({
   const [listening, setListening] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [camOk, setCamOk] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [photoNote, setPhotoNote] = useState<string | null>(null);
+  const userId = useUserId();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
+  /* O flash da foto Ladder (B5): a lanterna da câmara traseira, quando o browser a expõe. */
+  const trackRef = useRef<MediaStreamTrack | null>(null);
+  const [torchable, setTorchable] = useState(false);
+  const [torch, setTorch] = useState(false);
 
   const usesCamera = stage === 'camera' && (mode === 'ai' || mode === 'code');
   /* Sem `BarcodeDetector` o modo Código di-lo, em vez de apontar a câmara a nada. */
@@ -116,6 +124,10 @@ export function Capture({
           return;
         }
         stream = s;
+        const [track] = s.getVideoTracks();
+        trackRef.current = track ?? null;
+        const caps = track?.getCapabilities?.() as { torch?: boolean } | undefined;
+        setTorchable(Boolean(caps?.torch));
         if (videoRef.current) {
           videoRef.current.srcObject = s;
           void videoRef.current.play().catch(() => undefined);
@@ -125,9 +137,19 @@ export function Capture({
       .catch(() => setCamOk(false));
     return () => {
       cancelled = true;
+      trackRef.current = null;
+      setTorch(false);
       stream?.getTracks().forEach((tr) => tr.stop());
     };
   }, [usesCamera]);
+
+  function toggleTorch() {
+    const next = !torch;
+    trackRef.current
+      ?.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] })
+      .then(() => setTorch(next))
+      .catch(() => setTorchable(false));
+  }
 
   /* Código: ler o código de barras do vídeo, e procurar o produto. */
   useEffect(() => {
@@ -221,9 +243,23 @@ export function Capture({
     reader.readAsDataURL(file);
   }
 
-  function save() {
-    const name = draft.name.trim() || text.trim();
-    if (!name) return;
+  /*
+   * B6: a foto sobe primeiro e o URL vai na linha — antes deitava-se fora aqui. Sem rede ou
+   * com o envio a falhar, a refeição grava na mesma, sem foto, e o ecrã di-lo.
+   */
+  async function save() {
+    const name = draft.name.trim();
+    if (!name || saving) return;
+    let photoUrl: string | null = null;
+    let photoLost = false;
+    if (draft.photo && userId) {
+      setSaving(true);
+      try {
+        photoUrl = await uploadFoodPhoto(draft.photo, userId, name);
+      } catch {
+        photoLost = true;
+      }
+    }
     upsert.save({
       id: crypto.randomUUID(),
       local_date: date,
@@ -236,14 +272,23 @@ export function Capture({
       source: draft.source,
       estimate: draft.estimate,
       barcode: draft.barcode,
+      /* Só com foto: sem a 019 corrida, uma coluna desconhecida recusava a linha inteira. */
+      ...(photoUrl ? { photo_url: photoUrl } : {}),
     });
+    setSaving(false);
+    if (photoLost) {
+      setPhotoNote(t.photoNotSaved);
+      window.setTimeout(onClose, 1800);
+      return;
+    }
     onClose();
   }
 
   const modeLabel: Record<Mode, string> = { voice: t.voice, text: t.text, ai: t.ai, code: t.code };
 
   if (stage === 'confirm') {
-    const name = draft.name || text;
+    /* B2: o modo Texto já passa o texto para draft.name; cair para `text` impedia de apagar o nome. */
+    const name = draft.name;
     return (
       <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-ground" role="dialog" aria-modal="true" aria-label={t.logMeal}>
         {draft.photo ? (
@@ -263,11 +308,24 @@ export function Capture({
             </label>
             <input
               id="food-name"
-              className="input mt-2 w-full"
+              className={name.trim() ? 'input mt-2 w-full' : 'input is-error mt-2 w-full'}
               value={name}
+              required
+              aria-invalid={!name.trim()}
+              aria-describedby={name.trim() ? undefined : 'food-name-error'}
               placeholder={t.textPlaceholder}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.currentTarget.value }))}
+              onChange={(e) => {
+                /* B1: o updater corre depois do evento, e aí o currentTarget já é null. */
+                const value = e.currentTarget.value;
+                setDraft((d) => ({ ...d, name: value }));
+              }}
             />
+            {/* B7: o nome é sempre obrigatório, e diz-se. */}
+            {name.trim() ? null : (
+              <p id="food-name-error" className="field-error-text mt-2" role="alert">
+                {t.nameRequired}
+              </p>
+            )}
           </div>
           <div className="notice">
             <Icon name="info" size={20} strokeWidth={2} />
@@ -278,18 +336,18 @@ export function Capture({
           </div>
           <div className="stack-sm">
             <Row title={t.calories} unit={t.kcal}>
-              <Stepper size="sm" scale="kcal" label={t.calories} value={draft.kcal} onChange={(v) => setDraft((d) => ({ ...d, kcal: v }))} />
+              <ValuePill scale="kcal" title={t.calories} value={draft.kcal} onChange={(v) => setDraft((d) => ({ ...d, kcal: v }))} />
             </Row>
             {quick ? null : (
               <>
                 <Row title={t.protein} unit={t.grams}>
-                  <Stepper size="sm" scale="grams" label={t.protein} value={draft.protein} onChange={(v) => setDraft((d) => ({ ...d, protein: v }))} />
+                  <ValuePill scale="grams" title={t.protein} value={draft.protein} onChange={(v) => setDraft((d) => ({ ...d, protein: v }))} />
                 </Row>
                 <Row title={t.carbs} unit={t.grams}>
-                  <Stepper size="sm" scale="grams" label={t.carbs} value={draft.carbs} onChange={(v) => setDraft((d) => ({ ...d, carbs: v }))} />
+                  <ValuePill scale="grams" title={t.carbs} value={draft.carbs} onChange={(v) => setDraft((d) => ({ ...d, carbs: v }))} />
                 </Row>
                 <Row title={t.fat} unit={t.grams}>
-                  <Stepper size="sm" scale="grams" label={t.fat} value={draft.fat} onChange={(v) => setDraft((d) => ({ ...d, fat: v }))} />
+                  <ValuePill scale="grams" title={t.fat} value={draft.fat} onChange={(v) => setDraft((d) => ({ ...d, fat: v }))} />
                 </Row>
               </>
             )}
@@ -312,14 +370,29 @@ export function Capture({
               ))}
             </div>
           </div>
-          <button type="button" className="btn btn-primary btn-block" disabled={!name.trim()} onClick={save}>
-            {t.saveDiary}
+          {photoNote ? (
+            <p className="body-2 muted" role="status">
+              {photoNote}
+            </p>
+          ) : null}
+          <button type="button" className="btn btn-primary btn-block" disabled={!name.trim() || saving} onClick={() => void save()}>
+            {saving ? t.savingPhoto : t.saveDiary}
           </button>
         </div>
       </div>
     );
   }
 
+  const modeIcon = { voice: 'mic', text: 'text', ai: 'camera', code: 'barcode' } as const;
+  /* As barras do chip: três de quatro numa estimativa, as quatro quando o valor é medido. */
+  const bars = mode === 'code' ? 4 : 3;
+
+  /*
+   * B5 (skill nutricao-sem-erros): exatamente a foto Ladder 18:53. A comida à vista de ponta a
+   * ponta, sem gradientes; só vidro por cima. Em cima ✕ · marca · flash, o chip da precisão
+   * com barras, o obturador em anel sozinho, a galeria à esquerda, e em baixo a pílula dos
+   * quatro modos com a lupa à parte. O CSS vive em `.cam-*` de `src/styles/system.css`.
+   */
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={t.logMeal}>
       <div className="media-screen absolute inset-0">
@@ -353,7 +426,7 @@ export function Capture({
 
         {mode === 'text' ? (
           <div className="cam-panel">
-            <div className="cam-panel-fill" style={{ alignItems: 'start', paddingTop: 'var(--sp-9)' }}>
+            <div className="cam-panel-fill" style={{ alignItems: 'start', paddingTop: 'calc(var(--sp-9) + 72px)' }}>
               <div className="w-full">
                 <label className="label" htmlFor="cam-texto" style={{ color: 'rgb(255 255 255 / .8)' }}>
                   {t.textLabel}
@@ -403,39 +476,48 @@ export function Capture({
           </div>
         ) : null}
 
-        <div className="media-top" style={{ zIndex: 2 }}>
-          <div className="row-between">
-            <button type="button" className="btn btn-icon on-media" aria-label={t.close} onClick={onClose}>
-              <Icon name="x" size={20} strokeWidth={2} />
+        <div className="cam-top">
+          <button type="button" className="cam-glass" aria-label={t.close} onClick={onClose}>
+            <Icon name="x" size={20} strokeWidth={2} />
+          </button>
+          <p className="cam-brand">{t.brand}</p>
+          {usesCamera && torchable ? (
+            <button type="button" className="cam-glass" aria-label={t.flash} aria-pressed={torch} onClick={toggleTorch}>
+              <Icon name={torch ? 'flash' : 'flashOff'} size={20} strokeWidth={2} />
             </button>
-            <p className="cam-brand">{t.brand}</p>
-            <ThemeToggle onMedia />
-          </div>
-          <div className="mt-4 flex justify-center">
-            <span
-              className="chip chip-sm"
-              style={{ background: 'rgb(0 0 0 / .72)', color: '#fff', borderColor: 'transparent', backdropFilter: 'blur(8px)' }}
-            >
-              {mode === 'code' ? t.precisionMeasured : t.precisionEstimate}
-            </span>
-          </div>
-          {mode === 'ai' ? <p className="body-2 mt-3 text-center">{t.aiBody}</p> : null}
-          {mode === 'code' && !shown ? <p className="body-2 mt-3 text-center">{t.codeBody}</p> : null}
+          ) : (
+            <span aria-hidden="true" />
+          )}
         </div>
+        {usesCamera ? (
+          <p className="cam-accuracy">
+            <Icon name="sparkle" size={14} strokeWidth={2} />
+            {mode === 'code' ? t.precisionMeasured : t.accuracyShort}
+            <span className="cam-bars" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <i key={i} className={i < bars ? 'is-on' : undefined} />
+              ))}
+            </span>
+          </p>
+        ) : null}
 
-        <div className="media-bottom" style={{ zIndex: 2 }}>
-          <div className="cam-actions">
-            <button type="button" className="cam-side" aria-label={t.gallery} onClick={() => fileRef.current?.click()}>
-              <Icon name="upload" size={22} strokeWidth={2} />
+        <div className="cam-dock">
+          <div className="cam-shoot">
+            <button type="button" className="cam-glass" aria-label={t.gallery} onClick={() => fileRef.current?.click()}>
+              <Icon name="gallery" size={20} strokeWidth={2} />
             </button>
-            <button
-              type="button"
-              className="cam-shutter"
-              aria-label={t.shutter}
-              disabled={mode !== 'ai'}
-              onClick={snap}
-            />
-            <button type="button" className="cam-side" aria-label={t.search} onClick={() => switchMode('text')}>
+            <button type="button" className="cam-shutter" aria-label={t.shutter} disabled={mode !== 'ai'} onClick={snap} />
+          </div>
+          <div className="cam-bar">
+            <div className="cam-modes" role="tablist" aria-label={t.modes}>
+              {(['voice', 'text', 'ai', 'code'] as const).map((m) => (
+                <button key={m} type="button" className="cam-mode" role="tab" aria-selected={mode === m} onClick={() => switchMode(m)}>
+                  <Icon name={modeIcon[m]} size={22} strokeWidth={2} />
+                  {modeLabel[m]}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="cam-glass" aria-label={t.search} onClick={() => switchMode('text')}>
               <Icon name="search" size={22} strokeWidth={2} />
             </button>
           </div>
@@ -447,18 +529,6 @@ export function Capture({
             tabIndex={-1}
             onChange={(e) => fromGallery(e.currentTarget.files?.[0])}
           />
-          <div
-            className="segmented"
-            role="tablist"
-            aria-label={t.modes}
-            style={{ background: 'rgb(0 0 0 / .72)', backdropFilter: 'blur(10px)' }}
-          >
-            {(['voice', 'text', 'ai', 'code'] as const).map((m) => (
-              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => switchMode(m)}>
-                {modeLabel[m]}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>

@@ -43,7 +43,7 @@
  * enganado; quem lhe escrever uma regra parte a geometria.
  *
  * MÉTRICA DE TREINO NUNCA SE ESCREVE. Peso, reps, esforço, tempo e séries entram
- * por seleção — `.valuepill`, `.wheel`, `.stepper`, `.presetrow`, `.effortpicker`,
+ * por seleção — `.valuepill`, `.wheel`, `.wheelfield`, `.presetrow`, `.effortpicker`,
  * `.quicktags`. Os campos de texto desta folha servem texto genuinamente livre e
  * procura, e mais nada.
  */
@@ -325,30 +325,20 @@
 .wheel-frame { position: relative; }
 .wheel-frame .wheel { position: relative; z-index: 1; }
 
-/* O stepper: −/+ com incremento real de disco. */
-.stepper {
-  display: inline-flex; align-items: center; gap: var(--sp-2);
-  background: var(--ui-surface-raised); border-radius: var(--radius-pill); padding: 4px;
+/* A roda à vista (WheelField), B4: nada de −/+. Com decimais, duas colunas — inteiros e
+   décimas — como o seletor do telemóvel, com a vírgula e a unidade entre elas. */
+.wheelfield {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 0.8fr) auto;
+  align-items: center; gap: var(--sp-2);
+  width: 100%; max-width: 280px; margin-inline: auto;
 }
-.stepper button {
-  width: var(--tap-set); height: var(--tap-set); border-radius: 50%;
-  border: 0; background: var(--ui-surface); color: var(--ui-text);
-  font-size: 24px; font-weight: 600; line-height: 1; cursor: pointer;
-  display: grid; place-items: center;
-  transition: background-color var(--duration-state) var(--ease-out), transform var(--duration-press) var(--ease-out);
+.wheelfield-sep, .wheelfield-unit {
+  font-family: var(--font-ui); font-weight: 700; font-size: 28px; color: var(--ui-text);
 }
-.stepper button:hover { background: var(--ui-accent-soft); }
-.stepper button:active { transform: scale(0.94); }
-.stepper button:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-.stepper-value {
-  min-width: 96px; text-align: center;
-  font-family: var(--font-ui); font-weight: 700; font-variant-numeric: tabular-nums;
-  font-size: 26px; line-height: 1;
-  display: inline-flex; align-items: baseline; justify-content: center; gap: 4px;
-}
-.stepper-value .u { font-size: 12px; font-weight: 600; color: var(--ui-text-muted); }
-.stepper-sm .stepper-value { min-width: 76px; font-size: 22px; }
-.stepper-step { font-size: 11px; color: var(--ui-text-muted); text-align: center; margin-top: 6px; }
+.wheelfield-unit { font-size: 14px; font-weight: 600; color: var(--ui-text-muted); }
+/* Duas rodas lado a lado numa folha (a meta: kcal · proteína). */
+.wheelpair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.wheelpair .label { text-align: center; margin-bottom: var(--sp-2); }
 
 /* Chips de valor sugerido: a prescrição e a última sessão, a um toque. */
 .presetrow { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -1387,36 +1377,99 @@ button.media-name { touch-action: none; }
 /* ============================================================
    CÂMARA DA NUTRIÇÃO  ·  .cam-*
    ------------------------------------------------------------
-   Igual à fotografia: galeria à esquerda, obturador ao centro,
-   lupa à direita, e quatro modos — Voz · Texto · IA · Código.
-   "Procurar" saiu da fila de modos e virou a lupa.
+   B5 (skill nutricao-sem-erros): exatamente a foto Ladder 18:53.
+   ✕ · marca · flash em cima, o chip da precisão com barras, o
+   obturador em anel sozinho com a galeria à esquerda, e em baixo a
+   pílula dos quatro modos (ícone por cima do nome) com a lupa à parte.
 
    Os fundos escuros aqui são medidos contra o PIOR caso, que é um
    frame de vídeo branco: 0.72 de preto sobre branco dá #474747, e
    o branco em cima lê 9.29:1. Ver contrast-v2.mjs.
    ============================================================ */
 
-.cam-actions {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-inline: var(--sp-6); margin-bottom: var(--sp-5);
-}
-.cam-side {
-  width: var(--tap-set); height: var(--tap-set); border-radius: 50%;
+/* B5 (skill nutricao-sem-erros), foto Ladder 18:53: a comida à vista de ponta a ponta, sem
+   gradientes por cima — só peças de vidro. Em cima ✕ · marca · flash; o chip da precisão
+   com barras; o obturador em anel, sozinho; a galeria à esquerda; e em baixo a pílula dos
+   quatro modos (ícone por cima do nome) com a lupa à parte. */
+.cam-glass {
+  width: 46px; height: 46px; border-radius: 50%;
   display: grid; place-items: center; cursor: pointer;
-  background: rgb(0 0 0 / 0.5); border: 1px solid rgb(255 255 255 / 0.22);
-  color: #fff; backdrop-filter: blur(8px);
+  color: #fff; background: rgb(40 40 40 / 0.38);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) var(--ease-out);
 }
-.cam-side svg { width: 22px; height: 22px; }
-.cam-side:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: 3px; }
+.cam-glass:active { transform: scale(0.94); }
+.cam-glass[aria-pressed='true'] { color: var(--ui-volt); }
+.cam-glass:focus-visible, .cam-mode:focus-visible, .cam-shutter:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: 3px; }
 
-.cam-shutter {
-  width: 74px; height: 74px; border-radius: 50%;
-  border: 4px solid rgb(255 255 255 / 0.9); background: #fff; cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out);
+.cam-top {
+  position: absolute; z-index: 2; left: 20px; right: 20px;
+  top: max(16px, env(safe-area-inset-top));
+  display: grid; grid-template-columns: 46px 1fr 46px; align-items: center;
 }
-.cam-shutter:active { transform: scale(0.93); }
-.cam-shutter:focus-visible { outline: 3px solid var(--ui-volt); outline-offset: 4px; }
-@media (prefers-reduced-motion: reduce) { .cam-shutter:active { transform: none; } }
+.cam-brand {
+  justify-self: center; display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 15px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+}
+
+.cam-accuracy {
+  position: absolute; z-index: 2; left: 50%; translate: -50% 0;
+  top: calc(max(16px, env(safe-area-inset-top)) + 58px);
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  padding: 6px 12px; border-radius: var(--radius-pill);
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; color: #fff;
+  background: rgb(40 40 40 / 0.38); border: 1px solid rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+.cam-accuracy > svg { color: var(--ui-volt); }
+.cam-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.cam-bars i { width: 3px; border-radius: 1px; background: rgb(255 255 255 / 0.35); }
+.cam-bars i:nth-child(1) { height: 5px; }
+.cam-bars i:nth-child(2) { height: 8px; }
+.cam-bars i:nth-child(3) { height: 11px; }
+.cam-bars i:nth-child(4) { height: 14px; }
+.cam-bars i.is-on { background: var(--ui-volt); }
+
+.cam-dock {
+  position: absolute; z-index: 2; left: 16px; right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid; gap: 20px;
+}
+.cam-shoot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.cam-shoot .cam-glass { justify-self: start; margin-left: 8px; }
+.cam-shutter {
+  width: 78px; height: 78px; border-radius: 50%; cursor: pointer;
+  background: transparent; border: 5px solid #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08), inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) var(--ease-out);
+}
+.cam-shutter:active { transform: scale(0.93); background: rgb(255 255 255 / 0.25); }
+.cam-shutter:disabled { opacity: 0.45; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .cam-shutter:active, .cam-glass:active { transform: none; } }
+
+.cam-bar { display: flex; align-items: center; gap: 8px; }
+.cam-modes {
+  flex: 1 1 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+  padding: 5px; border-radius: var(--radius-pill);
+  background: rgb(40 40 40 / 0.38); border: 1px solid rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+.cam-mode {
+  display: grid; justify-items: center; gap: 2px; padding: 7px 0 6px;
+  border: 0; border-radius: var(--radius-pill); background: transparent; cursor: pointer;
+  font-family: var(--font-ui); font-size: 10.5px; font-weight: 600; color: rgb(255 255 255 / 0.86);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-state) var(--ease-out), color var(--duration-state) var(--ease-out);
+}
+.cam-mode > svg { width: 22px; height: 22px; }
+.cam-mode[aria-selected='true'] { background: rgb(255 255 255 / 0.18); color: #fff; }
+.cam-mode[aria-selected='true'] > svg { color: var(--ui-volt); }
+.cam-bar > .cam-glass { width: 58px; height: 58px; flex: 0 0 auto; }
+@media (max-width: 370px) { .cam-mode { font-size: 9.5px; } .cam-bar > .cam-glass { width: 52px; height: 52px; } }
 
 /* Os painéis dos quatro modos. O defeito que isto corrige: os tabs
    existiam e os painéis não, por isso tocar em "Voz" não fazia nada. */
@@ -1959,3 +2012,80 @@ button.media-name { touch-action: none; }
   .rx-stage > video, .rx-stage > img { animation: none; }
   .rx-stage-progress::before { animation-duration: 3s; }
 }
+
+/* B6 (skill nutricao-sem-erros), foto de referência 19:35: "Hoje" é uma fila de cartões de
+   foto que rola de lado, um por alimento. A foto enche o quadrado, sem gradiente por cima da
+   comida; o ponto volt no canto de cima; a pílula de vidro com a maçã e a refeição em baixo à
+   esquerda; o nome do alimento por baixo, fora do cartão. Sem foto, a placa de vidro neutra. */
+.food-rail {
+  display: flex; gap: var(--sp-3); overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scroll-padding-inline: var(--sp-5);
+  padding: 0 var(--sp-5) var(--sp-2); scrollbar-width: none;
+}
+.food-rail::-webkit-scrollbar { display: none; }
+.food-rail > * { flex: 0 0 auto; width: 148px; scroll-snap-align: start; }
+.food-card {
+  position: relative; display: block; width: 148px; aspect-ratio: 1; overflow: hidden;
+  border-radius: var(--radius-card); cursor: pointer; padding: 0;
+  background: var(--ui-glass); border: 1px solid var(--ui-glass-edge);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
+  box-shadow: var(--ui-shadow-card), var(--ui-edge-light);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.food-card:active { transform: scale(0.97); }
+.food-card:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: 3px; }
+.food-card-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.food-card-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ui-text-muted); }
+.food-card-dot {
+  position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--ui-volt); box-shadow: 0 0 0 2px rgb(0 0 0 / 0.18);
+}
+.food-card-tag {
+  position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px);
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px 6px 9px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: #fff; background: rgb(28 28 28 / 0.46); border: 1px solid rgb(255 255 255 / 0.16);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+}
+.food-card-tag svg { color: var(--ui-volt); flex: none; }
+.food-card-name {
+  margin-top: var(--sp-2); font-size: 14px; font-weight: 500; color: var(--ui-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.food-card-add { display: grid; place-items: center; color: var(--ui-text-muted); background: transparent; border: 1.5px dashed var(--ui-rule); box-shadow: none; }
+
+/* A folha do alimento: a foto grande, e os quatro números lado a lado. */
+.food-detail-photo {
+  position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-card);
+  background: var(--ui-glass); border: 1px solid var(--ui-glass-edge);
+}
+.food-macros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.food-macro {
+  display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3) var(--sp-2);
+  border-radius: 16px; text-align: center;
+  background: var(--ui-glass); border: 1px solid var(--ui-glass-edge);
+}
+
+/* B7: os botões da folha do alimento lado a lado, com etiquetas curtas numa linha só. */
+.food-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-3); }
+.food-actions .btn { white-space: nowrap; min-width: 0; }
+.food-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+
+/* B8 (skill nutricao-sem-erros), foto 20:10: a app cabe de 320 a 430 px nas quatro línguas,
+   medido em src/test/responsivo.test.ts com as fontes reais. */
+/* Separadores e chips de escolha partem em linhas, e nunca rolam escondidos. */
+.chipwrap { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* Os quatro números: 2×2 no telemóvel, 4 lado a lado quando há largura. */
+.food-macros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 400px) { .food-macros { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Os botões da folha do alimento: lado a lado quando cabem, em linhas quando não. */
+.food-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.food-actions .btn { flex: 1 1 auto; }
+/* O segmentado: 12 px de cada lado deixavam "Treinadores" e "Entrenadores" de fora a 320 px. */
+.segmented button { padding-inline: 8px; }
+/* A grelha das séries a 320 px: "Descanso" precisava de 55 px e tinha 53. */
+@media (max-width: 340px) { .setgrid th { font-size: 9px; letter-spacing: 0; } }
+/* A 320 px, "Entrenadores" (es) precisava de 82 px num terço de 274. */
+@media (max-width: 340px) { .segmented button { padding-inline: 6px; font-size: 12px; } }

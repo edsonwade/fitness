@@ -71,7 +71,7 @@ export function Evolution() {
         </p>
 
         {ev.length > 1 ? (
-          <div className="hscroll" style={{ paddingInline: 0, marginInline: 0 }}>
+          <div className="chipwrap">
             {ev.map((x, i) => (
               <button
                 key={x.line.key}

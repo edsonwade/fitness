@@ -55,6 +55,16 @@ const PATHS = {
   system: 'M3 5h18v12H3zM8 21h8M12 17v4',
   camera: 'M4 8h3l2-2h6l2 2h3v12H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   logout: 'M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2M9 12h11M17 9l3 3-3 3',
+  /* A câmara da Nutrição, foto Ladder 18:53 (B5): os quatro modos, a galeria, o flash e o ✦ da precisão. */
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',
+  text: 'M3 19l5-14 5 14M5 14h6M17 5v14M15 5h4M15 19h4',
+  barcode: 'M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 9v6M11 9v6M14 9v6M17 9v6',
+  gallery: 'M4 8h12v12H4zM8 4h12v12M4 17l4-4 3 3 2-2 3 3',
+  flash: 'M13 3L5 14h6l-1 7 8-11h-6z',
+  flashOff: 'M13 3L6 13h5l-1 8 4-6M15.5 11H18l-1.5 2.2M3 3l18 18',
+  sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  /* B6: a pílula da refeição no cartão do alimento, como a maçã da foto de referência 19:35. */
+  apple: 'M12 8c-1.6-1.4-5.2-1.6-6.6 1.2-1.3 2.6-.4 6.4 1.4 8.9 1.4 1.9 3 2.4 5.2 1.4 2.2 1 3.8.5 5.2-1.4 1.8-2.5 2.7-6.3 1.4-8.9C17.2 6.4 13.6 6.6 12 8zM12 8c0-2 .8-3.4 2.6-4.2',
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import type { BlockKey } from '../../content';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon, IconButton } from '../../ui/Icon';
+import { shortWeekday } from '../../ui/weekday';
 import { WriteFailureNotice } from '../../ui/Notice';
 import { JourneyRail } from './JourneyRail';
 import { weekSlot } from './recommendation';
@@ -654,7 +655,7 @@ function WeekStrip({ days }: { days: readonly DayRef[] }) {
                 aria-label={`${wd.format(date)} ${dd}, ${day?.name ?? ''}${hasEvent ? `, ${t.events}` : ''}`}
                 onClick={() => setPicked(row.date)}
               >
-                <span className="d">{wd.format(date).replace('.', '')}</span>
+                <span className="d">{shortWeekday(locale, date)}</span>
                 <span className="n">{dd}</span>
                 <span
                   className={
