@@ -59,3 +59,16 @@ export function dialAt(anchor: DialAnchor, now: number): Dial {
   const left = anchor.total - s;
   return left > 0 ? { mode: 'rest', left, total: anchor.total } : { mode: 'set', up: -left };
 }
+
+/**
+ * O mostrador durante a demonstração em vídeo (B8 de
+ * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`): os traços acendem-se na
+ * proporção do vídeo já visto e o relógio conta a descer o que falta. Portado de
+ * `paintDemo` em `proto/v2/proto.js`.
+ */
+export function demoDial(t: number, d: number): { lit: number; left: number } {
+  if (!Number.isFinite(d) || d <= 0) return { lit: 0, left: 0 };
+  const at = Number.isFinite(t) ? Math.max(0, t) : 0;
+  const lit = Math.min(DIAL_TICKS, Math.max(0, Math.round((at / d) * DIAL_TICKS)));
+  return { lit, left: Math.max(0, Math.ceil(d - at)) };
+}

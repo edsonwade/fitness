@@ -5,6 +5,8 @@ import type { Session, SessionEntry } from '../../data/entities';
 import { useRows } from '../../data/queries';
 import { INTL_LOCALE } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
+import { eventsOn } from '../calendar/events';
+import { useEvents } from '../calendar/use-events';
 import { Icon } from '../../ui/Icon';
 import { OfflineNotice } from '../../ui/OfflineNotice';
 import { useDays, type DayRef } from '../train/custom-days';
@@ -124,6 +126,7 @@ export function Today() {
 
       <div className="screen-pad stack-lg pb-8">
         <OfflineNotice />
+        <TodayEvents today={today} />
         {isRest ? (
           <>
             <RecommendationCard />
@@ -163,7 +166,7 @@ export function Today() {
                   />
                   <div className="veil" />
                   <div className="on-top">
-                    <p className="eyebrow">{dayRef.day?.eyebrow[locale] ?? dayRef.label}</p>
+                    <p className="eyebrow">{dayRef.eyebrow}</p>
                     <p className="display display-3">{dayRef.name}</p>
                     <p className="meta">
                       {dayRef.day
@@ -400,6 +403,34 @@ function GoalNearCard() {
             <i style={{ width: `${pct}%` }} />
           </div>
         </div>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * O aviso dentro da app dos eventos de hoje — B7, skill calendario-aberto-e-eventos: "fica
+ * como notificação quando chega o dia". Sem eventos hoje, não aparece nada. Tocar abre o
+ * Calendário.
+ */
+function TodayEvents({ today }: { today: string }) {
+  const t = useLocale().t.calendar;
+  const { events } = useEvents();
+  const list = eventsOn(events, today);
+  if (list.length === 0) return null;
+  return (
+    <Link to="/calendario" className="notice" style={{ borderColor: 'var(--ui-volt)' }}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+      <div className="min-w-0">
+        <p className="notice-title">{t.todayEvents}</p>
+        {list.map((event) => (
+          <p key={event.id} className="notice-body truncate">
+            {event.local_time ? `${event.local_time} · ` : ''}
+            {event.title}
+          </p>
+        ))}
       </div>
     </Link>
   );

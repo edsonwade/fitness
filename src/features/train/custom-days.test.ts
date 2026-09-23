@@ -153,38 +153,23 @@ describe('the week', () => {
   });
 });
 
-describe('the day-drag rule (Leitura A)', () => {
-  // The days are stood in for by numbers; the rule works on the sequence, not on
-  // what the days are. In the scenarios: Pernas 10, Descanso 20, Ombros 30, Costas 40.
+describe('the day-drag rule (a swap, B6)', () => {
+  // His rule, 2026-09-23: the week is always Segunda → Domingo, and swapping Tríceps with
+  // Perna puts Tríceps on Segunda as Dia 1 and Perna on Terça as Dia 2. Nothing else moves.
 
-  it('Cenário 1 · Pernas de Segunda para Terça → Ombros, Pernas, Descanso, Costas', () => {
-    // The literal test the interaction spec writes. Dropping one slot down brings the
-    // day at t+1 (Ombros) round to the origin — the wrap, on purpose.
-    expect(applyDayDrag([10, 20, 30, 40], 0, 1)).toEqual([30, 10, 20, 40]);
+  it('Perna on Segunda and Tríceps on Terça swap, and the other five stay put', () => {
+    // Perna 10, Tríceps 20, then five more.
+    expect(applyDayDrag([10, 20, 30, 40, 50, 60, 70], 1, 0)).toEqual([20, 10, 30, 40, 50, 60, 70]);
+    expect(applyDayDrag([10, 20, 30, 40, 50, 60, 70], 0, 1)).toEqual([20, 10, 30, 40, 50, 60, 70]);
   });
 
-  it('Cenário 2 · Costas acima de Ombros → Pernas, Costas, Ombros', () => {
-    // Upwards is plain direct insertion, and total: no wrap, no ambiguity.
-    expect(applyDayDrag([10, 30, 40], 2, 1)).toEqual([10, 40, 30]);
+  it('never pulls a third day into the slot (the old Cenário 1 wrap is gone)', () => {
+    expect(applyDayDrag([10, 20, 30, 40], 0, 1)).toEqual([20, 10, 30, 40]);
   });
 
-  it('reaches any position: a jump longer than one slot down is direct insertion', () => {
-    // "Saltar para qualquer posição, sem barreira." A→pos2 in [A,B,C,D,E].
-    expect(applyDayDrag([1, 2, 3, 4, 5], 0, 2)).toEqual([2, 3, 1, 4, 5]);
-  });
-
-  it('carries the wrap for a single slot down in the middle too', () => {
-    // from 1 to 2 in [1..5]: the day at t+1 (4) comes round to s (1).
-    expect(applyDayDrag([1, 2, 3, 4, 5], 1, 2)).toEqual([1, 4, 2, 3, 5]);
-  });
-
-  it('degenerates to a swap when a single slot down is the last slot', () => {
-    // No t+1 to bring round, so it is the same move direct insertion would make.
-    expect(applyDayDrag([1, 2], 0, 1)).toEqual([2, 1]);
-  });
-
-  it('moves up by direct insertion for any distance', () => {
-    expect(applyDayDrag([1, 2, 3, 4, 5], 4, 1)).toEqual([1, 5, 2, 3, 4]);
+  it('swaps across any distance without shifting the days in between', () => {
+    expect(applyDayDrag([1, 2, 3, 4, 5], 0, 3)).toEqual([4, 2, 3, 1, 5]);
+    expect(applyDayDrag([1, 2, 3, 4, 5], 4, 1)).toEqual([1, 5, 3, 4, 2]);
   });
 
   it('leaves the sequence untouched when dropped where it started', () => {
@@ -195,6 +180,43 @@ describe('the day-drag rule (Leitura A)', () => {
     const input = [1, 2, 3, 4];
     applyDayDrag(input, 0, 1);
     expect(input).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('the day number is the position (B6)', () => {
+  it('numbers the week 1 to 7 from Segunda, whatever order it is in', () => {
+    const week = resolveDays(pt.days, 'pt', [], [3, 1, 2, 4, 5, 6, 7]);
+    expect(week.map((d) => d.eyebrow.split('·')[0].trim())).toEqual(
+      [1, 2, 3, 4, 5, 6, 7].map((n) => `Dia ${n}`),
+    );
+  });
+
+  it('keeps the category of the day with the day', () => {
+    // Day 3 (Pull) dragged to Segunda is "Dia 1 · Pull"; day 1 (Push) on Terça is "Dia 2 · Push".
+    const week = resolveDays(pt.days, 'pt', [], [3, 1, 2, 4, 5, 6, 7]);
+    expect(week[0].eyebrow).toBe(`Dia 1 · ${DAYS[2].eyebrow.pt.split('·')[1].trim()}`);
+    expect(week[1].eyebrow).toBe(`Dia 2 · ${DAYS[0].eyebrow.pt.split('·')[1].trim()}`);
+  });
+
+  it('swapping two days swaps their numbers, not their categories', () => {
+    const before = resolveDays(pt.days, 'pt', []);
+    const after = resolveDays(pt.days, 'pt', [], applyDayDrag(before.map((d) => d.no), 0, 1));
+    expect(after[0].no).toBe(before[1].no);
+    expect(after[0].eyebrow.startsWith('Dia 1')).toBe(true);
+    expect(after[1].eyebrow.startsWith('Dia 2')).toBe(true);
+  });
+
+  it('says it in all four languages', () => {
+    for (const [locale, word] of [['pt', 'Dia'], ['en', 'Day'], ['es', 'Día'], ['fr', 'Jour']] as const) {
+      const week = resolveDays(pt.days, locale, [], [3, 1, 2, 4, 5, 6, 7]);
+      expect(week[0].eyebrow.startsWith(`${word} 1 ·`)).toBe(true);
+    }
+  });
+
+  it('gives a day of your own a number without a category', () => {
+    const week = resolveDays(pt.days, 'pt', [day({ day_no: 101, name: 'Meu' })], [101, 1, 2, 3, 4, 5, 6, 7]);
+    expect(week[0].eyebrow).toBe('Dia 1');
+    expect(week[7].eyebrow).toBe(pt.days.own);
   });
 });
 

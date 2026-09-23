@@ -169,8 +169,10 @@
   --ui-ground-grad:
     radial-gradient(90% 40% at 15% 0%, rgb(58 74 82 / 0.3) 0%, rgb(58 74 82 / 0) 100%),
     linear-gradient(180deg, #273035 0%, #1d2429 34%, #1c1d22 62%, #2c2429 84%, #3a3034 100%);
-  --ui-glass: rgb(24 27 31 / 0.45);
-  --ui-glass-strong: rgb(22 24 29 / 0.55);
+  /* B8: mais translúcido, porque agora há uma foto por trás para o vidro mostrar. */
+  --ui-glass: rgb(22 25 30 / 0.38);
+  --ui-glass-strong: rgb(20 22 27 / 0.52);
+  --ui-backdrop: block;
   --ui-glass-edge: rgb(255 255 255 / 0.08);
   --ui-glass-blur: blur(28px) saturate(1.35);
   --ui-scrim-glass: rgb(0 0 0 / 0.26);
@@ -253,6 +255,7 @@
     --ui-glass-edge: transparent;
     --ui-glass-blur: none;
     --ui-scrim-glass: var(--ui-scrim);
+    --ui-backdrop: none;
 
     color-scheme: light;
   }
@@ -322,6 +325,7 @@
   --ui-glass-edge: transparent;
   --ui-glass-blur: none;
   --ui-scrim-glass: var(--ui-scrim);
+  --ui-backdrop: none;
 
   color-scheme: light;
 }

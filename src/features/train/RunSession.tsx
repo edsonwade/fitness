@@ -39,9 +39,9 @@ import {
   totalSetsDone,
   useSessions,
 } from './sessions';
-import { DIAL_START, dialAt, dialSeconds, litTicks, type DialAnchor } from './run-dial';
+import { DIAL_START, demoDial, dialAt, dialSeconds, litTicks, type DialAnchor } from './run-dial';
 import { GO_MS, countFrom, finishAction, shiftAnchor } from './run-pause';
-import { sheetQueue } from './run-queue';
+import { sheetQueue, wheelNames } from './run-queue';
 import { EntryThumb, SetSheet, type HistoryLine } from './SetSheet';
 import { useDayEditing } from './use-day-editing';
 import { EQUIP_NAMES, variantsOf } from './variants';
@@ -152,6 +152,7 @@ function Demo({
   label,
   backdrop = false,
   onEnded,
+  onProgress,
 }: {
   clip: Clip;
   playing: boolean;
@@ -165,8 +166,49 @@ function Demo({
   backdrop?: boolean;
   /** O clipe chegou ao fim: a demonstração fecha. */
   onEnded?: () => void;
+  /**
+   * Onde o clipe vai, em segundos, enquanto anda — o mostrador enche com ele (B8 de
+   * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`). Pausado, não chama.
+   */
+  onProgress?: (t: number, d: number) => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const progressRef = useRef(onProgress);
+  useEffect(() => {
+    progressRef.current = onProgress;
+  });
+  const follows = onProgress !== undefined;
+  useEffect(() => {
+    const video = ref.current;
+    if (!video || !follows) return;
+    let raf = 0;
+    const report = () => progressRef.current?.(video.currentTime, video.duration);
+    const loop = () => {
+      report();
+      raf = requestAnimationFrame(loop);
+    };
+    const run = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
+    };
+    const halt = () => {
+      cancelAnimationFrame(raf);
+      report();
+    };
+    video.addEventListener('playing', run);
+    video.addEventListener('pause', halt);
+    video.addEventListener('ended', halt);
+    video.addEventListener('seeked', report);
+    video.addEventListener('loadedmetadata', report);
+    return () => {
+      cancelAnimationFrame(raf);
+      video.removeEventListener('playing', run);
+      video.removeEventListener('pause', halt);
+      video.removeEventListener('ended', halt);
+      video.removeEventListener('seeked', report);
+      video.removeEventListener('loadedmetadata', report);
+    };
+  }, [follows]);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
@@ -350,6 +392,8 @@ export function RunSession() {
   const [demoOver, setDemoOver] = useState<string | null>(null);
   const [replayFor, setReplayFor] = useState<string | null>(null);
   const [replay, setReplay] = useState(0);
+  /* O mostrador durante a demonstração: o que o vídeo com esta chave já andou (B8). */
+  const [demoFill, setDemoFill] = useState<{ key: string; lit: number; left: number } | null>(null);
   const [musicOpen, setMusicOpen] = useState(false);
   const restDefault = useRestDefault();
   const suggestions = useSuggestions();
@@ -522,6 +566,20 @@ export function RunSession() {
    */
   const dialNow = anchor ? dialAt(anchor.at, quit ? quit.since : now) : null;
   const shownDial = dialNow && dialNow.mode === 'rest' ? dialNow : DIAL_START;
+  /*
+   * Enquanto a demonstração passa, o mostrador é ela: os traços enchem ao ritmo do vídeo
+   * e o relógio desce o que falta. Nunca sobe (B1). Fora dela, volta ao de cima.
+   */
+  const demoKey = `${entry.key}-${replay}`;
+  const shownDemo = demoing ? (demoFill?.key === demoKey ? demoFill : { lit: 0, left: 0 }) : null;
+  function followDemo(key: string, t: number, d: number) {
+    const next = demoDial(t, d);
+    setDemoFill((prev) =>
+      prev && prev.key === key && prev.lit === next.lit && prev.left === next.left
+        ? prev
+        : { key, ...next },
+    );
+  }
 
   /* A demonstração fechou (acabou, ou ele saltou-a): as séries aparecem para marcar. */
   function endDemo(key: string) {
@@ -750,6 +808,8 @@ export function RunSession() {
    * override pelo caminho que o dia já usa (`saveOverride`), com os outros campos tal
    * como estão. Só nos exercícios do programa.
    */
+  /* A roda dos exercícios do dia (B3 de `.claude/skills/folha-series-e-seletor/PLANO.md`). */
+  const exerciseChoices = wheelNames(entries.map((item) => item.name));
   const variants = entry.kind === 'built' ? variantsOf(entry.key) : [];
   const equipmentChoices = variants.map((v) => EQUIP_NAMES[v.equip][locale]);
   const equipmentValue = entry.equip ? EQUIP_NAMES[entry.equip][locale] : null;
@@ -883,12 +943,13 @@ export function RunSession() {
                 backdrop
               />
               <Demo
-                key={`${entry.key}-${replay}`}
+                key={demoKey}
                 clip={entry.clip}
                 playing={playing}
                 hold={paused}
                 label={photoAlt}
                 onEnded={() => endDemo(entry.key)}
+                onProgress={(t, d) => followDemo(demoKey, t, d)}
               />
             </>
           ) : entry.photo ? (
@@ -1000,9 +1061,9 @@ export function RunSession() {
                   <p className="k">{r.reps}</p>
                 </div>
                 <div className="media-dial">
-                  <DialTicks lit={litTicks(shownDial)} />
+                  <DialTicks lit={shownDemo ? shownDemo.lit : litTicks(shownDial)} />
                   <p className="t" aria-live="off">
-                    {clock(dialSeconds(shownDial))}
+                    {clock(shownDemo ? shownDemo.left : dialSeconds(shownDial))}
                   </p>
                 </div>
                 <ValuePill
@@ -1091,6 +1152,7 @@ export function RunSession() {
           onGo={goTo}
           onReplayDemo={entry.clip ? replayDemo : undefined}
           onReorderQueue={reorderQueue}
+          exerciseChoices={exerciseChoices}
           equipmentChoices={equipmentChoices}
           equipmentValue={equipmentValue}
           onEquipment={onEquipment}

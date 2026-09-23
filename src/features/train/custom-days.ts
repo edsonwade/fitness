@@ -75,6 +75,13 @@ export type DayRef = {
    * programme pins those to one; a plain word for yours, because nothing pins it.
    */
   label: string;
+  /**
+   * The line above the name on every card: "Dia {posição} · {tipo}". The number is the
+   * slot the day sits in (Seg = 1 … Dom = 7), never the number written in the content —
+   * B6 of executar-demo-equipamento-ordem: a day dragged from Segunda to Terça stops
+   * being Dia 1 and becomes Dia 2, and the one it swapped with becomes Dia 1.
+   */
+  eyebrow: string;
   name: string;
   goal: string | null;
   warm: string | null;
@@ -180,6 +187,7 @@ export function refOfCustom(d: Days, row: CustomDay): DayRef {
     kind: 'own',
     day: null,
     label: d.own,
+    eyebrow: d.own,
     name: text(row.name) ?? d.untitled,
     goal: text(row.goal),
     warm: text(row.warm),
@@ -202,6 +210,7 @@ export function refOfBuilt(day: Day, locale: Locale): DayRef {
     kind: 'built',
     day,
     label: day.wd[locale],
+    eyebrow: day.eyebrow[locale],
     name: day.name[locale],
     goal: day.goal?.[locale] ?? null,
     warm: day.warm?.[locale] ?? null,
@@ -229,44 +238,35 @@ function weekdays(locale: Locale): readonly string[] {
 }
 
 /**
- * Where the drag settled, as the whole new sequence — the day-reorder rule of `004`.
+ * Where the drag settled, as the whole new sequence — the day-reorder rule.
  *
- * The rule is **not** the direct insertion the exercises use (Cenário 0). It is the
- * asymmetric one the interaction spec writes in Cenários 1 and 2, read here as
- * "Leitura A", confirmed with the user on 2026-09-05 ("saltar para qualquer posição,
- * sem barreira"):
- *
- *   - **up, and any jump longer than one slot down → direct insertion.** The day
- *     lands exactly where it is dropped and the rest close the gap. This reaches
- *     every position and is what Cenário 2 asks for.
- *   - **the one case of dropping a single slot down → Cenário 1's wrap:** the day at
- *     `to + 1` comes round to the origin. Dragging Pernas from Segunda onto Terça
- *     puts **Ombros** on Segunda, not Descanso — the assimetria the spec states on
- *     purpose and forbids "correcting". When `to` is the last slot there is no
- *     `to + 1`, so this degenerates to a swap, which direct insertion gives anyway.
+ * A **swap**: the day dropped on a slot takes it, and the day that was there goes to the
+ * slot the dragged one left. Nothing else moves. His rule of 2026-09-23 (B6 of
+ * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`): "é sempre segunda -> domingo
+ * (…) ao trocar, tríceps passa para segunda como dia 1 e perna passa para terça como dia
+ * 2". It replaces the Cenário 1 wrap of `004`, where a single slot down pulled a third day
+ * into the origin, and the direct insertion that shifted every day in between.
  *
  * Pure, and given `from`/`to` as indices into the original sequence, because that is
- * what a drop knows and what a test can ask. `motion`'s live reflow is direct
- * insertion, so its preview matches this in every case but the single-slot-down one,
- * where the card settles on the wrap when released.
+ * what a drop knows and what a test can ask.
  */
 export function applyDayDrag(order: readonly number[], from: number, to: number): number[] {
   const n = order.length;
-  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return order.slice();
-
   const next = order.slice();
-  if (to === from + 1 && to + 1 < n) {
-    // The window [s, t, t+1], rotated right by one: the day at t+1 gives the turn
-    // and takes the vacated origin, the other two step down.
-    const window = next.slice(from, to + 2);
-    const rotated = [window[window.length - 1], ...window.slice(0, -1)];
-    next.splice(from, window.length, ...rotated);
-    return next;
-  }
-
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return next;
+  [next[from], next[to]] = [next[to], next[from]];
   return next;
+}
+
+/**
+ * "Dia 3 · Pull" as the slot says it: the word for day from the content (Dia, Day, Día,
+ * Jour), the position, and the category half of the authored line. A day of your own has
+ * no category, so it is "Dia 3" alone.
+ */
+function positionEyebrow(ref: DayRef, position: number, locale: Locale): string {
+  const word = (DAYS[0].eyebrow[locale].split('·')[0] ?? '').replace(/\d+/g, '').trim();
+  const category = ref.day?.eyebrow[locale].split('·')[1]?.trim();
+  return category ? `${word} ${position} · ${category}` : `${word} ${position}`;
 }
 
 /**
@@ -318,6 +318,7 @@ export function resolveDays(
   return sequenced.map((ref, index) => ({
     ...ref,
     label: index < labels.length ? labels[index] : d.own,
+    eyebrow: index < labels.length ? positionEyebrow(ref, index + 1, locale) : d.own,
   }));
 }
 

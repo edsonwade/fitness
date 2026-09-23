@@ -11,6 +11,9 @@ import { JourneyRail } from './JourneyRail';
 import { weekSlot } from './recommendation';
 import { localDate, useSessions } from './sessions';
 import { weekPlan } from '../today/week-plan';
+import { DayAgendaSheet } from '../calendar/DayAgendaSheet';
+import { datesWithEvents, mondayAt } from '../calendar/events';
+import { useEvents } from '../calendar/use-events';
 import { INTL_LOCALE } from '../../i18n';
 import { DaySheet, type DaySheetMode } from './DaySheet';
 import {
@@ -159,10 +162,17 @@ export function Train() {
     else orderEditing.saveShared(next);
   }
 
-  /** `Reorder` reflows the list; keep the ref in step so the drop reads the latest. */
+  /**
+   * `Reorder` reflows the list by insertion; while a card is held, the list is redrawn as
+   * the swap the drop will write (B6), so the day that gives up its slot is shown going to
+   * the dragged one's old slot and nothing else moves.
+   */
   function reorder(next: number[]) {
-    liveRef.current = next;
-    setLiveOrder(next);
+    const shown = draggingRef.current
+      ? applyDayDrag(originRef.current, fromRef.current, next.indexOf(draggedRef.current))
+      : next;
+    liveRef.current = shown;
+    setLiveOrder(shown);
   }
 
   function pickUp(no: number) {
@@ -179,10 +189,8 @@ export function Train() {
   }
 
   /**
-   * One write per drop. The final order is NOT `Reorder`'s reflow — that is direct
-   * insertion — but the day-drag rule (`applyDayDrag`), computed from where the drag
-   * started and where it was released. The two agree in every case but a single slot
-   * down, where the rule's wrap takes over, so the card settles there on release.
+   * One write per drop: the swap (`applyDayDrag`) from where the drag started to where it
+   * was released — the same order the list was already showing under the finger.
    */
   function drop() {
     draggingRef.current = false;
@@ -290,7 +298,7 @@ export function Train() {
         </div>
 
         <div className="px-5">
-          <WeekStrip days={days} onOpen={openDay} />
+          <WeekStrip days={days} />
         </div>
 
         <div className="px-5">
@@ -475,7 +483,7 @@ function DayCard({
   /** Opens the day's own form, delete included. Only a day the user added has one. */
   onEdit?: () => void;
 }) {
-  const { locale, t: copy } = useLocale();
+  const { t: copy } = useLocale();
   const t = copy.train;
   const d = copy.days;
   const reorder = useContext(ReorderContext);
@@ -490,7 +498,7 @@ function DayCard({
   const photo = entries[0]?.photo ?? (dayRef.kind === 'built' ? dayPoster(dayRef.no) : null);
   const setCount = entries.reduce((sum, entry) => sum + entry.prescription.s, 0);
   const progress = dayProgress(dayRef.no, block, entries, logs);
-  const eyebrow = dayRef.day?.eyebrow[locale] ?? dayRef.label;
+  const eyebrow = dayRef.eyebrow;
 
   /*
    * `proto/v2/03-treino.html` frame 1: o dia é um `daycard` com a foto a toda a largura,
@@ -585,40 +593,82 @@ function DayCard({
 /**
  * A tira da semana — `weekstrip` do frame 1. Sete botões Seg…Dom com a data, e o ponto:
  * volt cheio se houve sessão desse dia do plano, contorno volt no dia de hoje por treinar.
+ *
+ * B7 (skill calendario-aberto-e-eventos): a tira não bloqueia. ‹ › andam entre semanas sem
+ * limite, "Hoje" volta à semana de hoje, e QUALQUER dia — passado, futuro, descanso — abre a
+ * folha do dia com o treino e os eventos dele. O pontinho de baixo diz que o dia tem evento.
  */
-function WeekStrip({ days, onOpen }: { days: readonly DayRef[]; onOpen: (no: number) => void }) {
-  const { locale } = useLocale();
+function WeekStrip({ days }: { days: readonly DayRef[] }) {
+  const { locale, t: copy } = useLocale();
+  const t = copy.calendar;
   const sessions = useSessions();
+  const { events } = useEvents();
   const today = localDate(new Date());
+  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
   const slots = days.map((x) => ({ no: x.no, rest: x.type === 'rest' }));
-  const plan = weekPlan(slots, sessions.data ?? [], today);
+  const plan = weekPlan(slots, sessions.data ?? [], today, mondayAt(today, offset));
+  const eventDates = useMemo(() => datesWithEvents(events), [events]);
   const wd = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: 'short' });
+  const short = new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: 'numeric', month: 'short' });
+  const asDate = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const first = plan[0]?.date;
+  const last = plan[plan.length - 1]?.date;
+  const range = first && last ? `${short.format(asDate(first))} – ${short.format(asDate(last))}` : '';
+  const year = first ? first.slice(0, 4) : '';
 
   return (
-    <div className="weekstrip card" style={{ padding: 'var(--sp-2)' }}>
-      {plan.map((row) => {
-        const [y, m, dd] = row.date.split('-').map(Number);
-        const date = new Date(y, m - 1, dd);
-        const day = days[row.slot];
-        return (
-          <button
-            key={row.date}
-            type="button"
-            aria-current={row.date === today ? 'date' : undefined}
-            aria-label={`${wd.format(date)} ${dd}, ${day?.name ?? ''}`}
-            onClick={() => day && day.type !== 'rest' && onOpen(day.no)}
-          >
-            <span className="d">{wd.format(date).replace('.', '')}</span>
-            <span className="n">{dd}</span>
-            <span
-              className={
-                row.state === 'done' ? 'dot is-done' : row.state === 'today' && !slots[row.slot]?.rest ? 'dot is-planned' : 'dot'
-              }
-            />
+    <>
+      <div className="card" style={{ padding: 'var(--sp-2)' }}>
+        <div className="weeknav">
+          <button type="button" className="btn btn-icon" aria-label={t.prevWeek} onClick={() => setOffset((n) => n - 1)}>
+            <Icon name="back" size={18} strokeWidth={2} />
           </button>
-        );
-      })}
-    </div>
+          <p className="range" aria-live="polite">
+            {range}
+            {year !== today.slice(0, 4) ? ` ${year}` : ''}
+          </p>
+          {offset !== 0 ? (
+            <button type="button" className="chip chip-sm" onClick={() => setOffset(0)}>
+              {t.todayBtn}
+            </button>
+          ) : null}
+          <button type="button" className="btn btn-icon" aria-label={t.nextWeek} onClick={() => setOffset((n) => n + 1)}>
+            <Icon name="forward" size={18} strokeWidth={2} />
+          </button>
+        </div>
+        <div className="weekstrip">
+          {plan.map((row) => {
+            const date = asDate(row.date);
+            const dd = date.getDate();
+            const day = days[row.slot];
+            const hasEvent = eventDates.has(row.date);
+            return (
+              <button
+                key={row.date}
+                type="button"
+                aria-current={row.date === today ? 'date' : undefined}
+                aria-label={`${wd.format(date)} ${dd}, ${day?.name ?? ''}${hasEvent ? `, ${t.events}` : ''}`}
+                onClick={() => setPicked(row.date)}
+              >
+                <span className="d">{wd.format(date).replace('.', '')}</span>
+                <span className="n">{dd}</span>
+                <span
+                  className={
+                    row.state === 'done' ? 'dot is-done' : row.state === 'today' && !slots[row.slot]?.rest ? 'dot is-planned' : 'dot'
+                  }
+                />
+                <span className={hasEvent ? 'ev' : 'ev is-none'} aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <DayAgendaSheet date={picked} onClose={() => setPicked(null)} />
+    </>
   );
 }
 

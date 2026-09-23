@@ -158,6 +158,7 @@ export function SetSheet({
   onGo,
   onReorderQueue,
   onReplayDemo,
+  exerciseChoices,
   equipmentChoices,
   equipmentValue,
   onEquipment,
@@ -190,6 +191,11 @@ export function SetSheet({
   onReorderQueue: (keys: string[]) => void;
   /** "Ver demonstração": passa o clipe outra vez, uma vez. Sem clipe, não há chip. */
   onReplayDemo?: () => void;
+  /**
+   * Os exercícios do dia, pela ordem do dia, como aparecem na roda — B3 de
+   * `.claude/skills/folha-series-e-seletor/PLANO.md`. Escolher um chama `onGo`.
+   */
+  exerciseChoices: readonly string[];
   /** As escolhas de equipamento; vazio quando este exercício não se pode trocar aqui. */
   equipmentChoices: readonly string[];
   /** A variante a decorrer, como aparece na roda. */
@@ -382,6 +388,21 @@ export function SetSheet({
           </div>
 
           <div className="ctx-chips">
+            {/*
+              A roda dos exercícios do dia: rodar mostra os outros, tocar escolhe, e o
+              escolhido passa a ser o que decorre — o vídeo muda para ele (B3).
+            */}
+            {exerciseChoices.length > 1 ? (
+              <ChipWheel
+                options={exerciseChoices}
+                value={exerciseChoices[index] ?? null}
+                label={t.exercise}
+                onPick={(name) => {
+                  const at = exerciseChoices.indexOf(name);
+                  if (at !== -1) onGo(at);
+                }}
+              />
+            ) : null}
             {equipmentChoices.length > 1 ? (
               <ChipWheel
                 key={entry.key}

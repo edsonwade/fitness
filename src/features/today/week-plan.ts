@@ -24,8 +24,10 @@ export function weekPlan(
   slots: readonly { no: number; rest: boolean }[],
   sessions: readonly Session[],
   today: string,
+  /** Um dia da semana a mostrar, se não for a de hoje — a tira anda entre semanas (B7). */
+  anchor: string = today,
 ): PlanRow[] {
-  const monday = mondayOf(today);
+  const monday = mondayOf(anchor);
   return slots.slice(0, 7).map((slot, index) => {
     const date = shiftDays(monday, index);
     const done = sessions.some((s) => s.day_no === slot.no && sessionDate(s) === date);

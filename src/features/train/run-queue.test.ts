@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sheetQueue } from './run-queue';
+import { sheetQueue, wheelNames } from './run-queue';
 
 describe('sheetQueue — por baixo das séries nunca fica vazio (erro 4)', () => {
   it('a meio do dia: os seguintes primeiro, depois os de trás que faltam', () => {
@@ -22,5 +22,12 @@ describe('sheetQueue — por baixo das séries nunca fica vazio (erro 4)', () =>
 
   it('só um dia com um exercício fica sem lista', () => {
     expect(sheetQueue([false], 0)).toEqual({ next: [], finished: [] });
+  });
+});
+
+describe('the day wheel names', () => {
+  it('keeps the names as they are, and numbers only the repeated ones', () => {
+    expect(wheelNames(['Leg Press', 'Squat'])).toEqual(['Leg Press', 'Squat']);
+    expect(wheelNames(['Row', 'Curl', 'Row'])).toEqual(['Row · 1', 'Curl', 'Row · 3']);
   });
 });
