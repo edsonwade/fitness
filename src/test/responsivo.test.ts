@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { openSync, type Font } from 'fontkit';
@@ -174,7 +174,9 @@ function report() {
       (x) => `| ${x.screen} | ${x.piece} | ${x.locale} | ${x.vw} | ${x.text} | ${x.need} | ${x.room} | ${x.need > x.room ? 'não' : 'sim'} |`,
     ),
   ];
-  writeFileSync(join(ROOT, '.claude/skills/nutricao-sem-erros/relatorio-b8.md'), lines.join('\n') + '\n');
+  const reportDir = join(ROOT, '.claude/skills/nutricao-sem-erros');
+  mkdirSync(reportDir, { recursive: true });
+  writeFileSync(join(reportDir, 'relatorio-b8.md'), lines.join('\n') + '\n');
   return bad;
 }
 
