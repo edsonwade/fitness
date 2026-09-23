@@ -370,6 +370,8 @@ export const foodEntrySchema = z.object({
   source: z.enum(['text', 'voice', 'ai', 'code']),
   estimate: z.boolean(),
   barcode: nullableText,
+  /** 019 — a foto do alimento; ausente antes da migração, por isso opcional. */
+  photo_url: nullableText.optional(),
   created_at: timestamptz,
 });
 

@@ -1,15 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 
 import { useDeleteRow, useUpsertRow } from '../../data/mutations';
-import { useRows } from '../../data/queries';
+import { uploadFoodPhoto } from '../../data/photos';
+import { useRows, useUserId } from '../../data/queries';
 import { INTL_LOCALE } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 import { ProgressRing } from '../../ui/ProgressRing';
 import { Sheet } from '../../ui/Sheet';
-import { Stepper } from '../../ui/Stepper';
+import { ValuePill } from '../../ui/ValuePill';
+import { WheelField } from '../../ui/WheelField';
+import { shortWeekday } from '../../ui/weekday';
 import { shiftDays } from '../train/readiness';
 import { localDate } from '../train/sessions';
+import type { FoodEntry } from '../../data/entities';
 import { Capture } from './Capture';
 import {
   MEALS,
@@ -36,7 +40,7 @@ type Tab = 'today' | 'history' | 'quick' | 'recipes' | 'macros';
  *  - frame 4: sem registos no dia, "Nada registado hoje" — não se enchem os espaços.
  *
  * Nenhum número sem origem: sai das tabelas de `015_nutricao.sql`, ou não aparece. As metas e
- * o peso mudam por stepper; o teclado só aparece no modo Texto.
+ * o peso escolhem-se na roda (B4); o teclado só aparece no modo Texto.
  */
 export function Nutrition() {
   const { locale, t: copy } = useLocale();
@@ -47,6 +51,7 @@ export function Nutrition() {
   const [capture, setCapture] = useState<{ meal: Meal; quick: boolean } | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
+  const [openFood, setOpenFood] = useState<string | null>(null);
 
   const foods = useRows('food_entries');
   const weights = useRows('weight_logs');
@@ -63,7 +68,6 @@ export function Nutrition() {
 
   const days = Array.from({ length: 7 }, (_, i) => shiftDays(today, i - 6));
   const loggedDates = new Set(all.map((e) => e.local_date));
-  const wd = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: 'short' });
   const dec = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
   const d0 = (iso: string) => {
     const [y, m, d] = iso.split('-').map(Number);
@@ -91,18 +95,17 @@ export function Nutrition() {
         <ThemeToggle />
       </div>
 
-      {/* B6: a .hscroll puxa -20px de cada lado para viver dentro de um contentor com
-          padding. Aqui não há nenhum, e a fila saía do telefone: "Today" colado à borda e
-          "Macros" cortado. Sem a margem negativa, o padding dela é a margem do ecrã. */}
-      <div className="hscroll" style={{ marginInline: 0, paddingBottom: 'var(--sp-4)' }}>
+      {/* B8, foto 20:10: numa .hscroll os cinco somavam ~460 px e "Macros" ficava fora do
+          ecrã a 360 e 390 px, sem nada a dizer que a fila rolava. Agora partem em linhas:
+          todos à vista em qualquer largura (src/test/responsivo.test.ts). */}
+      <div className="chipwrap px-5" style={{ paddingBottom: 'var(--sp-4)' }}>
         {tabs.map(([k, label]) => (
           <button
             key={k}
             type="button"
             className="chip"
             aria-pressed={tab === k}
-            onClick={(e) => {
-              e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+            onClick={() => {
               if (k === 'quick') {
                 setCapture({ meal: 'snack', quick: true });
                 return;
@@ -137,7 +140,7 @@ export function Nutrition() {
             <div className="weekstrip">
               {days.map((d) => (
                 <button key={d} type="button" aria-current={d === date ? 'date' : undefined} onClick={() => setDate(d)}>
-                  <span className="d">{wd.format(d0(d)).replace('.', '')}</span>
+                  <span className="d">{shortWeekday(locale, d0(d))}</span>
                   <span className="n">{Number(d.slice(8))}</span>
                   <span className={loggedDates.has(d) ? 'daybadge is-done' : 'daybadge'} aria-hidden="true" style={{ width: 18, height: 18 }}>
                     {loggedDates.has(d) ? <Icon name="check" size={11} strokeWidth={3} /> : null}
@@ -226,13 +229,24 @@ export function Nutrition() {
                 )}
               </div>
 
-              <div className="px-5 pb-5 pt-6">
-                <h2 className="display display-4">{t.diary}</h2>
+              {/* B6, foto de referência 19:35: "Hoje", uma fila de cartões de foto, um por alimento. */}
+              <div className="px-5 pb-3 pt-6">
+                <h2 className="display display-4">{date === today ? t.tabToday : t.diary}</h2>
               </div>
-              <div className="stack-sm px-5">
-                {MEALS.map((m) => (
-                  <MealCard key={m} meal={m} entries={meals[m]} onAdd={() => setCapture({ meal: m, quick: false })} />
-                ))}
+              <div className="food-rail" role="list" aria-label={t.diary}>
+                {MEALS.flatMap((m) => meals[m])
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .map((e) => (
+                    <div key={e.id} role="listitem">
+                      <FoodCard entry={e} onOpen={() => setOpenFood(e.id)} />
+                    </div>
+                  ))}
+                <div role="listitem">
+                  <button type="button" className="food-card food-card-add" onClick={() => setCapture({ meal: mealNow(), quick: false })}>
+                    <Icon name="plus" size={28} strokeWidth={2} />
+                  </button>
+                  <p className="food-card-name muted">{t.log}</p>
+                </div>
               </div>
 
               <div className="p-5">
@@ -249,6 +263,15 @@ export function Nutrition() {
         <Capture date={date} meal={capture.meal} quick={capture.quick} onClose={() => setCapture(null)} />
       ) : null}
 
+      <MealSheet
+        entries={dayEntries}
+        openId={openFood}
+        onPick={setOpenFood}
+        onAdd={(m) => {
+          setOpenFood(null);
+          setCapture({ meal: m, quick: false });
+        }}
+      />
       <WeightSheet
         open={weightOpen}
         onOpenChange={setWeightOpen}
@@ -432,45 +455,317 @@ function Rings({
   );
 }
 
-function MealCard({ meal, entries, onAdd }: { meal: Meal; entries: ReturnType<typeof byMeal>[Meal]; onAdd: () => void }) {
+/**
+ * O cartão de um alimento — foto de referência 19:35 (B6). A foto enche o quadrado, sem
+ * gradiente por cima da comida; o ponto volt no canto; a pílula de vidro com a refeição em
+ * baixo; o nome por baixo do cartão. Sem foto, a placa neutra com o ícone — nunca a foto de
+ * outro alimento. Tocar abre a folha com o que foi registado.
+ */
+function FoodCard({ entry, onOpen }: { entry: FoodEntry; onOpen: () => void }) {
+  const t = useLocale().t.nutrition;
+  return (
+    <>
+      <button type="button" className="food-card" aria-label={`${t.meals[entry.meal]}: ${entry.name}`} onClick={onOpen}>
+        {entry.photo_url ? (
+          <img src={entry.photo_url} alt="" className="food-card-img" loading="lazy" />
+        ) : (
+          <span className="food-card-empty" aria-hidden="true">
+            <Icon name="apple" size={34} strokeWidth={1.6} />
+          </span>
+        )}
+        <span className="food-card-dot" aria-hidden="true" />
+        <span className="food-card-tag">
+          <Icon name="apple" size={14} strokeWidth={2} />
+          {t.meals[entry.meal]}
+        </span>
+      </button>
+      <p className="food-card-name">{entry.name}</p>
+    </>
+  );
+}
+
+/**
+ * Tocar num cartão: o alimento, com as quatro operações (B7, foto 20:00). Criar é a Captura e
+ * "Adicionar"; ver é esta folha; "Editar" passa-a a formulário (foto, nome obrigatório,
+ * números e refeição) que atualiza a mesma linha; "Apagar" tira-o do diário.
+ */
+function MealSheet({
+  entries,
+  openId,
+  onPick,
+  onAdd,
+}: {
+  entries: FoodEntry[];
+  openId: string | null;
+  onPick: (id: string | null) => void;
+  onAdd: (meal: Meal) => void;
+}) {
   const { locale, t: copy } = useLocale();
   const t = copy.nutrition;
   const remove = useDeleteRow('food_entries');
   const num = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
-  const kcal = totalsOf(entries).kcal;
+  const time = new Intl.DateTimeFormat(INTL_LOCALE[locale], { hour: '2-digit', minute: '2-digit' });
+  const entry = entries.find((e) => e.id === openId) ?? null;
+  /* A última entrada aberta fica à vista enquanto a folha fecha. */
+  const [shown, setShown] = useState<FoodEntry | null>(entry);
+  const [editing, setEditing] = useState(false);
+  if (entry && entry !== shown) setShown(entry);
+  /* Trocar de alimento, ou fechar, sai sempre da edição. */
+  const [editingId, setEditingId] = useState(openId);
+  if (openId !== editingId) {
+    setEditingId(openId);
+    setEditing(false);
+  }
+  const e = entry ?? shown;
+  const siblings = e ? byMeal(entries)[e.meal].filter((o) => o.id !== e.id) : [];
 
-  if (!entries.length) {
-    return (
-      <button type="button" className="card card-flat w-full text-left" onClick={onAdd}>
-        <div className="row-between">
-          <span className="chip chip-sm">{t.meals[meal]}</span>
-          <span className="body-2 muted">{t.toLog}</span>
+  return (
+    <Sheet
+      open={entry !== null}
+      onOpenChange={(o) => (o ? undefined : onPick(null))}
+      title={e ? (editing ? t.editFood : t.meals[e.meal]) : t.mealDetail}
+    >
+      {e && editing ? (
+        <FoodEditor key={e.id} entry={e} onDone={() => setEditing(false)} />
+      ) : e ? (
+        <div className="stack">
+          <div className="food-detail-photo">
+            {e.photo_url ? (
+              <img src={e.photo_url} alt={e.name} className="food-card-img" />
+            ) : (
+              <span className="food-card-empty" aria-hidden="true">
+                <Icon name="apple" size={48} strokeWidth={1.4} />
+              </span>
+            )}
+          </div>
+          <div>
+            <p className="display display-4">{e.name}</p>
+            <p className="body-2 muted mt-1">
+              {t.loggedAt} {time.format(new Date(e.created_at))} · {e.estimate ? t.precisionEstimate : t.precisionMeasured}
+            </p>
+          </div>
+          <div className="food-macros">
+            <div className="food-macro">
+              <span className="label">{t.calories}</span>
+              <span className="tabular body-med">{e.kcal ?? 0} kcal</span>
+            </div>
+            <div className="food-macro">
+              <span className="label">{t.protein}</span>
+              <span className="tabular body-med">{num.format(Number(e.protein_g ?? 0))} g</span>
+            </div>
+            <div className="food-macro">
+              <span className="label">{t.carbs}</span>
+              <span className="tabular body-med">{num.format(Number(e.carbs_g ?? 0))} g</span>
+            </div>
+            <div className="food-macro">
+              <span className="label">{t.fat}</span>
+              <span className="tabular body-med">{num.format(Number(e.fat_g ?? 0))} g</span>
+            </div>
+          </div>
+          {siblings.length ? (
+            <div>
+              <p className="label mb-2">{t.alsoInMeal}</p>
+              {siblings.map((o) => (
+                <button key={o.id} type="button" className="list-row w-full text-left" onClick={() => onPick(o.id)}>
+                  <span className="body-1 min-w-0 flex-1 truncate">{o.name}</span>
+                  <span className="body-2 muted tabular">{o.kcal ?? 0} kcal</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <button type="button" className="btn btn-primary btn-block" onClick={() => setEditing(true)}>
+            <Icon name="edit" size={16} strokeWidth={2} />
+            {t.edit}
+          </button>
+          <div className="food-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                remove.remove({ id: e.id });
+                onPick(null);
+              }}
+            >
+              <Icon name="trash" size={16} strokeWidth={2} />
+              {t.deleteFood}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => onAdd(e.meal)}>
+              <Icon name="plus" size={16} strokeWidth={2} />
+              {t.addShort}
+            </button>
+          </div>
         </div>
-      </button>
-    );
+      ) : null}
+    </Sheet>
+  );
+}
+
+/**
+ * Editar um alimento — B7. A foto põe-se, troca-se ou tira-se; o nome é obrigatório (vazio,
+ * diz-se e o Guardar fica desligado); os números na roda (B4); a refeição nos presets.
+ * Guardar atualiza a mesma linha — o mesmo `id` —, nunca cria outra.
+ */
+function FoodEditor({ entry, onDone }: { entry: FoodEntry; onDone: () => void }) {
+  const t = useLocale().t.nutrition;
+  const upsert = useUpsertRow('food_entries');
+  const userId = useUserId();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const nameId = useId();
+  const errorId = useId();
+  const [name, setName] = useState(entry.name);
+  const [kcal, setKcal] = useState(entry.kcal ?? 0);
+  const [protein, setProtein] = useState(Number(entry.protein_g ?? 0));
+  const [carbs, setCarbs] = useState(Number(entry.carbs_g ?? 0));
+  const [fat, setFat] = useState(Number(entry.fat_g ?? 0));
+  const [meal, setMeal] = useState<Meal>(entry.meal);
+  /* A foto: a que está na linha, uma nova escolhida (ainda por subir), ou nenhuma. */
+  const [photoUrl, setPhotoUrl] = useState<string | null>(entry.photo_url ?? null);
+  const [picked, setPicked] = useState<{ file: File; preview: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const blank = !name.trim();
+  const preview = picked?.preview ?? photoUrl;
+
+  function pick(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPicked({ file, preview: String(reader.result) });
+    reader.readAsDataURL(file);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function save() {
+    if (blank || saving) return;
+    let url = photoUrl;
+    if (picked) {
+      if (!userId) return;
+      setSaving(true);
+      try {
+        url = await uploadFoodPhoto(picked.file, userId, name.trim());
+      } catch {
+        setSaving(false);
+        setNote(t.photoUploadFailed);
+        return;
+      }
+    }
+    upsert.save({
+      id: entry.id,
+      local_date: entry.local_date,
+      meal,
+      name: name.trim(),
+      kcal: Math.round(kcal),
+      protein_g: protein,
+      carbs_g: carbs,
+      fat_g: fat,
+      source: entry.source,
+      estimate: entry.estimate,
+      barcode: entry.barcode,
+      /* Sem a 019 corrida, uma coluna desconhecida recusava a linha: só vai quando conta. */
+      ...(url !== null || entry.photo_url != null ? { photo_url: url } : {}),
+    });
+    setSaving(false);
+    onDone();
   }
 
   return (
-    <div className="card">
-      <div className="row-between">
-        <span className="chip chip-sm chip-selected">{t.meals[meal]}</span>
-        <span className="body-2 muted tabular">{num.format(kcal)} kcal</span>
+    <div className="stack">
+      <div className="food-detail-photo">
+        {preview ? (
+          <img src={preview} alt={name} className="food-card-img" />
+        ) : (
+          <span className="food-card-empty" aria-hidden="true">
+            <Icon name="apple" size={48} strokeWidth={1.4} />
+          </span>
+        )}
       </div>
-      {entries.map((e, i) => (
-        <div key={e.id} className="list-row" style={i === entries.length - 1 ? { borderBottom: 0, paddingBottom: 0 } : undefined}>
-          <div className="min-w-0 flex-1">
-            <p className="body-1 body-med">{e.name}</p>
-            <p className="body-2 muted tabular">
-              {e.kcal ?? 0} kcal · {t.p} {num.format(Number(e.protein_g ?? 0))} g · {t.c} {num.format(Number(e.carbs_g ?? 0))} g · {t.f}{' '}
-              {num.format(Number(e.fat_g ?? 0))} g
-              {e.estimate ? ` · ${t.precisionEstimate.toLowerCase()}` : ''}
-            </p>
-          </div>
-          <button type="button" className="btn btn-icon" aria-label={`${t.remove}: ${e.name}`} onClick={() => remove.remove({ id: e.id })}>
-            <Icon name="trash" size={16} strokeWidth={2} />
+      <div className="food-actions">
+        <button type="button" className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
+          <Icon name="camera" size={16} strokeWidth={2} />
+          {preview ? t.photoChangeShort : t.photoAddShort}
+        </button>
+        {preview ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setPicked(null);
+              setPhotoUrl(null);
+            }}
+          >
+            <Icon name="x" size={16} strokeWidth={2} />
+            {t.photoRemoveShort}
           </button>
+        ) : null}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" hidden aria-label={t.photoAddShort} onChange={(ev) => pick(ev.currentTarget.files?.[0])} />
+
+      <div>
+        <label className="label" htmlFor={nameId}>
+          {t.name}
+        </label>
+        <input
+          id={nameId}
+          className={blank ? 'input is-error mt-2 w-full' : 'input mt-2 w-full'}
+          value={name}
+          required
+          aria-invalid={blank}
+          aria-describedby={blank ? errorId : undefined}
+          onChange={(ev) => {
+            /* B1: o valor lê-se já, antes do updater. */
+            const value = ev.currentTarget.value;
+            setName(value);
+          }}
+        />
+        {blank ? (
+          <p id={errorId} className="field-error-text mt-2" role="alert">
+            {t.nameRequired}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="food-edit-grid">
+        <div>
+          <p className="label mb-2">{t.calories}</p>
+          <ValuePill scale="kcal" title={t.calories} value={kcal} onChange={setKcal} />
         </div>
-      ))}
+        <div>
+          <p className="label mb-2">{t.protein}</p>
+          <ValuePill scale="grams" title={t.protein} value={protein} onChange={setProtein} />
+        </div>
+        <div>
+          <p className="label mb-2">{t.carbs}</p>
+          <ValuePill scale="grams" title={t.carbs} value={carbs} onChange={setCarbs} />
+        </div>
+        <div>
+          <p className="label mb-2">{t.fat}</p>
+          <ValuePill scale="grams" title={t.fat} value={fat} onChange={setFat} />
+        </div>
+      </div>
+
+      <div>
+        <p className="label mb-2">{t.meal}</p>
+        <div className="presetrow" role="radiogroup" aria-label={t.meal}>
+          {MEALS.map((m) => (
+            <button key={m} type="button" className="preset" role="radio" aria-checked={meal === m} aria-pressed={meal === m} onClick={() => setMeal(m)}>
+              {t.meals[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {note ? (
+        <p className="body-2 muted" role="status">
+          {note}
+        </p>
+      ) : null}
+      <div className="food-actions">
+        <button type="button" className="btn btn-secondary" onClick={onDone}>
+          {t.cancel}
+        </button>
+        <button type="button" className="btn btn-primary" disabled={blank || saving} onClick={() => void save()}>
+          {saving ? t.savingPhoto : t.save}
+        </button>
+      </div>
     </div>
   );
 }
@@ -528,19 +823,20 @@ function WeightSheet({
   const t = useLocale().t.nutrition;
   const upsert = useUpsertRow('weight_logs');
   const [kg, setKg] = useState(initial);
+  /*
+   * B3: o Base UI não chama onOpenChange quando é o ecrã a abrir a folha, e o valor ficava
+   * o do primeiro render (70 kg, antes de os dados chegarem). Repõe-se ao abrir.
+   */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setKg(initial);
+  }
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        if (o) setKg(initial);
-        onOpenChange(o);
-      }}
-      title={t.weightToday}
+    <Sheet open={open} onOpenChange={onOpenChange} title={t.weightToday}
     >
-      <div className="grid place-items-center">
-        <Stepper scale="body" label={t.weight} value={kg} onChange={setKg} />
-      </div>
-      <p className="stepper-step">{t.weightStep}</p>
+      {/* B4: a roda com os valores já lá, e não − / +. Inteiros e décimas: 80 → 100 é um scroll. */}
+      <WheelField scale="body" label={t.weight} value={kg} onChange={setKg} />
       <button
         type="button"
         className="btn btn-primary btn-block mt-6"
@@ -570,26 +866,29 @@ function GoalSheet({
   const upsert = useUpsertRow('nutrition_targets');
   const [kcal, setKcal] = useState(kcal0);
   const [protein, setProtein] = useState(protein0);
+  /* B3: a meta guardada, e não 2000/120 do primeiro render — senão Guardar apagava-a. */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setKcal(kcal0);
+      setProtein(protein0);
+    }
+  }
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        if (o) {
-          setKcal(kcal0);
-          setProtein(protein0);
-        }
-        onOpenChange(o);
-      }}
-      title={t.goalTitle}
+    <Sheet open={open} onOpenChange={onOpenChange} title={t.goalTitle}
     >
       <div className="stack">
-        <div className="row-between">
-          <p className="title-3">{t.calories}</p>
-          <Stepper size="sm" scale="kcalGoal" label={t.calories} value={kcal} onChange={setKcal} />
-        </div>
-        <div className="row-between">
-          <p className="title-3">{t.protein}</p>
-          <Stepper size="sm" scale="proteinGoal" label={t.protein} value={protein} onChange={setProtein} />
+        {/* B4: duas rodas lado a lado, kcal e proteína. */}
+        <div className="wheelpair">
+          <div>
+            <p className="label">{t.calories}</p>
+            <WheelField scale="kcalGoal" label={t.calories} value={kcal} onChange={setKcal} />
+          </div>
+          <div>
+            <p className="label">{t.protein}</p>
+            <WheelField scale="proteinGoal" label={t.protein} value={protein} onChange={setProtein} />
+          </div>
         </div>
         <button
           type="button"

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { useUpsertRow } from '../../data/mutations';
 import { useRows } from '../../data/queries';
 import { useLocale } from '../../i18n/locale-context';
-import { Stepper } from '../../ui/Stepper';
+import { WheelField } from '../../ui/WheelField';
 import { localDate } from '../train/sessions';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 
@@ -14,7 +14,7 @@ type GoalKey = 'strength' | 'muscle' | 'fat' | 'fit';
 /**
  * O onboarding de cinco passos — fase 024, `proto/v2/01-entrada.html` frames 5 e 6.
  *
- * Escolhe-se por toque, e o corpo por stepper: nada aqui se escreve. Saltável em qualquer
+ * Escolhe-se por toque, e o corpo na roda: nada aqui se escreve. Saltável em qualquer
  * passo, e saltar dá uma app que funciona — o programa autorado já lá está. O que se
  * responde vai para `user_profiles` (e o peso para `weight_logs`, a mesma verdade da
  * Nutrição) e, se houver, o primeiro objetivo para `goals`. Não se volta a perguntar.
@@ -128,14 +128,15 @@ export function Onboarding() {
         ) : null}
 
         {step === 4 ? (
+          /* B4 (skill nutricao-sem-erros): rodas com os valores já lá, e não − / +. */
           <>
             <div>
               <p className="label mb-2">{t.height}</p>
-              <Stepper scale="cm" label={t.height} value={cm} onChange={setCm} />
+              <WheelField scale="cm" label={t.height} value={cm} onChange={setCm} />
             </div>
             <div>
               <p className="label mb-2">{t.weight}</p>
-              <Stepper scale="body" step={0.5} label={t.weight} value={kg} onChange={setKg} />
+              <WheelField scale="body" label={t.weight} value={kg} onChange={setKg} />
             </div>
           </>
         ) : null}

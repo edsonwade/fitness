@@ -9,7 +9,7 @@
  * É esta tabela que torna possível a regra de 2026-09-12: **métrica de treino nunca
  * se escreve**. Um teclado numérico deixa escrever 61 kg num sítio onde não há disco
  * que o faça; uma escala não deixa. Peso, reps, esforço, tempo e séries entram por
- * seleção — roda, stepper ou chip de valor — e o teclado fica para texto livre.
+ * seleção — roda ou chip de valor — e o teclado fica para texto livre.
  *
  * Aqui não há React, nem rede, nem estado: só a aritmética das escalas, para poder
  * ser testada sozinha.
@@ -32,7 +32,8 @@ export type ScaleKey =
   | 'goalKg'
   | 'count'
   | 'cm'
-  | 'sets';
+  | 'sets'
+  | 'rest';
 
 export type Scale = {
   min: number;
@@ -73,6 +74,8 @@ export const SCALES: Record<ScaleKey, Scale> = {
   cm: { min: 120, max: 220, step: 1, unit: 'cm', dec: 0 },
   /** As séries que uma prescrição pede: de 1 a 10, de uma em uma. */
   sets: { min: 1, max: 10, step: 1, unit: '', dec: 0 },
+  /** O descanso por omissão do Perfil: de 30 s a 5 min, de 15 em 15 (era o Stepper com step 15). */
+  rest: { min: 30, max: 300, step: 15, unit: 's', dec: 0 },
 };
 
 /**

@@ -12,7 +12,7 @@ import { INTL_LOCALE, LOCALES, LOCALE_NAMES } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 import { Sheet } from '../../ui/Sheet';
-import { Stepper } from '../../ui/Stepper';
+import { ValuePill } from '../../ui/ValuePill';
 import { cycleWeek, phaseOfWeek } from '../train/journey';
 import { localDate, useSessions } from '../train/sessions';
 import { applyImport, buildExport, importPlan, type ImportPlan } from './data-port';
@@ -25,7 +25,7 @@ const GOAL_PHOTOS = [1, 2, 3, 4, 5, 6].map((n) => `${import.meta.env.BASE_URL}im
 /**
  * O Perfil — fase 023, `proto/v2/08-perfil.html`:
  *
- *  - frame 1: quem és, o corpo (altura, peso de hoje, meta — por stepper, nunca teclado), os
+ *  - frame 1: quem és, o corpo (altura, peso de hoje, meta — na roda, nunca teclado), os
  *    objetivos com foto e progresso, a sincronização, e os dados (exportar, importar,
  *    terminar sessão); as Definições (tema, idioma, descanso por omissão) numa folha;
  *  - frame 2: um objetivo atingido diz o facto e a data, e mais nada;
@@ -314,9 +314,11 @@ function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o
         </div>
         <div>
           <p className="label mb-2">{t.language}</p>
-          <div className="segmented" role="radiogroup" aria-label={t.language}>
+          {/* B8: quatro nomes em colunas iguais não cabem a 320–390 px ("Português" precisa
+              de 63 px e tinha 44). Presets que partem em linhas, como a refeição. */}
+          <div className="presetrow" role="radiogroup" aria-label={t.language}>
             {LOCALES.map((l) => (
-              <button key={l} type="button" role="radio" lang={l} aria-checked={locale === l} aria-selected={locale === l} onClick={() => setLocale(l)}>
+              <button key={l} type="button" className="preset" role="radio" lang={l} aria-checked={locale === l} aria-pressed={locale === l} onClick={() => setLocale(l)}>
                 {LOCALE_NAMES[l]}
               </button>
             ))}
@@ -324,8 +326,8 @@ function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o
         </div>
         <div>
           <p className="label mb-2">{t.restDefault}</p>
-          <Stepper scale="seg" step={15} label={t.restDefault} value={rest} onChange={(v) => setRestDefault(Math.max(30, Math.min(300, v)))} />
-          <p className="stepper-step">{t.restHint}</p>
+          <ValuePill scale="rest" title={t.restDefault} value={rest} onChange={setRestDefault} />
+          <p className="body-2 muted mt-2">{t.restHint}</p>
         </div>
       </div>
     </Sheet>
@@ -378,15 +380,15 @@ function BodySheet({
       <div className="stack-lg">
         <div>
           <p className="label mb-2">{t.height}</p>
-          <Stepper scale="height" label={t.height} value={h} onChange={setH} />
+          <ValuePill scale="height" title={t.height} value={h} onChange={setH} />
         </div>
         <div>
           <p className="label mb-2">{t.weightToday}</p>
-          <Stepper scale="body" label={t.weightToday} value={w} onChange={setW} />
+          <ValuePill scale="body" title={t.weightToday} value={w} onChange={setW} />
         </div>
         <div>
           <p className="label mb-2">{t.goal}</p>
-          <Stepper scale="goalKg" label={t.goal} value={g} onChange={setG} />
+          <ValuePill scale="goalKg" title={t.goal} value={g} onChange={setG} />
         </div>
         <button type="button" className="btn btn-primary btn-block" onClick={save}>
           {t.save}
@@ -508,16 +510,16 @@ function GoalSheet({ goal, onClose }: { goal: Goal | null; onClose: () => void }
         </div>
         <div className="row-between">
           <p className="title-3">{t.startLabel}</p>
-          <Stepper size="sm" scale={scale} label={t.startLabel} value={startV} onChange={setStartV} />
+          <ValuePill scale={scale} title={t.startLabel} value={startV} onChange={setStartV} />
         </div>
         <div className="row-between">
           <p className="title-3">{t.targetLabel}</p>
-          <Stepper size="sm" scale={scale} label={t.targetLabel} value={targetV} onChange={setTargetV} />
+          <ValuePill scale={scale} title={t.targetLabel} value={targetV} onChange={setTargetV} />
         </div>
         {goal ? (
           <div className="row-between">
             <p className="title-3">{t.currentLabel}</p>
-            <Stepper size="sm" scale={scale} label={t.currentLabel} value={currentV} onChange={setCurrentV} />
+            <ValuePill scale={scale} title={t.currentLabel} value={currentV} onChange={setCurrentV} />
           </div>
         ) : null}
         {goal && pct !== null ? (

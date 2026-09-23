@@ -38,6 +38,7 @@ export function Wheel({
   dec,
   label,
   onConfirm,
+  format,
 }: {
   values: number[];
   index: number;
@@ -47,6 +48,8 @@ export function Wheel({
   label: string;
   /** Enter na roda confirma, como no protótipo. */
   onConfirm?: () => void;
+  /** Como se escreve cada degrau. Por omissão, o número com `dec` casas. */
+  format?: (value: number) => string;
 }) {
   const wheel = useRef<HTMLDivElement>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -146,7 +149,7 @@ export function Wheel({
             aria-checked={i === index}
             onClick={() => move(i)}
           >
-            {formatValue(v, dec)}
+            {format ? format(v) : formatValue(v, dec)}
             {unit ? <span className="u">{unit}</span> : null}
           </button>
         ))}

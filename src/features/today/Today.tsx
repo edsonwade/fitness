@@ -8,6 +8,7 @@ import { useLocale } from '../../i18n/locale-context';
 import { eventsOn } from '../calendar/events';
 import { useEvents } from '../calendar/use-events';
 import { Icon } from '../../ui/Icon';
+import { shortWeekday } from '../../ui/weekday';
 import { OfflineNotice } from '../../ui/OfflineNotice';
 import { useDays, type DayRef } from '../train/custom-days';
 import { dayPoster, useProgramme } from '../train/day-entries';
@@ -314,7 +315,6 @@ function WeekPlanCard({ sessions, today }: { sessions: readonly Session[]; today
 
   const slots = days.days.map((d) => ({ no: d.no, rest: d.type === 'rest' }));
   const plan = weekPlan(slots, sessions, today);
-  const weekday = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: 'short' });
 
   return (
     <section className="card" style={{ paddingBlock: 'var(--sp-4)' }}>
@@ -323,7 +323,7 @@ function WeekPlanCard({ sessions, today }: { sessions: readonly Session[]; today
         const day = days.days[row.slot];
         const rest = row.state === 'rest';
         const [y, m, d] = row.date.split('-').map(Number);
-        const wd = weekday.format(new Date(y, m - 1, d)).replace('.', '');
+        const wd = shortWeekday(locale, new Date(y, m - 1, d));
         return (
           <div key={row.date} className="list-row">
             <span className={row.state === 'done' ? 'daybadge is-done' : 'daybadge'} aria-hidden="true">

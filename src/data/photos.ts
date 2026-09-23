@@ -42,7 +42,7 @@ export class PhotoError extends Error {
  * waiting. An image already smaller than the bound is still re-encoded, because a
  * PNG screenshot of a machine's plate is several megabytes at any size.
  */
-export async function downscale(file: File): Promise<Blob> {
+export async function downscale(file: Blob): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -81,12 +81,37 @@ export async function uploadExercisePhoto(
   userId: string,
   key: string,
 ): Promise<string> {
+  return uploadPhoto(file, userId, key, 'ex');
+}
+
+/**
+ * Uploads the photo of a logged food — the data URL the Nutrição camera holds, or the
+ * file picked when the food is edited (B7) — and returns the public URL stored on the row's `photo_url`.
+ *
+ * Same bucket and the same `user/<uid>/` prefix as an exercise photo, with `food-` in
+ * front of the name so a listing tells the two apart.
+ */
+export async function uploadFoodPhoto(source: string | Blob, userId: string, key: string): Promise<string> {
+  let blob: Blob;
+  if (typeof source !== 'string') {
+    blob = source;
+  } else {
+    try {
+      blob = await (await fetch(source)).blob();
+    } catch {
+      throw new PhotoError('decode', 'photo: the data URL could not be read');
+    }
+  }
+  return uploadPhoto(blob, userId, `food-${key}`, 'food');
+}
+
+async function uploadPhoto(file: Blob, userId: string, key: string, fallback: string): Promise<string> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     throw new PhotoError('offline', 'photo: no connection');
   }
 
   const blob = await downscale(file);
-  const safeKey = key.replace(/[^a-z0-9_-]+/gi, '').slice(0, 32) || 'ex';
+  const safeKey = key.replace(/[^a-z0-9_-]+/gi, '').slice(0, 32) || fallback;
   const path = `user/${userId}/${safeKey}-${Date.now()}.jpg`;
 
   const { error } = await supabase.storage
@@ -98,7 +123,6 @@ export async function uploadExercisePhoto(
   return data.publicUrl;
 }
 
-/** What the video input accepts: whatever a phone camera records. */
 export const VIDEO_ACCEPT = 'video/mp4,video/webm,video/quicktime';
 
 /**
