@@ -12,8 +12,8 @@ import {
 } from '../../data/entities';
 import { firstFailure, useDeleteRow, useUpsertRow } from '../../data/mutations';
 import { useRows, useUserId } from '../../data/queries';
-import type { Copy } from '../../i18n';
-import { useT } from '../../i18n/locale-context';
+import type { Copy, Locale } from '../../i18n';
+import { useLocale, useT } from '../../i18n/locale-context';
 
 /**
  * The week, once days have been added to it.
@@ -188,16 +188,23 @@ export function refOfCustom(d: Days, row: CustomDay): DayRef {
   };
 }
 
-/** One bundled day as the screens read it. */
-export function refOfBuilt(day: Day): DayRef {
+/**
+ * One bundled day as the screens read it, in the language asked for.
+ *
+ * `locale` is an argument and not a `useT()` call for the reason written above
+ * `type Days`: this is a plain function, and a module-level default would freeze the
+ * language at import time. There is no fallback branch — the content type carries
+ * all four languages, so `day.name[locale]` cannot be missing.
+ */
+export function refOfBuilt(day: Day, locale: Locale): DayRef {
   return {
     no: day.id,
     kind: 'built',
     day,
-    label: day.wd.pt,
-    name: day.name.pt,
-    goal: day.goal?.pt ?? null,
-    warm: day.warm?.pt ?? null,
+    label: day.wd[locale],
+    name: day.name[locale],
+    goal: day.goal?.[locale] ?? null,
+    warm: day.warm?.[locale] ?? null,
     type: day.type,
   };
 }
@@ -211,8 +218,15 @@ export function refOfBuilt(day: Day): DayRef {
  * be it the programme's Leg day, a rest, or one you made. `resolveDays` stamps these
  * onto the first seven positions; anything past the seventh is an extra day with no
  * weekday, and keeps the plain "own" label it had before drag ordering existed.
+ *
+ * A function and not a `const`, which is the whole point: `const WEEKDAYS = DAYS.map(
+ * (d) => d.wd.pt)` read the bundle once, at import, and every week after that showed
+ * Portuguese weekdays whatever language was chosen. A module is evaluated once; a
+ * call is evaluated every render.
  */
-const WEEKDAYS: readonly string[] = DAYS.map((day) => day.wd.pt);
+function weekdays(locale: Locale): readonly string[] {
+  return DAYS.map((day) => day.wd[locale]);
+}
 
 /**
  * Where the drag settled, as the whole new sequence — the day-reorder rule of `004`.
@@ -272,6 +286,7 @@ export function applyDayDrag(order: readonly number[], from: number, to: number)
  */
 export function resolveDays(
   d: Days,
+  locale: Locale,
   customs: readonly CustomDay[],
   order?: readonly number[],
 ): DayRef[] {
@@ -281,7 +296,7 @@ export function resolveDays(
     .sort((a, b) => a.day_no - b.day_no)
     .map((row) => refOfCustom(d, row));
 
-  const base = [...DAYS.map(refOfBuilt), ...own];
+  const base = [...DAYS.map((day) => refOfBuilt(day, locale)), ...own];
 
   let sequenced = base;
   if (order && order.length > 0) {
@@ -299,9 +314,10 @@ export function resolveDays(
     sequenced = out;
   }
 
+  const labels = weekdays(locale);
   return sequenced.map((ref, index) => ({
     ...ref,
-    label: index < WEEKDAYS.length ? WEEKDAYS[index] : d.own,
+    label: index < labels.length ? labels[index] : d.own,
   }));
 }
 
@@ -346,12 +362,16 @@ export function useDayOrder() {
 }
 
 export function useDays() {
-  const d = useT().days;
+  const { locale, t } = useLocale();
+  const d = t.days;
   const query = useRows('custom_days');
   const rows = query.data;
   const { order } = useDayOrder();
 
-  const days = useMemo(() => resolveDays(d, rows ?? [], order ?? undefined), [d, rows, order]);
+  const days = useMemo(
+    () => resolveDays(d, locale, rows ?? [], order ?? undefined),
+    [d, locale, rows, order],
+  );
 
   return {
     days,

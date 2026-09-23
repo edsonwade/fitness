@@ -1,25 +1,23 @@
-import { useRef, useState } from 'react';
-import clsx from 'clsx';
+import { useId, useRef, useState } from 'react';
 
 import { authErrorCode, supabase } from '../../data/supabase';
 import { useT } from '../../i18n/locale-context';
-import { dayPoster } from '../train/day-entries';
-import { Button } from '../../ui/Button';
-import { Field } from '../../ui/Field';
-import { checkEmail, checkPassword, passwordRules } from './validation';
+import { checkEmail, checkPassword } from './validation';
 
 type Tab = 'signin' | 'signup';
 type Errors = Partial<Record<'name' | 'email' | 'password' | 'confirm' | 'form', string>>;
 
 
 /**
- * The gate. Structure: Segmentado, candidate 3 of seven, seed f6923411.
+ * The gate, as frames 2 and 3 of the v2 entry prototype — which copy the reference
+ * photo he pinned on 2026-09-22 (fundo-vidro-e-entrada T4): the photograph full-bleed
+ * behind everything and darkened towards the bottom, the title centred, small labels
+ * above light fields, the filled button, and the switch between the two in the footer.
  *
- * Sign in and create account live on one screen behind a selector, so the returning
- * case, which is the overwhelmingly common one, never changes route. The photograph
- * is a short band rather than a hero: this is the structure's named trade, and the
- * honest cost is that the world's photography carries less weight here than it does
- * deeper in the app.
+ * No password rule is on screen before anything is typed. Only the first rule that is
+ * still missing appears, and only once the field has text and has lost focus, or on
+ * submit. His words: "desde quando é que aplicação premium aparece estas informações
+ * antes de preencher?"
  */
 export function AuthGate() {
   const c = useT().gate;
@@ -27,6 +25,8 @@ export function AuthGate() {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [block, setBlock] = useState<'unconfirmed' | 'offline' | null>(null);
+  const [resent, setResent] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -60,6 +60,7 @@ export function AuthGate() {
 
     setBusy(true);
     setNotice(null);
+    setBlock(null);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
@@ -68,18 +69,15 @@ export function AuthGate() {
 
     if (error) {
       const code = authErrorCode(error.message);
-      setErrors({
-        form:
-          code === 'NO_ACCOUNT'
-            ? c.errNoAccount
-            : code === 'UNCONFIRMED'
-              ? c.errUnconfirmed
-              : code === 'RATE_LIMIT'
-                ? c.errRateLimit
-                : code === 'OFFLINE'
-                  ? c.errOffline
-                  : c.errUnknown,
-      });
+      /*
+       * Os três erros que acontecem a sério (`proto/v2/01-entrada.html` frame 4), cada um
+       * com o que se passou e o que fazer: a palavra-passe errada no próprio campo, o email
+       * por confirmar com "Enviar outra vez", e sem rede com o que continua a abrir.
+       */
+      if (code === 'NO_ACCOUNT') setErrors({ password: c.errNoAccount });
+      else if (code === 'UNCONFIRMED') setBlock('unconfirmed');
+      else if (code === 'OFFLINE') setBlock('offline');
+      else setErrors({ form: code === 'RATE_LIMIT' ? c.errRateLimit : c.errUnknown });
     }
     // Success needs no branch: the session listener swaps the screen.
   }
@@ -130,225 +128,229 @@ export function AuthGate() {
     setNotice(c.createdBody);
   }
 
-  const rules = passwordRules(password);
+  const [pwSeen, setPwSeen] = useState(false);
+  const [confirmSeen, setConfirmSeen] = useState(false);
+
+  function passwordHint(): string | undefined {
+    if (errors.password) return errors.password;
+    if (tab !== 'signup' || !pwSeen || !password) return undefined;
+    const pw = checkPassword(password);
+    if (pw === 'short') return c.errPasswordShort;
+    if (pw === 'letter') return c.errPasswordLetter;
+    if (pw === 'digit') return c.errPasswordDigit;
+    if (pw === 'symbol') return c.errPasswordSymbol;
+    return undefined;
+  }
+
+  function confirmHint(): string | undefined {
+    if (errors.confirm) return errors.confirm;
+    if (!confirmSeen || !confirm || confirm === password) return undefined;
+    return c.errConfirmMismatch;
+  }
+
+  function go(next: Tab) {
+    switchTab(next);
+    setPwSeen(false);
+    setConfirmSeen(false);
+  }
 
   return (
-    <main className="min-h-[100dvh] bg-page py-0 sm:py-8">
-      <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-[26.5rem] flex-col overflow-hidden bg-ground sm:min-h-0 sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
-        {/* The same wash that opens every other screen, so the gate is the app. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-gradient-to-b from-wash-from from-15% via-wash-from/75 via-45% to-wash-to"
-        />
+    <main className="auth min-h-[100dvh]">
+      <img
+        className="auth-bg"
+        src={`${import.meta.env.BASE_URL}img/onboard-welcome.jpg`}
+        alt=""
+        fetchPriority="high"
+      />
+      <div className="auth-veil" aria-hidden="true" />
 
-        <GateBanner tab={tab} />
+      <form
+        className="auth-body mx-auto w-full max-w-[26.5rem]"
+        onSubmit={(ev) => {
+          setPwSeen(true);
+          setConfirmSeen(true);
+          return tab === 'signin' ? onSignIn(ev) : onSignUp(ev);
+        }}
+        noValidate
+      >
+        <h1 className="auth-title">{tab === 'signin' ? c.signIn : c.signUp}</h1>
 
-        <div className="relative flex flex-1 flex-col gap-6 px-7 pb-12 pt-5">
-          <Segmented tab={tab} onChange={switchTab} />
+        {notice ? (
+          <p role="status" className="mb-4 rounded-[8px] border border-white/20 bg-white/10 px-4 py-3 text-[14px] leading-snug">
+            <span className="font-700">{c.createdTitle}. </span>
+            {notice}
+          </p>
+        ) : null}
 
-          {notice ? (
-            <p
-              role="status"
-              className="rounded-card border border-accent-line/35 bg-accent-soft px-4 py-3 font-ui text-[14px] leading-snug text-text"
-            >
-              <span className="font-700">{c.createdTitle}. </span>
-              {notice}
+        <div className="auth-form">
+          {tab === 'signup' ? (
+            <AuthField
+              label={c.name}
+              placeholder={c.namePlaceholder}
+              autoComplete="name"
+              value={name}
+              error={errors.name}
+              onChange={setName}
+            />
+          ) : null}
+
+          <AuthField
+            label={c.email}
+            placeholder={c.emailPlaceholder}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            error={errors.email}
+            onChange={setEmail}
+          />
+
+          <AuthField
+            label={c.password}
+            placeholder={c.passwordPlaceholder}
+            secret
+            autoComplete={tab === 'signin' ? 'current-password' : 'new-password'}
+            value={password}
+            error={passwordHint()}
+            onChange={setPassword}
+            onBlur={() => password && setPwSeen(true)}
+          />
+
+          {tab === 'signup' ? (
+            <AuthField
+              label={c.confirmPassword}
+              placeholder={c.passwordPlaceholder}
+              secret
+              autoComplete="new-password"
+              value={confirm}
+              error={confirmHint()}
+              onChange={setConfirm}
+              onBlur={() => confirm && setConfirmSeen(true)}
+            />
+          ) : null}
+
+          {tab === 'signin' ? <ForgotPassword email={email} /> : null}
+
+          {block === 'unconfirmed' ? (
+            <div className="notice" role="alert">
+              <div>
+                <p className="notice-title">{c.unconfirmedTitle}</p>
+                <p className="notice-body">
+                  {c.unconfirmedPre} {email.trim().toLowerCase()}. {c.unconfirmedPost}
+                </p>
+                <button
+                  type="button"
+                  className="chip chip-sm mt-3"
+                  disabled={resent}
+                  onClick={async () => {
+                    await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
+                    setResent(true);
+                  }}
+                >
+                  {resent ? c.resent : c.resend}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {block === 'offline' ? (
+            <div className="notice notice-danger" role="alert">
+              <div>
+                <p className="notice-title">{c.offlineTitle}</p>
+                <p className="notice-body">{c.offlineBody}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {errors.form ? (
+            <p ref={liveRegion} role="alert" className="auth-hint text-[13px]">
+              {errors.form}
             </p>
           ) : null}
 
-          <form
-            onSubmit={tab === 'signin' ? onSignIn : onSignUp}
-            noValidate
-            className="flex flex-col gap-5"
-          >
-            {tab === 'signup' ? (
-              <Field
-                label={c.name}
-                placeholder={c.namePlaceholder}
-                autoComplete="name"
-                value={name}
-                error={errors.name}
-                onChange={(ev) => setName(ev.target.value)}
-              />
-            ) : null}
-
-            <Field
-              label={c.email}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              value={email}
-              error={errors.email}
-              onChange={(ev) => setEmail(ev.target.value)}
-            />
-
-            <Field
-              label={c.password}
-              revealable
-              showLabel={c.show}
-              hideLabel={c.hide}
-              autoComplete={tab === 'signin' ? 'current-password' : 'new-password'}
-              value={password}
-              error={errors.password}
-              onChange={(ev) => setPassword(ev.target.value)}
-            />
-
-            {tab === 'signup' ? (
-              <>
-                <PasswordRules rules={rules} />
-                <Field
-                  label={c.confirmPassword}
-                  revealable
-                  showLabel={c.show}
-                  hideLabel={c.hide}
-                  autoComplete="new-password"
-                  value={confirm}
-                  error={errors.confirm}
-                  onChange={(ev) => setConfirm(ev.target.value)}
-                />
-              </>
-            ) : null}
-
-            {errors.form ? (
-              <p
-                ref={liveRegion}
-                role="alert"
-                className="rounded-card border border-danger/50 bg-danger/10 px-4 py-3 font-ui text-[14px] leading-snug text-danger"
-              >
-                {errors.form}
-              </p>
-            ) : null}
-
-            <Button type="submit" loading={busy}>
-              {busy
-                ? tab === 'signin'
-                  ? c.signingIn
-                  : c.creating
-                : tab === 'signin'
-                  ? c.signIn
-                  : c.signUp}
-            </Button>
-          </form>
-
-          {tab === 'signin' ? <ForgotPassword email={email} /> : null}
+          <button className="auth-submit" type="submit" disabled={busy} aria-busy={busy}>
+            {busy
+              ? tab === 'signin'
+                ? c.signingIn
+                : c.creating
+              : tab === 'signin'
+                ? c.signIn
+                : c.signUp}
+          </button>
         </div>
-      </div>
+
+        <p className="auth-foot">
+          {tab === 'signin' ? c.noAccount : c.haveAccount}{' '}
+          <button type="button" className="auth-link" onClick={() => go(tab === 'signin' ? 'signup' : 'signin')}>
+            {tab === 'signin' ? c.tabSignUp : c.tabSignIn}
+          </button>
+        </p>
+      </form>
     </main>
   );
 }
 
-/**
- * The photograph, in the world's own hero language: a rounded card with the title
- * on a scrim inside it, exactly as the Programs screen draws its hero.
- *
- * It was a full-bleed band bleeding into the ground, which on the light ground
- * washed the photograph to a pale grey and read as a rendering fault rather than
- * as a treatment. The reference never fades a photograph into the page; it puts
- * photographs inside heavily rounded cards and leaves them at full strength.
- *
- * The scrim is measured, not decorative: white on the darkened photograph is 4.5:1.
- */
-function GateBanner({ tab }: { tab: Tab }) {
+/** One field of the gate: small bold label above a light glass input, eye on secrets. */
+function AuthField({
+  label,
+  value,
+  onChange,
+  onBlur,
+  error,
+  secret,
+  ...input
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  error?: string;
+  secret?: boolean;
+  placeholder?: string;
+  type?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  autoComplete?: string;
+}) {
   const c = useT().gate;
+  const id = useId();
+  const [shown, setShown] = useState(false);
   return (
-    <header className="relative px-7 pt-[max(1.5rem,env(safe-area-inset-top))]">
-      <div className="relative overflow-hidden rounded-media shadow-[var(--shadow-float)]">
-        <img
-          src={dayPoster(4)}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          fetchPriority="high"
+    <div className="auth-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="auth-input-wrap">
+        <input
+          {...input}
+          id={id}
+          className={error ? 'auth-input is-error' : 'auth-input'}
+          type={secret ? (shown ? 'text' : 'password') : (input.type ?? 'text')}
+          autoCapitalize="none"
+          spellCheck={false}
+          value={value}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-e` : undefined}
+          onChange={(ev) => onChange(ev.target.value)}
+          onBlur={onBlur}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/25" />
-        <div className="relative flex min-h-[186px] flex-col justify-end p-5">
-          <h1 className="font-ui text-[25px] font-700 leading-[1.12] tracking-[-0.01em] text-white">
-            {tab === 'signin' ? c.welcomeBack : c.createAccount}
-          </h1>
-          <p className="mt-1.5 font-ui text-[13.5px] leading-snug text-white/85">
-            {tab === 'signin' ? c.subtitleSignIn : c.subtitleSignUp}
-          </p>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/**
- * The selector. Two real buttons in a tablist, not a styled checkbox, so the
- * keyboard and a screen reader both get the behaviour they expect.
- */
-function Segmented({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
-  const c = useT().gate;
-  const options: { id: Tab; label: string }[] = [
-    { id: 'signin', label: c.tabSignIn },
-    { id: 'signup', label: c.tabSignUp },
-  ];
-
-  return (
-    <div
-      role="tablist"
-      aria-label={c.tablist}
-      className="grid grid-cols-2 gap-1 rounded-full bg-chip p-1"
-    >
-      {options.map((option) => {
-        const active = tab === option.id;
-        return (
+        {secret ? (
           <button
-            key={option.id}
-            role="tab"
             type="button"
-            aria-selected={active}
-            onClick={() => onChange(option.id)}
-            className={clsx(
-              'min-h-[46px] rounded-full px-4 font-ui text-[14px] font-600',
-              'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-              active
-                ? 'bg-chip-selected text-chip-selected-ink shadow-[var(--shadow-card)]'
-                : 'text-chip-ink pointer-hover:text-text',
-            )}
+            className="auth-eye"
+            aria-label={shown ? c.hide : c.show}
+            onClick={() => setShown((v) => !v)}
           >
-            {option.label}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+              {shown ? <path d="M3 3l18 18" /> : null}
+            </svg>
           </button>
-        );
-      })}
+        ) : null}
+      </div>
+      {error ? (
+        <p id={`${id}-e`} className="auth-hint" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
-  );
-}
-
-/**
- * The four password rules, shown live while typing rather than as one error after
- * a failed submit. A rule that has been met is not an error, so met rules are
- * stated in the accent and unmet ones stay muted.
- */
-function PasswordRules({ rules }: { rules: ReturnType<typeof passwordRules> }) {
-  const c = useT().gate;
-  const labels: Record<string, string> = {
-    short: c.pwRuleShort,
-    letter: c.pwRuleLetter,
-    digit: c.pwRuleDigit,
-    symbol: c.pwRuleSymbol,
-  };
-
-  return (
-    <ul className="-mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-      {rules.map((rule) => (
-        <li
-          key={rule.id}
-          className={clsx(
-            'flex items-center gap-1.5 font-ui text-[12px]',
-            'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-            rule.met ? 'text-accent-line' : 'text-text-muted',
-          )}
-        >
-          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-            {rule.met ? <path d="M5 13l4 4L19 7" /> : <circle cx="12" cy="12" r="8" strokeWidth={2} />}
-          </svg>
-          <span>{labels[rule.id]}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -369,22 +371,22 @@ function ForgotPassword({ email }: { email: string }) {
   }
 
   return (
-    <div className="mt-auto pt-2 text-center">
+    <div className="-mt-1 text-right">
       <button
         type="button"
         onClick={send}
         disabled={state === 'sending'}
-        className="min-h-[44px] px-3 font-ui text-[13px] font-semibold text-text-muted underline underline-offset-4 transition-colors duration-[180ms] pointer-hover:text-text"
+        className="auth-link is-quiet min-h-[36px] text-[12.5px]"
       >
         {state === 'sending' ? c.sendingReset : c.forgot}
       </button>
       {state === 'sent' ? (
-        <p role="status" className="font-ui text-[13px] text-accent-line">
+        <p role="status" className="text-[12.5px] text-[var(--ui-volt)]">
           {c.resetSent}
         </p>
       ) : null}
       {state === 'need-email' ? (
-        <p role="alert" className="font-ui text-[13px] text-danger">
+        <p role="alert" className="auth-hint">
           {c.resetNeedEmail}
         </p>
       ) : null}

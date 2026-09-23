@@ -10,9 +10,8 @@ import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { Sheet } from '../../ui/Sheet';
-import { isProgKind, type DayEntry } from './day-entries';
+import { asTyped, isProgKind, type DayEntry } from './day-entries';
 import type { ExerciseInput, Visibility } from './use-day-editing';
-import { youtubeId } from './video-id';
 
 
 /**
@@ -33,12 +32,12 @@ import { youtubeId } from './video-id';
  * added to Wednesday is on everybody's Wednesday either way, and a chip offering to
  * keep it to yourself would have been offering something the database will not do.
  *
- * **Only the name is required.** Video and photo are both optional and both are real
- * on their own: an exercise with a video and no photo shows the demonstration and a
- * neutral tile, one with a photo and no video shows the photo and says there is no
- * demonstration yet, and one with both is complete. A link that is not a YouTube video
- * is refused in every mode, because saving it would produce a card whose play button
- * does nothing.
+ * **Only the name is required.** The photo is optional. There is no video field any
+ * more: the YouTube link left the app on 2026-09-22 (tarefa 5) — his words, "se à
+ * partida escolhes o exercício e aparece demonstração, não faz mais sentido ter vídeo
+ * do link do YouTube". A demonstration is a local clip that ships with the app
+ * (`clips.ts`). Whatever `video_id` a row already holds is carried through each save
+ * untouched, so editing an exercise never erases a column the app no longer shows.
  *
  * The four-block preview under the numbers is not decoration. `prog()` turns one set
  * of figures into four prescriptions, and the block 3 row is where someone finds out
@@ -87,6 +86,7 @@ type Draft = {
   reps: string;
   load: string;
   rest: string;
+  /** The row's existing `video_id`, carried through untouched. Not shown, not editable. */
   video: string;
   photoUrl: string | null;
   visibility: Visibility;
@@ -157,7 +157,7 @@ function draftFrom(mode: SheetMode): Draft {
     reps: p.r,
     load: p.l,
     rest: p.rest,
-    video: entry.videoId ?? '',
+    video: entry.override?.video_id ?? '',
     photoUrl: entry.override?.photo_url ?? null,
     // A baseline exercise is the programme's, and what this form writes for it is an
     // override on the day. There is nothing here to put in the catalogue, so the
@@ -188,7 +188,6 @@ export function ExerciseSheet({
   const userId = useUserId();
   const [draft, setDraft] = useState<Draft>(() => draftFrom(mode));
   const [nameError, setNameError] = useState<string | null>(null);
-  const [videoError, setVideoError] = useState<string | null>(null);
   const [photoNote, setPhotoNote] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -221,14 +220,6 @@ export function ExerciseSheet({
       setNameError(t.errName);
       return;
     }
-    // Empty is "no video" and saves. Non-empty that yields nothing is a typo, and
-    // saving it would ship a play button that does nothing.
-    const raw = draft.video.trim();
-    const videoId = youtubeId(raw);
-    if (raw && !videoId) {
-      setVideoError(t.errVideo);
-      return;
-    }
     /*
      * Publishing something that was yours is one way: the private row goes, the
      * shared one takes its key, and from then on anyone can change or remove it.
@@ -245,7 +236,7 @@ export function ExerciseSheet({
       reps: draft.reps,
       load: draft.load,
       rest: draft.rest,
-      videoId,
+      videoId: draft.video,
       photoUrl: draft.photoUrl,
       visibility: draft.visibility,
     });
@@ -415,24 +406,6 @@ export function ExerciseSheet({
         {showKind ? <BlockPreview draft={draft} id={previewId} /> : null}
 
         <div className="flex flex-col gap-2">
-          <Field
-            label={t.video}
-            placeholder={t.videoPlaceholder}
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            value={draft.video}
-            error={videoError}
-            onChange={(e) => {
-              set('video', e.target.value);
-              if (videoError) setVideoError(null);
-            }}
-          />
-          <p className="font-ui text-[12px] leading-snug text-text-muted">{t.videoHint}</p>
-        </div>
-
-        <div className="flex flex-col gap-2">
           <p className="font-ui text-[13px] font-500 text-text-muted">{t.photo}</p>
           <div className="flex items-center gap-3">
             <div className="grid h-[72px] w-[72px] shrink-0 place-items-center overflow-hidden rounded-field border border-rule bg-surface-sunken">
@@ -494,9 +467,16 @@ function BlockPreview({ draft, id }: { draft: Draft; id: string }) {
   const copy = useT();
   const t = copy.editor;
   const sets = Number.parseInt(draft.sets.trim(), 10);
+  /*
+   * The load goes in through `asTyped`, which repeats it into the four languages
+   * rather than translating it: it is the number this person just typed into the
+   * field above, and it reads back the same whatever language the app is in. The
+   * three loads `prog()` writes itself do translate, and this preview does not draw
+   * them — it shows sets, reps and RPE.
+   */
   const slots = prog(
     Number.isFinite(sets) && sets > 0 ? Math.min(sets, 12) : 3,
-    draft.load.trim() || '—',
+    asTyped(draft.load.trim() || '—'),
     draft.rest.trim() || '90 s',
     draft.kind,
   );

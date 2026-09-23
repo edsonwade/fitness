@@ -12,25 +12,40 @@
 
 import { z } from 'zod';
 
+import { LOCALES } from '../i18n';
+
 const nonEmpty = z.string().min(1);
 
-/** A string authored in both languages. Portuguese is the source. */
-export const bilingualSchema = z.object({
+/**
+ * A string authored in all four languages. Portuguese is still the source.
+ *
+ * This is the shape the whole of `src/content/` is moving to, and the reason is a
+ * screen: on 2026-09-22 the app was switched to Spanish and the day names stayed
+ * Portuguese. The chrome in `src/i18n/` had four languages; the content had two, and
+ * every reader was hard-wired to `.pt` — so even the English that WAS written never
+ * reached a screen.
+ *
+ * There is deliberately no fallback branch anywhere below. `satisfies Copy` already
+ * makes a missing key in the chrome a failed build; this does the same for content.
+ * A half-translated card is not a state this type can express.
+ */
+export const localizedSchema = z.object({
   pt: nonEmpty,
   en: nonEmpty,
+  es: nonEmpty,
+  fr: nonEmpty,
 });
 
-/** Prose that exists in both languages, as a single string per locale. */
-export const localizedTextSchema = bilingualSchema;
-
-/** A list of lines authored in both languages, kept in step. */
-export const localizedLinesSchema = z
+/** A list of lines in all four languages, all four the same length. */
+export const localizedListSchema = z
   .object({
     pt: z.array(nonEmpty),
     en: z.array(nonEmpty),
+    es: z.array(nonEmpty),
+    fr: z.array(nonEmpty),
   })
-  .refine((v) => v.pt.length === v.en.length, {
-    message: 'Portuguese and English line counts must match',
+  .refine((v) => LOCALES.every((locale) => v[locale].length === v.pt.length), {
+    message: 'every language must have the same number of lines as Portuguese',
   });
 
 /** An error paired with its correction. The pairing is the teaching. */
@@ -39,36 +54,45 @@ export const faultSchema = z.object({
   c: nonEmpty,
 });
 
+/** Errors and their corrections, in all four languages, all four the same length. */
 export const localizedFaultsSchema = z
   .object({
     pt: z.array(faultSchema),
     en: z.array(faultSchema),
+    es: z.array(faultSchema),
+    fr: z.array(faultSchema),
   })
-  .refine((v) => v.pt.length === v.en.length, {
-    message: 'Portuguese and English fault counts must match',
+  .refine((v) => LOCALES.every((locale) => v[locale].length === v.pt.length), {
+    message: 'every language must have the same number of faults as Portuguese',
   });
 
+/**
+ * One exercise: what it is called, what it needs, and how it is done.
+ *
+ * `n` was `nPT` + `nEN` until 2026-09-22. Two fields cannot hold four languages, and
+ * the pair was also the reason nobody noticed the hole: a reader had to name one of
+ * them, every reader named `nPT`, and so the English that WAS written never reached a
+ * screen in four years of the app having an English toggle.
+ */
 export const exerciseSchema = z.object({
-  nPT: nonEmpty,
-  nEN: nonEmpty,
-  eq: bilingualSchema,
+  n: localizedSchema,
+  eq: localizedSchema,
   anim: nonEmpty,
   pri: z.array(nonEmpty),
   sec: z.array(nonEmpty),
-  steps: localizedLinesSchema,
+  steps: localizedListSchema,
   errs: localizedFaultsSchema,
-  safe: localizedLinesSchema,
-  breath: localizedTextSchema,
+  safe: localizedListSchema,
+  breath: localizedSchema,
 });
 
 export const cardioEntrySchema = z.object({
-  nPT: nonEmpty,
-  nEN: nonEmpty,
+  n: localizedSchema,
   anim: nonEmpty,
   dur: nonEmpty,
-  intens: localizedTextSchema,
-  obj: localizedTextSchema,
-  tips: localizedLinesSchema,
+  intens: localizedSchema,
+  obj: localizedSchema,
+  tips: localizedListSchema,
 });
 
 /**
@@ -81,7 +105,19 @@ export const prescriptionSchema = z.object({
   s: z.number().int().positive(),
   r: nonEmpty,
   rpe: nonEmpty,
-  l: nonEmpty,
+  /**
+   * The load, in all four languages.
+   *
+   * The numbers in a prescription are training data and are not copy — 4 sets is 4
+   * sets in Paris. The load is the one field that carries words next to the number:
+   * `10 kg/mão cal`, `— preencher`, and the `base + carga` / `pesada` / `carga B2`
+   * that `prog()` generates. Those were Portuguese on every screen in every language,
+   * which is the same bug the day names had, one column to the right.
+   *
+   * A load somebody typed themselves is their words and is never translated; it is
+   * repeated into the four branches by `asTyped()` in `day-entries.ts`, which says so.
+   */
+  l: localizedSchema,
   rest: nonEmpty,
 });
 
@@ -98,43 +134,48 @@ export const progKindSchema = z.enum(['comp', 'acc', 'iso', 'core']);
 
 export const dayItemSchema = slotPrescriptionsSchema.extend({
   ex: nonEmpty,
-  note: localizedTextSchema.optional(),
+  note: localizedSchema.optional(),
 });
 
 export const blockSchema = z.object({
   k: blockKeySchema,
-  t: bilingualSchema,
-  s: bilingualSchema,
+  t: localizedSchema,
+  s: localizedSchema,
 });
 
 export const daySchema = z.object({
   id: z.number().int().min(1).max(7),
-  wd: bilingualSchema,
+  wd: localizedSchema,
   ic: z.string(),
   theme: nonEmpty,
-  name: bilingualSchema,
-  short: bilingualSchema,
-  eyebrow: bilingualSchema,
-  mus: z.object({
-    pt: z.array(nonEmpty),
-    en: z.array(nonEmpty),
-  }),
+  name: localizedSchema,
+  short: localizedSchema,
+  eyebrow: localizedSchema,
+  mus: localizedListSchema,
   type: z.enum(['strength', 'cardio', 'rest']),
-  warm: localizedTextSchema.optional(),
-  goal: localizedTextSchema.optional(),
+  warm: localizedSchema.optional(),
+  goal: localizedSchema.optional(),
   /** Day 6 names the cardio entries it prescribes, keyed into CARDIO. */
   cardio: z.array(nonEmpty).optional(),
   /** The rest day carries no items at all, which is why this is optional. */
   items: z.array(dayItemSchema).optional(),
 });
 
-export type Bilingual = z.infer<typeof bilingualSchema>;
-export type LocalizedText = z.infer<typeof localizedTextSchema>;
-export type LocalizedLines = z.infer<typeof localizedLinesSchema>;
+/** A string in the four languages. `value[locale]`, and nothing to fall back to. */
+export type Localized = z.infer<typeof localizedSchema>;
+export type LocalizedList = z.infer<typeof localizedListSchema>;
+export type LocalizedFaults = z.infer<typeof localizedFaultsSchema>;
+
 export type Fault = z.infer<typeof faultSchema>;
 export type Exercise = z.infer<typeof exerciseSchema>;
 export type CardioEntry = z.infer<typeof cardioEntrySchema>;
 export type Prescription = z.infer<typeof prescriptionSchema>;
+/**
+ * A prescription whose load has been chosen for one language, which is what a screen
+ * draws. `resolveDayEntries` is the only place that turns the first into the second,
+ * for the same reason it is the only place that merges the five tables: one answer.
+ */
+export type ResolvedPrescription = Omit<Prescription, 'l'> & { l: string };
 export type BlockKey = z.infer<typeof blockKeySchema>;
 export type SlotPrescriptions = z.infer<typeof slotPrescriptionsSchema>;
 export type ProgKind = z.infer<typeof progKindSchema>;

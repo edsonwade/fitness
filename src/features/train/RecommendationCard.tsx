@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
-import { useT } from '../../i18n/locale-context';
+import type { Locale } from '../../i18n';
+import { useLocale, useT } from '../../i18n/locale-context';
 import { blockSummary } from './block-summary';
 import { useDays, type DayRef } from './custom-days';
 import { useProgramme } from './day-entries';
@@ -40,7 +41,7 @@ import { localDate, sessionDate, useSessions } from './sessions';
  * cria o sítio onde ele vai ficar, e mais nada.
  */
 export function RecommendationCard() {
-  const copy = useT();
+  const { locale, t: copy } = useLocale();
   const t = copy.train.recommend;
   const r = copy.train.readiness;
   const days = useDays();
@@ -141,7 +142,7 @@ export function RecommendationCard() {
   );
 
   const minutes = summary?.minutes ?? null;
-  const category = categoryOf(dayRef);
+  const category = categoryOf(dayRef, locale);
 
   return (
     <section className="card card-accent">
@@ -188,13 +189,15 @@ function Why({ children }: { children: string }) {
 /**
  * A categoria do dia — "Condicionamento", "Inferior", "Push" — tirada da sobrancelha autorada,
  * que a escreve como "Dia 6 · Condicionamento". É a segunda metade, e é conteúdo do programa:
- * não se traduz, não se reescreve e não se inventa.
+ * não se reescreve e não se inventa aqui. Traduzida, sim — desde o Passo F a sobrancelha é
+ * autorada nas quatro línguas, e a categoria é a metade de trás da frase que já está escrita
+ * em espanhol e em francês. Partir a autorada é que seria inventar.
  *
  * Um dia criado por alguém não tem sobrancelha nenhuma, e então não há chip. Metade de um custo
  * verdadeiro vale mais do que um custo inteiro com uma palavra inventada lá dentro.
  */
-function categoryOf(dayRef: DayRef): string | null {
-  const eyebrow = dayRef.day?.eyebrow.pt ?? '';
+function categoryOf(dayRef: DayRef, locale: Locale): string | null {
+  const eyebrow = dayRef.day?.eyebrow[locale] ?? '';
   const parts = eyebrow.split('·');
   if (parts.length < 2) return null;
   const category = parts[1].trim();

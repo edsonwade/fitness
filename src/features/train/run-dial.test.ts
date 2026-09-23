@@ -1,0 +1,41 @@
+import { describe, expect, it } from 'vitest';
+
+import { DIAL_START, DIAL_TICKS, dialAt, dialSeconds, litTicks, restDial, tickDial } from './run-dial';
+
+describe('the Executar dial', () => {
+  it('counts the set up from 0:00 and lights ticks as it goes', () => {
+    let dial = DIAL_START;
+    expect(dialSeconds(dial)).toBe(0);
+    expect(litTicks(dial)).toBe(0);
+    dial = tickDial(tickDial(dial));
+    expect(dialSeconds(dial)).toBe(2);
+    expect(litTicks(dial)).toBeGreaterThan(0);
+    for (let i = 2; i < 30; i++) dial = tickDial(dial);
+    expect(litTicks(dial)).toBe(Math.round(DIAL_TICKS / 2));
+  });
+
+  it('keeps every tick lit on the minute, then starts the next lap', () => {
+    let dial = DIAL_START;
+    for (let i = 0; i < 60; i++) dial = tickDial(dial);
+    expect(litTicks(dial)).toBe(DIAL_TICKS);
+    expect(litTicks(tickDial(dial))).toBe(1);
+  });
+
+  it('counts the rest down once a set is ticked, then goes back to the set at zero', () => {
+    let dial = restDial(3);
+    expect(dialSeconds(dial)).toBe(3);
+    expect(litTicks(dial)).toBe(0);
+    dial = tickDial(dial);
+    expect(dialSeconds(dial)).toBe(2);
+    dial = tickDial(tickDial(dial));
+    expect(dial).toEqual(DIAL_START);
+  });
+});
+
+describe('the dial from its anchor', () => {
+  it('reads the set and the rest from the clock', () => {
+    expect(dialAt({ mode: 'set', since: 0 }, 2500)).toEqual({ mode: 'set', up: 2 });
+    expect(dialAt({ mode: 'rest', since: 0, total: 90 }, 30_000)).toEqual({ mode: 'rest', left: 60, total: 90 });
+    expect(dialAt({ mode: 'rest', since: 0, total: 90 }, 93_000)).toEqual({ mode: 'set', up: 3 });
+  });
+});

@@ -15,7 +15,23 @@
  * ser testada sozinha.
  */
 
-export type ScaleKey = 'kg' | 'kgfino' | 'reps' | 'rpe' | 'pct' | 'seg' | 'min';
+export type ScaleKey =
+  | 'kg'
+  | 'kgfino'
+  | 'reps'
+  | 'rpe'
+  | 'pct'
+  | 'seg'
+  | 'min'
+  | 'kcal'
+  | 'grams'
+  | 'body'
+  | 'kcalGoal'
+  | 'proteinGoal'
+  | 'height'
+  | 'goalKg'
+  | 'count'
+  | 'cm';
 
 export type Scale = {
   min: number;
@@ -37,6 +53,23 @@ export const SCALES: Record<ScaleKey, Scale> = {
   pct: { min: 40, max: 100, step: 5, unit: '%', dec: 0 },
   seg: { min: 0, max: 300, step: 5, unit: 's', dec: 0 },
   min: { min: 5, max: 180, step: 5, unit: 'min', dec: 0 },
+  /** Nutrição (fase 020): as calorias de uma refeição, de 10 em 10. */
+  kcal: { min: 0, max: 3000, step: 10, unit: 'kcal', dec: 0 },
+  /** Gramas de um macro, de 1 em 1. */
+  grams: { min: 0, max: 300, step: 1, unit: 'g', dec: 0 },
+  /** O peso do corpo, de 100 g em 100 g. */
+  body: { min: 30, max: 250, step: 0.1, unit: 'kg', dec: 1 },
+  /** As metas do dia. */
+  kcalGoal: { min: 800, max: 6000, step: 50, unit: 'kcal', dec: 0 },
+  proteinGoal: { min: 20, max: 400, step: 5, unit: 'g', dec: 0 },
+  /** Perfil (fase 023): a altura, de centímetro em centímetro. */
+  height: { min: 1.2, max: 2.3, step: 0.01, unit: 'm', dec: 2 },
+  /** Metas de peso e de carga, de meio quilo em meio quilo. */
+  goalKg: { min: 0, max: 300, step: 0.5, unit: 'kg', dec: 1 },
+  /** Metas contadas: sessões por semana, repetições. */
+  count: { min: 0, max: 100, step: 1, unit: '', dec: 0 },
+  /** Onboarding (fase 024): a altura em centímetros. */
+  cm: { min: 120, max: 220, step: 1, unit: 'cm', dec: 0 },
 };
 
 /**

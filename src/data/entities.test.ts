@@ -194,9 +194,16 @@ describe('the migrations against the client entities', () => {
     // `day_order` arrived after `009`: it opens itself, in `010`, with its own scoped
     // policy, and is checked in the test just below rather than in this loop.
     const expected = [...SHARED_TABLES]
-      .filter((t) => !AUTHORED_TABLES.has(t) && t !== 'day_order')
+      .filter((t) => !AUTHORED_TABLES.has(t) && t !== 'day_order' && t !== 'trainers')
       .sort();
     expect(opened).toEqual(expected);
+  });
+
+  it('opens trainers to everyone in 017, and keeps the writes to whoever created the row', () => {
+    const sql017 = MIGRATIONS.find(({ file }) => file.startsWith('017'))!.sql;
+    expect(SHARED_TABLES.has('trainers')).toBe(true);
+    expect(withoutComments(sql017)).toMatch(/create policy trainers_read on public\.trainers for select to authenticated using \(true\)/);
+    expect(withoutComments(sql017)).toMatch(/create policy trainers_update[\s\S]*?using \(user_id = auth\.uid\(\)\)/);
   });
 
   it('opens day_order to the plan in 010, as its own scoped policy', () => {

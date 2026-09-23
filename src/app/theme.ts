@@ -90,3 +90,16 @@ export function resolveTheme(preference: ThemePreference): 'light' | 'dark' {
   if (preference !== 'system') return preference;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
+
+/**
+ * O que o botão das barras de topo faz: alterna entre escuro e claro, resolvendo o
+ * "sistema" pelo telefone (B1 de .claude/skills/tema-em-todas-as-barras/PLANO.md).
+ */
+export function resolvedTheme(theme: ThemePreference, prefersDark: boolean): 'light' | 'dark' {
+  if (theme === 'system') return prefersDark ? 'dark' : 'light';
+  return theme;
+}
+
+export function nextTheme(theme: ThemePreference, prefersDark: boolean): 'light' | 'dark' {
+  return resolvedTheme(theme, prefersDark) === 'dark' ? 'light' : 'dark';
+}

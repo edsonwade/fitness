@@ -14,7 +14,16 @@ import { resolveDayEntries } from './day-entries';
  * at all rather than "~0 min".
  */
 
-const EMPTY = { customs: [], overrides: [], hidden: [], order: [], catalog: [], additions: [] };
+const EMPTY = {
+  /* Asked for by name. What this file measures is minutes and set counts, not words. */
+  locale: 'pt' as const,
+  customs: [],
+  overrides: [],
+  hidden: [],
+  order: [],
+  catalog: [],
+  additions: [],
+};
 
 function summaryOf(dayNo: number, block: BlockKey) {
   const day = DAYS.find((d) => d.id === dayNo) ?? null;

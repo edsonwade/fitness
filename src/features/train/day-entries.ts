@@ -2,14 +2,14 @@ import { useMemo } from 'react';
 
 import {
   EXERCISES,
-  VIDEOS,
   prog,
   type BlockKey,
   type Day,
   type Exercise,
-  type LocalizedText,
+  type Localized,
   type Prescription,
   type ProgKind,
+  type ResolvedPrescription,
 } from '../../content';
 import type {
   CatalogExercise,
@@ -20,6 +20,18 @@ import type {
   HiddenItem,
 } from '../../data/entities';
 import { useRows } from '../../data/queries';
+import type { Locale } from '../../i18n';
+import { useLocale } from '../../i18n/locale-context';
+import { clipFor, type Clip } from './clips';
+import {
+  EQUIP_NAMES,
+  chosenVariant,
+  equipIdOf,
+  variantExercise,
+  variantLogKey,
+  variantsOf,
+  type EquipId,
+} from './variants';
 
 /**
  * What a day is actually made of, once people have had their say.
@@ -50,15 +62,30 @@ import { useRows } from '../../data/queries';
 export const BLOCK_KEYS = ['b1', 'b2', 'b3', 'dl'] as const;
 
 export type DayEntry = {
-  /** The key everything else is stored against: logs, hiding, ordering, rest. */
+  /** The key everything else is stored against: hiding, ordering, rest, overrides. */
   key: string;
+  /**
+   * The key the logged sets live under. The exercise's own key, except on a changed
+   * equipment variant (`<key>@<equip>`): the barbell's sets are not the dumbbells' —
+   * bug B3 of `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`. Absent means
+   * `key`; read it through `entryLogKey`.
+   */
+  logKey?: string;
+  /** The equipment variant on now, for a baseline exercise that has variants. */
+  equip?: EquipId;
   kind: 'built' | 'custom' | 'shared';
   name: string;
   equipment: string | null;
-  /** This block's target, after any override. */
-  prescription: Prescription;
-  note?: LocalizedText;
-  videoId: string | null;
+  /** This block's target, after any override, with its load in the chosen language. */
+  prescription: ResolvedPrescription;
+  /** The authored aside under the name, already in the chosen language. */
+  note?: string;
+  /**
+   * The local demonstration clip, or null — and null means the photo, with no play
+   * button and no Vídeo chip. Baseline exercises only: a clip is ours, and a user's own
+   * exercise showing one would be the app claiming a video the user never chose.
+   */
+  clip: Clip | null;
   /** The card's image, or null for the neutral tile. Never another exercise's photo. */
   photo: string | null;
   /** Used only when `photo` is a bundled path that turns out not to exist. */
@@ -111,6 +138,18 @@ function text(value: string | null | undefined): string | null {
 }
 
 /**
+ * One string, repeated into all four languages.
+ *
+ * Not a translation and not a fallback: this is for text a **person** typed. Somebody
+ * who wrote "12 kg por mão" wrote it in their words, and an app that rewrote it in
+ * French would be inventing what they meant. Repeating it is the honest shape, and
+ * naming the function is what stops it being mistaken for `?? pt` creeping back in.
+ */
+export function asTyped(value: string): Localized {
+  return { pt: value, en: value, es: value, fr: value };
+}
+
+/**
  * The four block prescriptions of a user's own exercise.
  *
  * The user writes one set of numbers and picks a movement type; `prog()` — the
@@ -123,8 +162,12 @@ function text(value: string | null | undefined): string | null {
  * that is the right default, but a number a person deliberately wrote is not a
  * default to be improved on.
  */
-export function customPrescription(row: CustomExercise, block: BlockKey): Prescription {
-  return derivePrescription(row, row.kind, block);
+export function customPrescription(
+  row: CustomExercise,
+  block: BlockKey,
+  locale: Locale,
+): ResolvedPrescription {
+  return derivePrescription(row, row.kind, block, locale);
 }
 
 /** The four numbers an authored or published exercise is written with. */
@@ -147,17 +190,24 @@ export function derivePrescription(
   numbers: Numbers,
   kindValue: string | null | undefined,
   block: BlockKey,
-): Prescription {
+  locale: Locale,
+): ResolvedPrescription {
   const kind: ProgKind = isProgKind(String(kindValue ?? '')) ? (kindValue as ProgKind) : 'acc';
+  /*
+   * The block 1 load is what the person typed, so it goes in as `same()` and comes
+   * out unchanged in whatever language they are reading. The other three blocks are
+   * written by `prog()` itself — "base + carga", "pesada", "carga B2" — and those are
+   * the app's words, so those do translate.
+   */
   const slots = prog(
     setCount(numbers.sets, 3),
-    text(numbers.load) ?? '—',
+    asTyped(text(numbers.load) ?? '—'),
     text(numbers.rest) ?? '90 s',
     kind,
   );
   const base = slots[block];
   const reps = text(numbers.reps);
-  return reps ? { ...base, r: reps } : base;
+  return { ...base, l: base.l[locale], ...(reps ? { r: reps } : {}) };
 }
 
 /*
@@ -184,18 +234,30 @@ export function derivePrescription(
 export function overriddenPrescription(
   base: Prescription,
   override: ExerciseOverride | undefined,
-): Prescription {
-  if (!override) return base;
+  locale: Locale,
+): ResolvedPrescription {
+  /*
+   * The authored load carries four languages and the overriding one carries none: a
+   * load somebody typed into the edit sheet is their words, so it is shown back to
+   * them exactly as written, in every language. The choice of language only reaches
+   * the authored side.
+   */
+  if (!override) return { ...base, l: base.l[locale] };
   return {
     s: setCount(override.sets, base.s),
     r: text(override.reps) ?? base.r,
     rpe: base.rpe,
-    l: text(override.load) ?? base.l,
+    l: text(override.load) ?? base.l[locale],
     rest: text(override.rest) ?? base.rest,
   };
 }
 
 /** The bundled poster for a baseline exercise, by the convention `public/img/` uses. */
+/** The key an entry's sets are logged under — see `DayEntry.logKey`. */
+export function entryLogKey(entry: Pick<DayEntry, 'key' | 'logKey'>): string {
+  return entry.logKey ?? entry.key;
+}
+
 export function builtinPoster(exKey: string): string {
   return `${import.meta.env.BASE_URL}img/ex-${exKey.replace('_', '')}.jpg`;
 }
@@ -209,6 +271,15 @@ export type ResolveInput = {
   day: Day | null;
   dayNo: number;
   block: BlockKey;
+  /**
+   * The language the answer comes back in.
+   *
+   * An argument and not a `useT()` call, because this function is pure and is tested
+   * directly. It is also why there is no default: a default would be a language
+   * nobody chose, quietly winning on a screen, which is the whole shape of the bug
+   * this was written to close.
+   */
+  locale: Locale;
   customs: readonly CustomExercise[];
   overrides: readonly ExerciseOverride[];
   hidden: readonly HiddenItem[];
@@ -237,7 +308,7 @@ export type ResolveInput = {
  * into a sequence that was written before it existed.
  */
 export function resolveDayEntries(input: ResolveInput): ResolvedDay {
-  const { day, dayNo, block, customs, overrides, hidden, order } = input;
+  const { day, dayNo, block, locale, customs, overrides, hidden, order } = input;
   const catalog = input.catalog ?? [];
   const additions = input.additions ?? [];
 
@@ -258,17 +329,44 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
     }
     const exercise = EXERCISES[item.ex];
     const override = overrideBy.get(item.ex);
+    /*
+     * The equipment variant (B2 and B4): another name, another clip, another photo and
+     * other sets. A variant with no clip of its own shows none — never another
+     * exercise's video.
+     */
+    const variants = variantsOf(item.ex);
+    const variant = chosenVariant(item.ex, override?.equipment);
+    const vex = variantExercise(variant);
+    const knownEquip = equipIdOf(override?.equipment) !== null;
     entries.push({
       key: item.ex,
+      logKey: variantLogKey(item.ex, variant),
+      equip: variants.length > 0 ? (variant?.equip ?? variants[0].equip) : undefined,
       kind: 'built',
-      name: text(override?.name) ?? exercise?.nPT ?? item.ex,
-      equipment: text(override?.equipment) ?? exercise?.eq.pt ?? null,
-      prescription: overriddenPrescription(item[block], override),
-      note: item.note,
-      videoId: text(override?.video_id) ?? VIDEOS[item.ex] ?? null,
-      photo: text(override?.photo_url) ?? builtinPoster(item.ex),
-      fallbackPhoto: dayPoster(dayNo),
-      exercise,
+      /*
+       * A name somebody typed over the authored one wins, in every language: it is
+       * their word for this exercise and is not ours to translate. Under it, the
+       * authored name in the language being read. The key is the last resort and
+       * means the content and the day disagree, which a test would have caught.
+       */
+      name:
+        text(override?.name) ??
+        (variant ? (vex?.n[locale] ?? variant.name?.[locale]) : undefined) ??
+        exercise?.n[locale] ??
+        item.ex,
+      equipment: variant
+        ? (vex?.eq[locale] ?? EQUIP_NAMES[variant.equip][locale])
+        : ((knownEquip ? null : text(override?.equipment)) ?? exercise?.eq[locale] ?? null),
+      prescription: overriddenPrescription(item[block], override, locale),
+      note: item.note?.[locale],
+      clip: variant ? (variant.ex ? clipFor(variant.ex) : null) : clipFor(item.ex),
+      photo: variant
+        ? variant.ex
+          ? builtinPoster(variant.ex)
+          : null
+        : (text(override?.photo_url) ?? builtinPoster(item.ex)),
+      fallbackPhoto: variant ? null : dayPoster(dayNo),
+      exercise: variant ? vex : exercise,
       override,
     });
   }
@@ -289,10 +387,10 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
       kind: 'custom',
       name: text(row.name) ?? key,
       equipment: text(row.equipment),
-      prescription: customPrescription(row, block),
+      prescription: customPrescription(row, block, locale),
       // No name matching, ever. A user's own exercise showing a baseline
       // demonstration would be the app claiming a video the user never chose.
-      videoId: text(row.video_id),
+      clip: null,
       photo: text(row.photo_url),
       fallbackPhoto: null,
       custom: row,
@@ -331,8 +429,8 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
       kind: 'shared',
       name: text(row.name_pt) ?? addition.ex_key,
       equipment: text(row.equipment),
-      prescription: derivePrescription(row, row.kind, block),
-      videoId: text(row.video_id),
+      prescription: derivePrescription(row, row.kind, block, locale),
+      clip: null,
       photo: text(row.photo_url),
       fallbackPhoto: null,
       shared: { catalog: row, addition },
@@ -410,6 +508,7 @@ const EMPTY: never[] = [];
  * still one merge rule and not two.
  */
 export function useProgramme(block: BlockKey) {
+  const { locale } = useLocale();
   const state = useProgrammeState();
   const { customs, overrides, hidden, order, catalog, additions } = state;
 
@@ -420,6 +519,7 @@ export function useProgramme(block: BlockKey) {
           day,
           dayNo,
           block: blockKey,
+          locale,
           customs: customs ?? EMPTY,
           overrides: overrides ?? EMPTY,
           hidden: hidden ?? EMPTY,
@@ -427,7 +527,7 @@ export function useProgramme(block: BlockKey) {
           catalog: catalog ?? EMPTY,
           additions: additions ?? EMPTY,
         }),
-    [customs, overrides, hidden, order, catalog, additions],
+    [locale, customs, overrides, hidden, order, catalog, additions],
   );
 
   const resolve = useMemo(

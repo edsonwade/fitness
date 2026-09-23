@@ -21,14 +21,15 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { LOCALES, type Locale } from '../i18n';
 import {
   BLOCKS,
   CARDIO,
+  CONTENT,
   CONTENT_INVARIANTS,
   DAYS,
   EXERCISES,
   MUSCLES,
-  VIDEOS,
   countDaySlots,
   distinctPrescribedKeys,
   validateContent,
@@ -42,17 +43,11 @@ describe('preserved content', () => {
 
   it('holds exactly the counts the plan preserves', () => {
     expect(Object.keys(EXERCISES)).toHaveLength(CONTENT_INVARIANTS.exercises);
-    expect(Object.keys(VIDEOS)).toHaveLength(CONTENT_INVARIANTS.videos);
     expect(Object.keys(CARDIO)).toHaveLength(CONTENT_INVARIANTS.cardio);
     expect(DAYS).toHaveLength(CONTENT_INVARIANTS.days);
     expect(countDaySlots()).toBe(CONTENT_INVARIANTS.daySlots);
     expect(BLOCKS).toHaveLength(CONTENT_INVARIANTS.blocks);
     expect(Object.keys(MUSCLES)).toHaveLength(CONTENT_INVARIANTS.muscles);
-  });
-
-  it('gives every exercise a video', () => {
-    const missing = Object.keys(EXERCISES).filter((key) => !VIDEOS[key]);
-    expect(missing).toEqual([]);
   });
 
   it('prescribes 34 distinct exercises and keeps the two documented swap alternatives', () => {
@@ -117,13 +112,15 @@ describe('preserved content', () => {
     // example here; it belonged to the Pallof press, which the week of 2026-09-21
     // dropped from the plan.)
     const unset = DAYS.flatMap((day) => day.items ?? []).filter(
-      (item) => item.b1.l === '— preencher',
+      (item) => item.b1.l.pt === '— preencher',
     );
     expect(unset.length).toBeGreaterThan(0);
     for (const item of DAYS.flatMap((day) => day.items ?? [])) {
       expect(typeof item.b1.r).toBe('string');
-      expect(typeof item.b1.l).toBe('string');
       expect(typeof item.b1.rpe).toBe('string');
+      // The load is the one field of a prescription that carries words next to the
+      // number, so since Passo F it carries four of them. Still text, never coerced.
+      for (const locale of LOCALES) expect(typeof item.b1.l[locale]).toBe('string');
     }
   });
 
@@ -142,8 +139,96 @@ describe('preserved content', () => {
       'ohext',
     ]);
     for (const item of noted) {
-      expect(item.note?.pt.length).toBeGreaterThan(0);
-      expect(item.note?.en.length).toBeGreaterThan(0);
+      for (const locale of LOCALES) expect(item.note?.[locale].length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * A rede que impede o buraco de voltar.
+ *
+ * A 2026-09-22 ele mudou a app para espanhol e os nomes dos dias continuaram em
+ * português. A casca tinha quatro línguas desde o Passo B e o conteúdo tinha duas —
+ * e mesmo o inglês, que ESTAVA escrito, nunca chegava a um ecrã porque todos os
+ * leitores estavam cravados em `.pt`.
+ *
+ * O tipo já impede metade disso: `localizedSchema` exige os quatro ramos, e um deles
+ * em falta não compila. O que o tipo não vê é uma frase escrita em branco, uma lista
+ * de passos com quatro linhas em português e três em francês, ou um ramo novo que
+ * alguém acrescente sem tradutor. É isso que este teste percorre — `CONTENT` inteiro,
+ * todos os nós, não uma amostra —, e é o irmão de `src/i18n/i18n.test.ts:44`, que faz
+ * o mesmo à casca.
+ */
+
+/** Um nó localizado: um objeto com exatamente os quatro ramos e mais nada. */
+function isLocalizedNode(value: unknown): value is Record<Locale, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  return keys.length === LOCALES.length && LOCALES.every((locale) => keys.includes(locale));
+}
+
+/** Todos os nós localizados de uma árvore, com a morada de cada um para o relatório. */
+function localizedNodes(value: unknown, path = ''): [string, Record<Locale, unknown>][] {
+  if (value === null || typeof value !== 'object') return [];
+  if (isLocalizedNode(value)) return [[path, value]];
+  const children = Array.isArray(value)
+    ? value.map((child, i) => [`${path}[${i}]`, child] as const)
+    : Object.entries(value).map(([key, child]) => [path === '' ? key : `${path}.${key}`, child] as const);
+  return children.flatMap(([childPath, child]) => localizedNodes(child, childPath));
+}
+
+const NODES = localizedNodes(CONTENT);
+
+describe('o conteúdo nas quatro línguas', () => {
+  it('tem nós localizados em número que vale a pena percorrer', () => {
+    // Uma guarda contra o próprio teste: se um dia `localizedNodes` deixar de
+    // encontrar nada, os três testes abaixo passam sem verificar coisa nenhuma.
+    expect(NODES.length).toBeGreaterThan(200);
+  });
+
+  it.each(LOCALES)('%s não deixa nenhuma frase do conteúdo por escrever', (locale: Locale) => {
+    const vazios = NODES.filter(([, node]) => {
+      const branch = node[locale];
+      if (typeof branch === 'string') return branch.trim() === '';
+      if (Array.isArray(branch)) {
+        return branch.some((line) =>
+          typeof line === 'string'
+            ? line.trim() === ''
+            : Object.values(line as Record<string, unknown>).some(
+                (field) => typeof field === 'string' && field.trim() === '',
+              ),
+        );
+      }
+      return true;
+    }).map(([path]) => path);
+
+    expect(vazios, `${locale} tem conteúdo por escrever`).toEqual([]);
+  });
+
+  it.each(LOCALES)('%s tem listas do mesmo comprimento que o português', (locale: Locale) => {
+    const desiguais = NODES.filter(([, node]) => {
+      const source = node.pt;
+      return Array.isArray(source) && (node[locale] as unknown[]).length !== source.length;
+    }).map(([path]) => path);
+
+    expect(desiguais, `${locale} tem listas de comprimento diferente`).toEqual([]);
+  });
+
+  it('não repete o português nas outras línguas onde devia traduzir', () => {
+    /*
+     * Repetir é legítimo: "Cardio", "Deload", "Plancha"/"Plancha" e os nomes próprios
+     * de exercícios são iguais em mais do que uma língua, e `kg` é `kg` em todo o
+     * lado. O que este teste apanha é o caso em que TODAS as quatro são a mesma
+     * frase E essa frase é longa o suficiente para ser uma instrução — um passo de
+     * técnica, um erro, um aviso. Isso não é uma palavra que coincide; é uma
+     * tradução que não foi feita.
+     */
+    const porTraduzir = NODES.filter(([, node]) => {
+      const source = node.pt;
+      if (typeof source !== 'string' || source.length < 25) return false;
+      return LOCALES.every((locale) => node[locale] === source);
+    }).map(([path]) => path);
+
+    expect(porTraduzir, 'frases longas iguais nas quatro línguas').toEqual([]);
   });
 });

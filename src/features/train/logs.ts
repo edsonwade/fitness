@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 
 import { useRows } from '../../data/queries';
-import type { ExerciseLog } from '../../data/entities';
+import type { ExerciseLog, SetValue } from '../../data/entities';
 import type { BlockKey } from '../../content';
 import type { DayEntry } from './day-entries';
+import { parseLoadKg, parseReps } from './metrics';
 
 /**
  * The block order lives with the day resolver, because that is what needs it first.
@@ -98,7 +99,7 @@ export function dayProgress(
   for (const entry of entries) {
     const prescribed = entry.prescription.s;
     total += prescribed;
-    const sets = setsDoneFor(byKey.get(logId(dayNo, block, entry.key)), prescribed);
+    const sets = setsDoneFor(byKey.get(logId(dayNo, block, entry.logKey ?? entry.key)), prescribed);
     done += sets.filter(Boolean).length;
     if (exerciseState(sets) === 'done') exercisesDone += 1;
   }
@@ -121,6 +122,21 @@ export function setsDoneFor(
 }
 
 /**
+ * Reads each set's own numbers (`014`), padded or trimmed to the block's count like
+ * `setsDoneFor`, so position `i` always means "set `i + 1`" and never runs off the end.
+ *
+ * Typed by shape for the same reason as `setsDoneFor`, and tolerant of a row with no
+ * `sets` at all: that is what a database where `014` has not been run sends.
+ */
+export function setValuesFor(
+  log: { sets?: readonly SetValue[] | null } | undefined,
+  prescribed: number,
+): SetValue[] {
+  const base = log?.sets ?? [];
+  return Array.from({ length: prescribed }, (_, i) => base[i] ?? {});
+}
+
+/**
  * Reads a rest prescription like "90s", "2 min" or "60-90s" into seconds.
  *
  * The programme's rest strings are free text authored by hand, so this takes the
@@ -128,9 +144,66 @@ export function setsDoneFor(
  * rests for its lower bound, which is the honest reading of "rest 60 to 90": you are
  * cleared to go again at sixty.
  */
-export function parseRestSeconds(rest: string): number {
+export function parseRestSeconds(rest: string, fallback = 90): number {
   const match = rest.match(/(\d+)/);
-  if (!match) return 90;
+  if (!match) return fallback;
   const value = Number(match[1]);
   return /min/i.test(rest) ? value * 60 : value;
+}
+
+/**
+ * Reads an effort prescription like "8", "7-8" or "RPE 8,5" into a number of RPE.
+ *
+ * The sibling of `parseRestSeconds`, and it reads a range the same honest way: "7 to 8"
+ * is cleared at 7. Half points count, because the effort scale moves in halves, and a
+ * comma is a decimal point because that is how the load is written in this app. A
+ * prescription with no number in it — a word, a dash — is `null` rather than a guess.
+ */
+export function parseRpe(rpe: string): number | null {
+  const match = rpe.match(/(\d+(?:[.,]\d+)?)/);
+  if (!match) return null;
+  const value = Number(match[1].replace(',', '.'));
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * The volume of the session so far, in kilos: load × reps, summed over the sets ticked.
+ *
+ * Set by set, because since `014` a set can carry its own load and reps — the first set
+ * at 60 and the third at 62.5 are two different volumes.
+ *
+ * The live twin of `sessionLoad` in `metrics.ts`, and it obeys the same rule rather than
+ * a friendlier one: an entry counts only when the record carries **both** a legible load
+ * and legible reps. Falling back to the prescribed numbers would be counting what the
+ * programme asked for as if it had been lifted, and the bar at the bottom of the sheet
+ * would then disagree with every number the history screens report from the same rows.
+ *
+ * A session where nothing has been logged is therefore `0`, which is the number the
+ * prototype's own sheet shows before the first set is marked.
+ */
+export function sessionVolume(
+  dayNo: number,
+  block: BlockKey,
+  entries: readonly DayEntry[],
+  byKey: Map<string, ExerciseLog>,
+): number {
+  let total = 0;
+  for (const entry of entries) {
+    const log = byKey.get(logId(dayNo, block, entry.logKey ?? entry.key));
+    if (!log) continue;
+    const done = setsDoneFor(log, entry.prescription.s);
+    const values = setValuesFor(log, entry.prescription.s);
+    const wholeLoad = parseLoadKg(log.weight);
+    const wholeReps = parseReps(log.reps);
+    done.forEach((isDone, i) => {
+      if (!isDone) return;
+      /* A set's own number wins; the exercise-wide column is what a set with no number
+         of its own was logged at, which is every set logged before `014`. */
+      const load = values[i].weight ?? wholeLoad;
+      const reps = values[i].reps ?? wholeReps;
+      if (load === null || load === undefined || reps === null || reps === undefined) return;
+      total += load * reps;
+    });
+  }
+  return total;
 }

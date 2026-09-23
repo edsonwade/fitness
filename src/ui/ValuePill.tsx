@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import clsx from 'clsx';
+
+import { useT } from '../i18n/locale-context';
 
 import { PresetRow, type Preset } from './PresetRow';
 import { Sheet } from './Sheet';
@@ -47,6 +49,7 @@ export function ValuePill({
   variant,
   disabled,
   className,
+  trigger,
 }: {
   /** `null` é *por preencher*. Zero é zero, e mostra-se como zero. */
   value: number | null;
@@ -61,7 +64,13 @@ export function ValuePill({
   variant?: 'volt';
   disabled?: boolean;
   className?: string;
+  /**
+   * Outro botão no lugar da pílula, para a mesma roda. É o número grande do peso no
+   * ecrã Executar (tarefa 7): tocar-lhe abre esta roda, e não uma segunda cópia dela.
+   */
+  trigger?: (pill: { shown: string; suffix: string; label: string; open: () => void }) => ReactNode;
 }) {
+  const t = useT();
   const scale = SCALES[scaleKey];
   const suffix = unit ?? scale.unit;
   const values = buildValues(scale);
@@ -81,10 +90,12 @@ export function ValuePill({
   }
 
   const shown = value === null ? '—' : formatValue(value, scale.dec);
-  const spoken = value === null ? `${title}: por preencher` : `${title}: ${shown} ${suffix}`.trim();
+  const spoken =
+    value === null ? `${title}: ${t.common.pickEmpty}` : `${title}: ${shown} ${suffix}`.trim();
 
   return (
     <>
+      {trigger ? trigger({ shown, suffix, label: spoken, open: openPicker }) : (
       <button
         type="button"
         className={clsx(
@@ -100,6 +111,7 @@ export function ValuePill({
         {shown}
         {suffix ? <span className="u">{suffix}</span> : null}
       </button>
+      )}
 
       {open ? (
         <Sheet
@@ -107,13 +119,11 @@ export function ValuePill({
           onOpenChange={setOpen}
           title={title}
           description={
-            presets.length > 0
-              ? 'Toca num valor sugerido, ou roda até ao que fizeste.'
-              : 'Roda até ao valor que fizeste.'
+            presets.length > 0 ? t.common.pickHintPresets : t.common.pickHint
           }
           footer={
             <button type="button" className="btn btn-primary btn-block" onClick={confirm}>
-              Confirmar
+              {t.common.confirm}
             </button>
           }
         >
@@ -125,7 +135,7 @@ export function ValuePill({
                 onPick={(v) => setDraft(nearestIndex(values, v))}
                 unit={suffix}
                 dec={scale.dec}
-                label={`Valores sugeridos para ${title}`}
+                label={`${t.common.pickSuggested} ${title}`}
               />
             </div>
           ) : null}

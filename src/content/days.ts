@@ -19,40 +19,91 @@
  * `proto/v2/03-treino.html` e aprovados no browser antes de chegarem aqui.
  *
  * As prescrições não foram reescritas. A semana nova MOVE exercícios entre dias; as
- * séries, reps, RPE, cargas, descansos e notas bilingues de cada um são as mesmas que
- * já estavam prescritas, byte a byte. Não se "melhoram" estes números: são o plano de
- * treino dele, não copy.
+ * séries, reps, RPE, cargas, descansos e notas de cada um são as mesmas que já estavam
+ * prescritas, byte a byte. Não se "melhoram" estes números: são o plano de treino dele,
+ * não copy.
+ *
+ * **Passo F, 2026-09-22 — as quatro línguas.** Ele mudou a app para espanhol e os
+ * nomes dos dias ficaram em português: era este ficheiro. Tudo o que é palavra passou
+ * a `{pt,en,es,fr}` e não há recuo — falta uma língua, falha a compilação.
+ *
+ * **As cargas também.** Eram a dívida nomeada no primeiro rascunho do Passo F: os
+ * números são dado de treino e não se tocam, mas `kg/mão`, `— preencher` e o
+ * `base + carga` / `pesada` / `carga B2` que o `prog()` gera são palavras, e estavam
+ * em português na coluna Carga em todas as línguas. `kg()`, `kgHand()` e `TBD` em
+ * baixo são o vocabulário inteiro das cargas autoradas — onze cargas distintas, e
+ * nem um número mudou.
  */
 
 import { prog } from './blocks';
-import type { Day, DayItem, LocalizedText, SlotPrescriptions } from './schema';
+import type { Day, DayItem, Localized, SlotPrescriptions } from './schema';
 
-const I = (ex: string, slots: SlotPrescriptions, note?: LocalizedText): DayItem => ({
+const I = (ex: string, slots: SlotPrescriptions, note?: Localized): DayItem => ({
   ex,
   ...slots,
   ...(note ? { note } : {}),
 });
+
+/**
+ * As cargas autoradas, nas quatro línguas.
+ *
+ * O número é o número — `kg(25)` escreve "25 kg" nas quatro e não há aqui nenhuma
+ * conversão de unidades: o plano é em quilos em Lisboa e em Paris. O que muda é a
+ * palavra ao lado. `cal` fica `cal` nas quatro porque abrevia a mesma palavra em
+ * todas (calibrar · calibrate · calibrar · calibrer); `mão` não, e era essa a palavra
+ * portuguesa presa no ecrã espanhol.
+ */
+const kg = (n: number): Localized => ({
+  pt: `${n} kg cal`,
+  en: `${n} kg cal`,
+  es: `${n} kg cal`,
+  fr: `${n} kg cal`,
+});
+
+/** Halteres, por mão — a carga é de cada lado e a palavra muda de língua. */
+const kgHand = (n: number): Localized => ({
+  pt: `${n} kg/mão cal`,
+  en: `${n} kg/hand cal`,
+  es: `${n} kg/mano cal`,
+  fr: `${n} kg/main cal`,
+});
+
+/** A carga que ainda ninguém decidiu, e que a pessoa escreve na primeira sessão. */
+const TBD: Localized = {
+  pt: '— preencher',
+  en: '— to fill in',
+  es: '— completar',
+  fr: '— à remplir',
+};
 
 export const DAYS: readonly Day[] = [
   {
     "id": 1,
     "wd": {
       "pt": "Seg",
-      "en": "Mon"
+      "en": "Mon",
+      "es": "Lun",
+      "fr": "Lun"
     },
     "ic": "",
     "theme": "push",
     "name": {
       "pt": "Peito + Tríceps",
-      "en": "Chest + Triceps"
+      "en": "Chest + Triceps",
+      "es": "Pecho + Tríceps",
+      "fr": "Pectoraux + Triceps"
     },
     "short": {
       "pt": "Peito",
-      "en": "Chest"
+      "en": "Chest",
+      "es": "Pecho",
+      "fr": "Pectoraux"
     },
     "eyebrow": {
       "pt": "Dia 1 · Push",
-      "en": "Day 1 · Push"
+      "en": "Day 1 · Push",
+      "es": "Día 1 · Push",
+      "fr": "Jour 1 · Push"
     },
     "mus": {
       "pt": [
@@ -64,48 +115,72 @@ export const DAYS: readonly Day[] = [
         "Chest",
         "Triceps",
         "Front delts"
+      ],
+      "es": [
+        "Pectoral",
+        "Tríceps",
+        "Deltoides anterior"
+      ],
+      "fr": [
+        "Pectoraux",
+        "Triceps",
+        "Deltoïde antérieur"
       ]
     },
     "type": "strength",
     "warm": {
       "pt": "6–8 min elíptica ou remo leve + rotações de ombro + 2 séries de aproximação no supino com halteres. Aquece bem os cotovelos antes das extensões.",
-      "en": "6–8 min easy elliptical or rower + shoulder rotations + 2 ramp-up sets on the dumbbell bench. Warm the elbows well before the extensions."
+      "en": "6–8 min easy elliptical or rower + shoulder rotations + 2 ramp-up sets on the dumbbell bench. Warm the elbows well before the extensions.",
+      "es": "6–8 min de elíptica o remo suave + rotaciones de hombro + 2 series de aproximación en el press con mancuernas. Calienta bien los codos antes de las extensiones.",
+      "fr": "6–8 min d'elliptique ou de rameur léger + rotations d'épaules + 2 séries d'approche au développé haltères. Échauffe bien les coudes avant les extensions."
     },
     "goal": {
       "pt": "Empurrar. O peito primeiro, com os compostos enquanto estás fresco; o tríceps a seguir, que já entra meio aquecido do supino. Os isolamentos ficam para o fim.",
-      "en": "Pushing. Chest first, compounds while you are fresh; triceps next, already half-warm from the bench. Isolation work goes last."
+      "en": "Pushing. Chest first, compounds while you are fresh; triceps next, already half-warm from the bench. Isolation work goes last.",
+      "es": "Empujar. El pecho primero, con los compuestos mientras estás fresco; el tríceps después, que ya llega medio caliente del press. Los aislamientos quedan para el final.",
+      "fr": "Pousser. Les pectoraux d'abord, avec les composés tant que tu es frais ; les triceps ensuite, déjà à moitié échauffés par le développé. Les isolations pour la fin."
     },
     "items": [
-    I("dbbench", prog(4, "14 kg/mão cal", "2–3 min", "comp")),
-    I("incldb", prog(3, "12 kg/mão cal", "2 min", "comp")),
-    I("pecdeck", prog(3, "25 kg cal", "60–90 s", "iso")),
-    I("cgbench", prog(4, "— preencher", "2–3 min", "comp")),
-    I("ohext", prog(4, "— preencher", "90 s", "acc"), {
+    I("dbbench", prog(4, kgHand(14), "2–3 min", "comp")),
+    I("incldb", prog(3, kgHand(12), "2 min", "comp")),
+    I("pecdeck", prog(3, kg(25), "60–90 s", "iso")),
+    I("cgbench", prog(4, TBD, "2–3 min", "comp")),
+    I("ohext", prog(4, TBD, "90 s", "acc"), {
         "pt": "Prioridade do dia: acima da cabeça alonga a cabeça longa, e é aí que ela mais cresce.",
-        "en": "Priority of the day: overhead lengthens the long head, and that is where it grows most."
+        "en": "Priority of the day: overhead lengthens the long head, and that is where it grows most.",
+        "es": "Prioridad del día: por encima de la cabeza se estira la porción larga, y es ahí donde más crece.",
+        "fr": "Priorité du jour : au-dessus de la tête, la longue portion s'étire, et c'est là qu'elle grossit le plus."
       }),
-    I("pushdown", prog(3, "20 kg cal", "60–90 s", "acc")),
+    I("pushdown", prog(3, kg(20), "60–90 s", "acc")),
     ],
   },
   {
     "id": 2,
     "wd": {
       "pt": "Ter",
-      "en": "Tue"
+      "en": "Tue",
+      "es": "Mar",
+      "fr": "Mar"
     },
     "ic": "",
     "theme": "q",
     "name": {
       "pt": "Perna",
-      "en": "Legs"
+      "en": "Legs",
+      "es": "Pierna",
+      "fr": "Jambes"
     },
     "short": {
       "pt": "Perna",
-      "en": "Legs"
+      "en": "Legs",
+      "es": "Pierna",
+      "fr": "Jambes"
     },
     "eyebrow": {
       "pt": "Dia 2 · Inferior",
-      "en": "Day 2 · Lower"
+      "en": "Day 2 · Lower",
+      "es": "Día 2 · Inferior",
+      "fr": "Jour 2 · Bas du corps"
     },
     "mus": {
       "pt": [
@@ -119,48 +194,74 @@ export const DAYS: readonly Day[] = [
         "Glutes",
         "Hamstrings",
         "Calves"
+      ],
+      "es": [
+        "Cuádriceps",
+        "Glúteo",
+        "Isquiotibiales",
+        "Gemelos"
+      ],
+      "fr": [
+        "Quadriceps",
+        "Fessiers",
+        "Ischio-jambiers",
+        "Mollets"
       ]
     },
     "type": "strength",
     "warm": {
       "pt": "6–8 min bike + 1–2 séries de aproximação no Leg Press. Mobilidade de anca e joelho.",
-      "en": "6–8 min bike + 1–2 ramp-up sets on the Leg Press. Hip and knee mobility."
+      "en": "6–8 min bike + 1–2 ramp-up sets on the Leg Press. Hip and knee mobility.",
+      "es": "6–8 min de bicicleta + 1–2 series de aproximación en la prensa. Movilidad de cadera y rodilla.",
+      "fr": "6–8 min de vélo + 1–2 séries d'approche à la presse. Mobilité de hanche et de genou."
     },
     "goal": {
       "pt": "A perna inteira num dia: quadríceps nos compostos, glúteo e posterior no fim. É o dia mais pesado da semana, e tem a quinta a seguir para recuperar.",
-      "en": "The whole leg in one day: quads in the compounds, glutes and hamstrings at the end. It is the heaviest day of the week, and Thursday comes next to recover."
+      "en": "The whole leg in one day: quads in the compounds, glutes and hamstrings at the end. It is the heaviest day of the week, and Thursday comes next to recover.",
+      "es": "La pierna entera en un día: cuádriceps en los compuestos, glúteo e isquios al final. Es el día más pesado de la semana, y el jueves viene después para recuperar.",
+      "fr": "Toute la jambe en un jour : quadriceps sur les composés, fessiers et ischios à la fin. C'est le jour le plus lourd de la semaine, et le jeudi suit pour récupérer."
     },
     "items": [
-    I("legpress", prog(4, "60 kg cal", "2–3 min", "comp")),
-    I("hack", prog(3, "— preencher", "2 min", "comp"), {
+    I("legpress", prog(4, kg(60), "2–3 min", "comp")),
+    I("hack", prog(3, TBD, "2 min", "comp"), {
         "pt": "Alternativa: Agachamento Goblet se não houver máquina Hack.",
-        "en": "Alternative: Goblet Squat if there is no Hack machine."
+        "en": "Alternative: Goblet Squat if there is no Hack machine.",
+        "es": "Alternativa: sentadilla goblet si no hay máquina Hack.",
+        "fr": "Alternative : squat goblet s'il n'y a pas de machine Hack."
       }),
-    I("legext", prog(3, "25 kg cal", "60–90 s", "iso")),
-    I("calf_s", prog(4, "40 kg cal", "45–60 s", "iso")),
-    I("hipthrust", prog(4, "40 kg cal", "2–3 min", "comp")),
-    I("legcurl_seat", prog(4, "25 kg cal", "60–90 s", "iso")),
+    I("legext", prog(3, kg(25), "60–90 s", "iso")),
+    I("calf_s", prog(4, kg(40), "45–60 s", "iso")),
+    I("hipthrust", prog(4, kg(40), "2–3 min", "comp")),
+    I("legcurl_seat", prog(4, kg(25), "60–90 s", "iso")),
     ],
   },
   {
     "id": 3,
     "wd": {
       "pt": "Qua",
-      "en": "Wed"
+      "en": "Wed",
+      "es": "Mié",
+      "fr": "Mer"
     },
     "ic": "",
     "theme": "back",
     "name": {
       "pt": "Costas + Bíceps",
-      "en": "Back + Biceps"
+      "en": "Back + Biceps",
+      "es": "Espalda + Bíceps",
+      "fr": "Dos + Biceps"
     },
     "short": {
       "pt": "Costas",
-      "en": "Back"
+      "en": "Back",
+      "es": "Espalda",
+      "fr": "Dos"
     },
     "eyebrow": {
       "pt": "Dia 3 · Pull",
-      "en": "Day 3 · Pull"
+      "en": "Day 3 · Pull",
+      "es": "Día 3 · Pull",
+      "fr": "Jour 3 · Pull"
     },
     "mus": {
       "pt": [
@@ -172,49 +273,73 @@ export const DAYS: readonly Day[] = [
         "Lats",
         "Traps",
         "Biceps"
+      ],
+      "es": [
+        "Dorsal",
+        "Trapecio",
+        "Bíceps"
+      ],
+      "fr": [
+        "Grand dorsal",
+        "Trapèzes",
+        "Biceps"
       ]
     },
     "type": "strength",
     "warm": {
       "pt": "6–8 min remo leve + 2 séries de aproximação na puxada. Solta os ombros antes de puxar a sério.",
-      "en": "6–8 min easy rowing + 2 ramp-up sets on the pulldown. Loosen the shoulders before pulling heavy."
+      "en": "6–8 min easy rowing + 2 ramp-up sets on the pulldown. Loosen the shoulders before pulling heavy.",
+      "es": "6–8 min de remo suave + 2 series de aproximación en el jalón. Suelta los hombros antes de tirar en serio.",
+      "fr": "6–8 min de rameur léger + 2 séries d'approche à la poulie haute. Relâche les épaules avant de tirer lourd."
     },
     "goal": {
       "pt": "Puxar. As costas nos compostos e o bíceps a seguir, que já trabalhou em todas as puxadas — é por isso que são dois exercícios de rosca e não quatro.",
-      "en": "Pulling. Back in the compounds, then biceps, which already worked in every pull — which is why it is two curl exercises and not four."
+      "en": "Pulling. Back in the compounds, then biceps, which already worked in every pull — which is why it is two curl exercises and not four.",
+      "es": "Tirar. La espalda en los compuestos y el bíceps después, que ya ha trabajado en cada jalón — por eso son dos ejercicios de curl y no cuatro.",
+      "fr": "Tirer. Le dos sur les composés, puis les biceps, qui ont déjà travaillé à chaque tirage — c'est pour ça qu'il y a deux exercices de curl et non quatre."
     },
     "items": [
-    I("pulldown", prog(4, "40 kg cal", "2–3 min", "comp")),
-    I("csrow", prog(3, "30 kg cal", "2 min", "comp")),
-    I("seatedrow", prog(3, "35 kg cal", "90 s", "comp")),
-    I("strarm", prog(3, "— preencher", "60–90 s", "acc")),
-    I("dbcurl", prog(3, "10 kg/mão cal", "60–90 s", "acc")),
-    I("hammer", prog(3, "10 kg/mão cal", "60–90 s", "acc")),
+    I("pulldown", prog(4, kg(40), "2–3 min", "comp")),
+    I("csrow", prog(3, kg(30), "2 min", "comp")),
+    I("seatedrow", prog(3, kg(35), "90 s", "comp")),
+    I("strarm", prog(3, TBD, "60–90 s", "acc")),
+    I("dbcurl", prog(3, kgHand(10), "60–90 s", "acc")),
+    I("hammer", prog(3, kgHand(10), "60–90 s", "acc")),
     ],
   },
   {
     "id": 4,
     "wd": {
       "pt": "Qui",
-      "en": "Thu"
+      "en": "Thu",
+      "es": "Jue",
+      "fr": "Jeu"
     },
     "ic": "",
     "theme": "rest",
     "name": {
       "pt": "Descanso / Recuperação",
-      "en": "Rest / Recovery"
+      "en": "Rest / Recovery",
+      "es": "Descanso / Recuperación",
+      "fr": "Repos / Récupération"
     },
     "short": {
       "pt": "Descanso",
-      "en": "Rest"
+      "en": "Rest",
+      "es": "Descanso",
+      "fr": "Repos"
     },
     "eyebrow": {
       "pt": "Dia 4 · Off",
-      "en": "Day 4 · Off"
+      "en": "Day 4 · Off",
+      "es": "Día 4 · Off",
+      "fr": "Jour 4 · Off"
     },
     "mus": {
       "pt": [],
-      "en": []
+      "en": [],
+      "es": [],
+      "fr": []
     },
     "type": "rest",
   },
@@ -222,21 +347,29 @@ export const DAYS: readonly Day[] = [
     "id": 5,
     "wd": {
       "pt": "Sex",
-      "en": "Fri"
+      "en": "Fri",
+      "es": "Vie",
+      "fr": "Ven"
     },
     "ic": "",
     "theme": "sh",
     "name": {
       "pt": "Ombro + Bíceps + Perna",
-      "en": "Shoulders + Biceps + Legs"
+      "en": "Shoulders + Biceps + Legs",
+      "es": "Hombro + Bíceps + Pierna",
+      "fr": "Épaules + Biceps + Jambes"
     },
     "short": {
       "pt": "Ombro",
-      "en": "Shoulders"
+      "en": "Shoulders",
+      "es": "Hombro",
+      "fr": "Épaules"
     },
     "eyebrow": {
       "pt": "Dia 5 · Push/Pull + Inferior",
-      "en": "Day 5 · Push/Pull + Lower"
+      "en": "Day 5 · Push/Pull + Lower",
+      "es": "Día 5 · Push/Pull + Inferior",
+      "fr": "Jour 5 · Push/Pull + Bas du corps"
     },
     "mus": {
       "pt": [
@@ -250,48 +383,74 @@ export const DAYS: readonly Day[] = [
         "Biceps",
         "Quads",
         "Calves"
+      ],
+      "es": [
+        "Deltoides",
+        "Bíceps",
+        "Cuádriceps",
+        "Gemelos"
+      ],
+      "fr": [
+        "Deltoïdes",
+        "Biceps",
+        "Quadriceps",
+        "Mollets"
       ]
     },
     "type": "strength",
     "warm": {
       "pt": "6–8 min elíptica + rotações externas de ombro e 2 séries leves de elevação lateral. A perna entra no fim, já aquecida pelo resto.",
-      "en": "6–8 min elliptical + external shoulder rotations and 2 light lateral raise sets. Legs come at the end, already warm from the rest."
+      "en": "6–8 min elliptical + external shoulder rotations and 2 light lateral raise sets. Legs come at the end, already warm from the rest.",
+      "es": "6–8 min de elíptica + rotaciones externas de hombro y 2 series suaves de elevación lateral. La pierna entra al final, ya caliente por el resto.",
+      "fr": "6–8 min d'elliptique + rotations externes d'épaule et 2 séries légères d'élévations latérales. Les jambes arrivent à la fin, déjà chauffées par le reste."
     },
     "goal": {
       "pt": "Ombro à frente, bíceps no meio e um remate de perna. O volume de perna é curto de propósito: a terça já levou o dia pesado.",
-      "en": "Shoulders first, biceps in the middle, and a leg finisher. Leg volume is deliberately short: Tuesday already took the heavy day."
+      "en": "Shoulders first, biceps in the middle, and a leg finisher. Leg volume is deliberately short: Tuesday already took the heavy day.",
+      "es": "Hombro al frente, bíceps en medio y un remate de pierna. El volumen de pierna es corto a propósito: el martes ya se llevó el día pesado.",
+      "fr": "Les épaules devant, les biceps au milieu et une finition jambes. Le volume de jambes est court exprès : le mardi a déjà pris le jour lourd."
     },
     "items": [
-    I("dbohp", prog(4, "10 kg/mão cal", "2–3 min", "comp")),
-    I("lateral", prog(4, "6 kg/mão cal", "45–60 s", "iso")),
-    I("reardelt", prog(3, "— preencher", "60 s", "acc")),
-    I("cablecurl", prog(2, "— preencher", "60 s", "acc"), {
+    I("dbohp", prog(4, kgHand(10), "2–3 min", "comp")),
+    I("lateral", prog(4, kgHand(6), "45–60 s", "iso")),
+    I("reardelt", prog(3, TBD, "60 s", "acc")),
+    I("cablecurl", prog(2, TBD, "60 s", "acc"), {
         "pt": "Finalizador de bíceps com tensão constante.",
-        "en": "Biceps finisher with constant tension."
+        "en": "Biceps finisher with constant tension.",
+        "es": "Finalizador de bíceps con tensión constante.",
+        "fr": "Finition biceps en tension constante."
       }),
-    I("lunge", prog(3, "10 kg/mão cal", "90 s", "acc")),
-    I("calf_seat", prog(4, "30 kg cal", "45–60 s", "iso")),
+    I("lunge", prog(3, kgHand(10), "90 s", "acc")),
+    I("calf_seat", prog(4, kg(30), "45–60 s", "iso")),
     ],
   },
   {
     "id": 6,
     "wd": {
       "pt": "Sáb",
-      "en": "Sat"
+      "en": "Sat",
+      "es": "Sáb",
+      "fr": "Sam"
     },
     "ic": "",
     "theme": "full",
     "name": {
       "pt": "Full Body",
-      "en": "Full Body"
+      "en": "Full Body",
+      "es": "Cuerpo completo",
+      "fr": "Corps entier"
     },
     "short": {
       "pt": "Full Body",
-      "en": "Full Body"
+      "en": "Full Body",
+      "es": "Cuerpo completo",
+      "fr": "Corps entier"
     },
     "eyebrow": {
       "pt": "Dia 6 · Corpo inteiro",
-      "en": "Day 6 · Full body"
+      "en": "Day 6 · Full body",
+      "es": "Día 6 · Cuerpo completo",
+      "fr": "Jour 6 · Corps entier"
     },
     "mus": {
       "pt": [
@@ -309,64 +468,96 @@ export const DAYS: readonly Day[] = [
         "Quads",
         "Biceps",
         "Triceps"
+      ],
+      "es": [
+        "Pectoral",
+        "Dorsal",
+        "Deltoides",
+        "Cuádriceps",
+        "Bíceps",
+        "Tríceps"
+      ],
+      "fr": [
+        "Pectoraux",
+        "Grand dorsal",
+        "Deltoïdes",
+        "Quadriceps",
+        "Biceps",
+        "Triceps"
       ]
     },
     "type": "strength",
     "warm": {
       "pt": "10 min: bike ou remo + mobilidade de ombro, anca e joelho. É o dia mais longo da semana — aquece o corpo todo, não só o primeiro exercício.",
-      "en": "10 min: bike or rower + shoulder, hip and knee mobility. It is the longest day of the week — warm the whole body, not just the first exercise."
+      "en": "10 min: bike or rower + shoulder, hip and knee mobility. It is the longest day of the week — warm the whole body, not just the first exercise.",
+      "es": "10 min: bicicleta o remo + movilidad de hombro, cadera y rodilla. Es el día más largo de la semana — calienta todo el cuerpo, no solo el primer ejercicio.",
+      "fr": "10 min : vélo ou rameur + mobilité d'épaule, de hanche et de genou. C'est le jour le plus long de la semaine — échauffe tout le corps, pas seulement le premier exercice."
     },
     "goal": {
       "pt": "Seis grupos, três exercícios cada: 18 exercícios e 60 séries. Dentro de cada grupo o composto vem primeiro e o isolamento no fim. Com os descansos prescritos, conta 2h30 a 3h.",
-      "en": "Six groups, three exercises each: 18 exercises and 60 sets. Within each group the compound comes first and the isolation last. With the prescribed rest, budget 2h30 to 3h."
+      "en": "Six groups, three exercises each: 18 exercises and 60 sets. Within each group the compound comes first and the isolation last. With the prescribed rest, budget 2h30 to 3h.",
+      "es": "Seis grupos, tres ejercicios cada uno: 18 ejercicios y 60 series. Dentro de cada grupo el compuesto va primero y el aislamiento al final. Con los descansos prescritos, cuenta de 2h30 a 3h.",
+      "fr": "Six groupes, trois exercices chacun : 18 exercices et 60 séries. Dans chaque groupe, le composé d'abord et l'isolation à la fin. Avec les repos prescrits, compte 2h30 à 3h."
     },
     "items": [
-    I("dbbench", prog(4, "14 kg/mão cal", "2–3 min", "comp")),
-    I("incldb", prog(3, "12 kg/mão cal", "2 min", "comp")),
-    I("pecdeck", prog(3, "25 kg cal", "60–90 s", "iso")),
-    I("pulldown", prog(4, "40 kg cal", "2–3 min", "comp")),
-    I("csrow", prog(3, "30 kg cal", "2 min", "comp")),
-    I("seatedrow", prog(3, "35 kg cal", "90 s", "comp")),
-    I("dbohp", prog(4, "10 kg/mão cal", "2–3 min", "comp")),
-    I("lateral", prog(4, "6 kg/mão cal", "45–60 s", "iso")),
-    I("reardelt", prog(3, "— preencher", "60 s", "acc")),
-    I("legpress", prog(4, "60 kg cal", "2–3 min", "comp")),
-    I("legext", prog(3, "25 kg cal", "60–90 s", "iso")),
-    I("legcurl_seat", prog(4, "25 kg cal", "60–90 s", "iso")),
-    I("dbcurl", prog(3, "10 kg/mão cal", "60–90 s", "acc")),
-    I("hammer", prog(3, "10 kg/mão cal", "60–90 s", "acc")),
-    I("cablecurl", prog(2, "— preencher", "60 s", "acc"), {
+    I("dbbench", prog(4, kgHand(14), "2–3 min", "comp")),
+    I("incldb", prog(3, kgHand(12), "2 min", "comp")),
+    I("pecdeck", prog(3, kg(25), "60–90 s", "iso")),
+    I("pulldown", prog(4, kg(40), "2–3 min", "comp")),
+    I("csrow", prog(3, kg(30), "2 min", "comp")),
+    I("seatedrow", prog(3, kg(35), "90 s", "comp")),
+    I("dbohp", prog(4, kgHand(10), "2–3 min", "comp")),
+    I("lateral", prog(4, kgHand(6), "45–60 s", "iso")),
+    I("reardelt", prog(3, TBD, "60 s", "acc")),
+    I("legpress", prog(4, kg(60), "2–3 min", "comp")),
+    I("legext", prog(3, kg(25), "60–90 s", "iso")),
+    I("legcurl_seat", prog(4, kg(25), "60–90 s", "iso")),
+    I("dbcurl", prog(3, kgHand(10), "60–90 s", "acc")),
+    I("hammer", prog(3, kgHand(10), "60–90 s", "acc")),
+    I("cablecurl", prog(2, TBD, "60 s", "acc"), {
         "pt": "Finalizador de bíceps com tensão constante.",
-        "en": "Biceps finisher with constant tension."
+        "en": "Biceps finisher with constant tension.",
+        "es": "Finalizador de bíceps con tensión constante.",
+        "fr": "Finition biceps en tension constante."
       }),
-    I("cgbench", prog(4, "— preencher", "2–3 min", "comp")),
-    I("pushdown", prog(3, "20 kg cal", "60–90 s", "acc")),
-    I("skull", prog(3, "— preencher", "60–90 s", "acc")),
+    I("cgbench", prog(4, TBD, "2–3 min", "comp")),
+    I("pushdown", prog(3, kg(20), "60–90 s", "acc")),
+    I("skull", prog(3, TBD, "60–90 s", "acc")),
     ],
   },
   {
     "id": 7,
     "wd": {
       "pt": "Dom",
-      "en": "Sun"
+      "en": "Sun",
+      "es": "Dom",
+      "fr": "Dim"
     },
     "ic": "",
     "theme": "rest",
     "name": {
       "pt": "Descanso / Recuperação",
-      "en": "Rest / Recovery"
+      "en": "Rest / Recovery",
+      "es": "Descanso / Recuperación",
+      "fr": "Repos / Récupération"
     },
     "short": {
       "pt": "Descanso",
-      "en": "Rest"
+      "en": "Rest",
+      "es": "Descanso",
+      "fr": "Repos"
     },
     "eyebrow": {
       "pt": "Dia 7 · Off",
-      "en": "Day 7 · Off"
+      "en": "Day 7 · Off",
+      "es": "Día 7 · Off",
+      "fr": "Jour 7 · Off"
     },
     "mus": {
       "pt": [],
-      "en": []
+      "en": [],
+      "es": [],
+      "fr": []
     },
     "type": "rest",
   }

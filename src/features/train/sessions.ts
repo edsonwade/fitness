@@ -1,9 +1,9 @@
 import type { BlockKey } from '../../content';
-import type { ExerciseLog, Session } from '../../data/entities';
-import type { LogFields, SessionEntryInput } from '../../data/mutations';
+import type { ExerciseLog, Session, SetValue } from '../../data/entities';
+import { mergeSets, type LogFields, type SessionEntryInput } from '../../data/mutations';
 import { useRows } from '../../data/queries';
 import type { DayEntry } from './day-entries';
-import { logId, setsDoneFor } from './logs';
+import { logId, setsDoneFor, setValuesFor } from './logs';
 
 /**
  * The record: what was trained, and on what day.
@@ -77,6 +77,22 @@ export type LogPatch = { exKey: string; fields: LogFields };
  * `target_reps`: planned against done is the comparison the phases after this one are
  * built on, and it cannot be reconstructed later, because the programme's blocks move on.
  */
+/**
+ * A stored log with the edit being made laid over it. `sets` arrives as a patch by
+ * position and is merged, not spread — spreading would put the patch where the list was.
+ */
+function laid(stored: ExerciseLog | undefined, fields: LogFields): Partial<ExerciseLog> {
+  const { sets, ...rest } = fields;
+  const base: Partial<ExerciseLog> = { ...stored, ...rest };
+  return sets ? { ...base, sets: mergeSets(stored?.sets ?? [], sets) } : base;
+}
+
+/** The own numbers of the last set that is ticked, or nothing when none is. */
+function lastTicked(done: readonly boolean[], values: readonly SetValue[]): SetValue {
+  for (let i = done.length - 1; i >= 0; i -= 1) if (done[i]) return values[i];
+  return {};
+}
+
 export function buildSessionEntries(
   dayNo: number,
   block: BlockKey,
@@ -85,13 +101,17 @@ export function buildSessionEntries(
   patch?: LogPatch,
 ): SessionEntryInput[] {
   return entries.map((entry) => {
-    const stored = byKey.get(logId(dayNo, block, entry.key));
+    /* The variant's own sets (B3 of .claude/skills/executar-demo-equipamento-ordem/PLANO.md). */
+    const key = entry.logKey ?? entry.key;
+    const stored = byKey.get(logId(dayNo, block, key));
     const log: Partial<ExerciseLog> =
-      patch && patch.exKey === entry.key ? { ...stored, ...patch.fields } : (stored ?? {});
+      patch && patch.exKey === key ? laid(stored, patch.fields) : (stored ?? {});
     const prescribed = entry.prescription.s;
+    const done = setsDoneFor(log, prescribed);
+    const last = lastTicked(done, setValuesFor(log, prescribed));
 
     return {
-      ex_key: entry.key,
+      ex_key: key,
       name: entry.name,
       target_sets: String(prescribed),
       target_reps: entry.prescription.r,
@@ -102,10 +122,17 @@ export function buildSessionEntries(
        * together would be storing formatting as data, which is what `003` refused.
        */
       target_raw: null,
-      sets_done: setsDoneFor(log, prescribed).filter(Boolean).length,
+      sets_done: done.filter(Boolean).length,
       sets_total: prescribed,
-      weight: log.weight ?? null,
-      reps: log.reps ?? null,
+      /*
+       * The entry has one load and one reps for the whole exercise, and since `014` a set
+       * can carry its own. The exercise-wide column still wins when it is there — it is
+       * what everything logged before `014` has. When it is not, the entry takes the last
+       * ticked set's own number, so a workout logged only in the Executar screen does not
+       * reach history as a session with no load at all.
+       */
+      weight: log.weight ?? (last.weight != null ? String(last.weight) : null),
+      reps: log.reps ?? (last.reps != null ? String(last.reps) : null),
       note: log.note ?? null,
     };
   });

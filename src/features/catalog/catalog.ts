@@ -4,7 +4,8 @@ import { clientId } from '../../data/client-id';
 import type { CatalogExercise, DayAddition } from '../../data/entities';
 import { firstFailure, usePublishShared, useUpsertRow } from '../../data/mutations';
 import { useRows } from '../../data/queries';
-import { useT } from '../../i18n/locale-context';
+import { INTL_LOCALE } from '../../i18n';
+import { useLocale, useT } from '../../i18n/locale-context';
 import type { ExerciseInput } from '../train/use-day-editing';
 
 /**
@@ -37,10 +38,14 @@ export type CatalogItem = {
  *
  * Sorted by name rather than by date, because this is a list someone reads looking
  * for a particular exercise, not a feed of what happened lately. `localeCompare`
- * with the Portuguese collation puts the accented names where a Portuguese reader
- * expects them instead of after Z.
+ * puts the accented names where the reader expects them instead of after Z — and
+ * **which reader** is the part that was wrong: the collation was pinned to `'pt'`,
+ * so a French reader got a Portuguese alphabet. `name_pt` itself is not a language,
+ * whatever the column is called; it is the name a person typed, and the suffix is
+ * historical.
  */
 export function useCatalog() {
+  const { locale } = useLocale();
   const catalog = useRows('catalog_exercises');
   const additions = useRows('day_additions');
 
@@ -54,12 +59,12 @@ export function useCatalog() {
 
     return (catalog.data ?? [])
       .slice()
-      .sort((a, b) => a.name_pt.localeCompare(b.name_pt, 'pt'))
+      .sort((a, b) => a.name_pt.localeCompare(b.name_pt, INTL_LOCALE[locale]))
       .map((row) => ({
         row,
         days: (byKey.get(row.ex_key) ?? []).slice().sort((a, b) => a.day_no - b.day_no),
       }));
-  }, [catalog.data, additions.data]);
+  }, [locale, catalog.data, additions.data]);
 
   return {
     items,

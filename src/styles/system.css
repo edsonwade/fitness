@@ -122,7 +122,8 @@
 .screen {
   position: relative;
   min-height: 100dvh;
-  background: var(--ui-ground);
+  background: var(--ui-ground-grad);
+  background-color: var(--ui-ground);
   color: var(--ui-text);
   display: flex;
   flex-direction: column;
@@ -389,8 +390,12 @@
    CARTÕES
    ============================================================ */
 
+/* Vidro da Ladder nos cartões, como no protótipo. No claro --ui-glass é --ui-surface
+   e o desfoque é none. */
 .card {
-  background: var(--ui-surface);
+  background: var(--ui-glass);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
+  border: 1px solid var(--ui-glass-edge);
   border-radius: var(--radius-card);
   padding: var(--sp-4);
   box-shadow: var(--ui-shadow-card), var(--ui-edge-light);
@@ -447,6 +452,50 @@
 /* o chip que abre um seletor: leva o chevron duplo da foto */
 .chip-select::after { content: '⌃⌄'; font-size: 8px; line-height: 1; letter-spacing: -1px; margin-left: 2px; color: var(--ui-text-muted); }
 
+/* A roda do equipamento: o chip É a roda (erro 2 e bug B1 de
+   .claude/skills/executar-quatro-erros-do-browser/PLANO.md), portada de proto/v2/system.css
+   "2 · A roda do equipamento". Cada opção tem 26px dentro de um chip de 44: a de cima e a
+   de baixo espreitam, esbatidas, e dizem que isto roda. Sem scroll nativo nem
+   scroll-snap: a fita move-se com transform. */
+.chip-wheel {
+  position: relative; padding: 0 30px 0 0; flex: 0 0 auto;
+  height: var(--tap-min); min-height: 0;
+  overflow: hidden; cursor: ns-resize;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: border-color var(--duration-state) var(--ease-out), background-color var(--duration-state) var(--ease-out);
+}
+.chip-wheel::after {
+  content: '⌃\A⌄'; white-space: pre; position: absolute; right: 12px; top: 50%;
+  translate: 0 -50%; font-size: 9px; line-height: 0.75; color: var(--ui-text-muted);
+  pointer-events: none;
+}
+.chip-wheel .wheel-roll {
+  position: relative; height: 100%; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+}
+/* (44 - 2 de borda - 26) / 2 = 8px em cima: a do índice 0 fica ao centro */
+.chip-wheel .wheel-track { padding-block: 8px; transition: transform 220ms var(--ease-out); will-change: transform; }
+.chip-wheel.is-dragging .wheel-track { transition: none; }
+.chip-wheel .wheel-opt {
+  display: flex; align-items: center; justify-content: flex-start; width: 100%; height: 26px;
+  padding: 0 0 0 14px; border: 0; background: none; color: var(--ui-text-muted);
+  font: inherit; white-space: nowrap; text-align: left; cursor: inherit;
+  pointer-events: none; scroll-snap-align: none;
+  transition: color var(--duration-state) var(--ease-out);
+}
+.chip-wheel .wheel-opt.is-centre { color: inherit; }
+/* a rolar: o contorno acende, para se ver que o dedo pegou na roda */
+.chip-wheel.is-rolling { border-color: var(--ui-text-muted); }
+/* parou numa que ainda não é a escolhida: toca para escolher */
+.chip-wheel.is-candidate { border-color: var(--ui-accent); }
+/* escolhida: um lampejo, e volta ao chip normal */
+.chip-wheel.is-picked { background: var(--ui-accent); color: var(--ui-accent-ink); border-color: transparent; }
+.chip-wheel:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .chip-wheel .wheel-track, .chip-wheel { transition: none; }
+}
+
 .segmented { display: flex; padding: 3px; background: var(--ui-surface-sunken); border-radius: var(--radius-pill); }
 .segmented button {
   flex: 1 1 0; border: 0; background: transparent; color: var(--ui-text-muted);
@@ -464,7 +513,8 @@
 
 .tabbar {
   display: flex; align-items: stretch; justify-content: space-around;
-  background: var(--ui-surface); border-top: 1px solid var(--ui-rule);
+  background: var(--ui-glass); border-top: 1px solid var(--ui-glass-edge);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
   padding-bottom: env(safe-area-inset-bottom, 0);
   flex: 0 0 auto;
 }
@@ -482,10 +532,18 @@
    SHEETS E DIÁLOGOS
    ============================================================ */
 
-.scrim { position: absolute; inset: 0; background: var(--ui-scrim); }
+.scrim { position: absolute; inset: 0; background: var(--ui-scrim-glass); }
+
+/* O chão de cada ecrã, no escuro, é o gradiente ardósia → malva do protótipo e não preto
+   chapado — "toda app no escuro" (tarefa 6, portada na 7). `bg-ground` é a cor por
+   baixo; a imagem vem por cima dela. No claro o token é `none` e fica a cor lisa. */
+.bg-ground { background-image: var(--ui-ground-grad); }
 .sheet {
   position: absolute; left: 0; right: 0; bottom: 0;
-  background: var(--ui-surface);
+  /* Vidro, como a folha da Ladder: o vídeo a correr vê-se desfocado através dela. */
+  background: var(--ui-glass-strong);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
+  border: 1px solid var(--ui-glass-edge); border-bottom: 0;
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   padding: var(--sp-3) var(--sp-5) var(--sp-7);
   box-shadow: var(--ui-shadow-float);
@@ -507,7 +565,9 @@
 .sheet-body { overflow-y: auto; overscroll-behavior: contain; padding-top: var(--sp-4); }
 
 .dialog {
-  background: var(--ui-surface); border-radius: var(--radius-card); padding: var(--sp-5);
+  background: var(--ui-glass-strong); border: 1px solid var(--ui-glass-edge);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
+  border-radius: var(--radius-card); padding: var(--sp-5);
   box-shadow: var(--ui-shadow-float); max-width: 340px; margin: auto;
 }
 
@@ -515,22 +575,38 @@
    EXECUTAR — a tira de contexto, a grelha, os blocos, a barra
    ============================================================ */
 
-/* Equipamento · Notas · Ver histórico · Vídeo */
-.ctx-chips { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; padding-block: var(--sp-3); }
+/* Equipamento ⇅ · Notas · Histórico · Saltar — UMA linha que rola de lado, com o último
+   cortado na borda a dizer que há mais, exatamente como a imagem da Ladder (tarefa 7:
+   "faz exatamente como aparece aqui"). Sangra até às bordas da folha. */
+.ctx-chips {
+  display: flex; gap: var(--sp-2); padding-block: var(--sp-3);
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  margin-inline: calc(var(--sp-5) * -1); padding-inline: var(--sp-5);
+  scroll-padding-inline: var(--sp-5);
+}
 .ctx-chips::-webkit-scrollbar { display: none; }
 .ctx-chips > * { flex: 0 0 auto; }
 
-/* A grelha de registo. Cada célula é uma pílula tocável, nunca texto escrito. */
-.setgrid { width: 100%; border-collapse: separate; border-spacing: 0; }
+/* A grelha de registo. Cada célula é uma pílula tocável, nunca texto escrito.
+   Divide o espaço que há: a 360 px sobram ~288 px, e nada lá dentro pode pedir uma
+   largura mínima fixa — era isso que cortava PESO e as pílulas. Portado da correção
+   da tarefa 5 em proto/v2/system.css, medido a 0 cortes em 360·375·390·412·1280 px
+   nas quatro línguas. */
+.setgrid { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .setgrid th {
-  font-family: var(--font-ui); font-weight: 600; font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--ui-text-muted); text-align: center;
-  padding: 0 4px var(--sp-2); white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 600; font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.01em; color: var(--ui-text-muted); text-align: center;
+  padding: 0 1px var(--sp-2); white-space: nowrap;
 }
-.setgrid th:first-child { text-align: left; padding-left: 14px; }
+.setgrid th:first-child { text-align: left; padding-left: 8px; }
 .setgrid th.is-current { color: var(--ui-accent); }
-.setgrid td { padding: 5px 4px; text-align: center; }
-.setgrid td:first-child { padding-left: 14px; text-align: left; width: 46px; }
+.setgrid td { padding: 5px 3px; text-align: center; }
+/* 68 px: cabe REGISTRAR, o cabeçalho mais longo das quatro línguas */
+.setgrid th:first-child, .setgrid td:first-child { width: 68px; }
+/* REPS só leva dois algarismos: cede largura a DESCANSO e ESFORÇO, as palavras longas */
+.setgrid th:nth-child(4), .setgrid td:nth-child(4) { width: 46px; }
+.setgrid td:first-child { padding-left: 8px; text-align: left; }
+.setgrid .valuepill { min-width: 0; width: 100%; padding: 8px 4px; }
 
 /* a linha ativa: azeitonado + barra volt à esquerda, exatamente como a foto */
 .setgrid tr.is-now td { background: var(--ui-accent-soft); }
@@ -549,7 +625,11 @@
   transition: background-color var(--duration-state) var(--ease-out), border-color var(--duration-state) var(--ease-out);
 }
 .set-check svg { width: 15px; height: 15px; }
-.set-check[aria-pressed='true'] { background: var(--ui-accent); color: var(--ui-accent-ink); border-color: transparent; }
+/* `.is-on` é o mesmo estado que o `aria-pressed` do protótipo pinta. São dois selectores
+   porque em produção o visto nem sempre é um botão: enquanto a folha só se lê, o estado
+   da série é uma marca e não um controlo, e um `aria-pressed` num `<span>` sem `role`
+   seria ARIA inventado. Quando a tarefa 3 lhe puser o toque, volta a ser botão. */
+.set-check[aria-pressed='true'], .set-check.is-on { background: var(--ui-accent); color: var(--ui-accent-ink); border-color: transparent; }
 /* alvo real de 44px sem engordar o círculo desenhado */
 .set-check-tap { border: 0; background: transparent; padding: 8px; cursor: pointer; display: inline-grid; place-items: center; }
 
@@ -577,7 +657,8 @@
 .session-bar {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
   padding: var(--sp-3) var(--sp-5) calc(var(--sp-3) + env(safe-area-inset-bottom, 0));
-  background: var(--ui-surface); border-top: 1px solid var(--ui-rule);
+  background: var(--ui-glass); border-top: 1px solid var(--ui-glass-edge);
+  -webkit-backdrop-filter: var(--ui-glass-blur); backdrop-filter: var(--ui-glass-blur);
   flex: 0 0 auto;
 }
 .session-bar .tot-label { font-family: var(--font-ui); font-weight: 600; font-size: 12px; color: var(--ui-text-muted); }
@@ -595,22 +676,29 @@
 .media-screen { position: relative; background: #000; color: var(--ui-on-media); flex: 1 1 auto; overflow: hidden; }
 .media-screen > img, .media-screen > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .media-top, .media-bottom { position: absolute; left: 0; right: 0; padding: var(--sp-4) var(--sp-5); }
-/* Os dois gradientes levam PASSO DO MEIO, e não é enfeite: com dois pontos só, o alfa
-   a meio da banda é a interpolação linear — 0,36 no topo e 0,43 em baixo — e é lá que
-   o texto assenta. Sobre um frame de vídeo BRANCO isso dava 2,52:1 no relógio e 2,85:1
-   no nome do exercício, abaixo dos 4,5. É a mesma correção que a .exdemo-info já fazia
-   (`0.62 46%`); estas duas bandas tinham ficado de fora. */
-.media-top { top: 0; background: linear-gradient(to bottom, rgb(0 0 0 / 0.72), rgb(0 0 0 / 0.62) 54%, transparent); }
-.media-bottom { bottom: 0; background: linear-gradient(to top, rgb(0 0 0 / 0.86), rgb(0 0 0 / 0.62) 46%, transparent); }
+/* B1 de .claude/skills/clipes-como-a-ladder/PLANO.md: o preto por cima do vídeo fica só
+   atrás do texto, a 0,6 no máximo, e acaba antes da pessoa. O contraste do texto já não
+   vem de um véu preto sobre metade do exercício (0,86→0,62 ardia nos olhos e escondia a
+   execução): vem da sombra no próprio texto, que escurece só à volta das letras. */
+.media-top { top: 0; background: linear-gradient(to bottom, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.3) 55%, transparent); }
+.media-bottom { bottom: 0; background: linear-gradient(to top, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.35) 40%, transparent 85%); }
+.media-top, .media-bottom { text-shadow: 0 1px 2px rgb(0 0 0 / 0.7), 0 0 12px rgb(0 0 0 / 0.45); }
 .media-clock { font-family: var(--font-ui); font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+/* No Executar, a banda de cima é UMA linha (✕ · relógio · música · definições) colada à
+   borda: a tira segmentada saiu, e a banda desce o mínimo sobre quem está no vídeo
+   (erro 1 de .claude/skills/executar-quatro-erros-do-browser/PLANO.md). */
+.media-run .media-top { padding-block: var(--sp-3); }
 
 /* a tira segmentada de séries, no topo */
 .segtrack { display: flex; gap: 6px; margin-top: var(--sp-3); align-items: center; }
 .segtrack i { flex: 1 1 0; height: 3px; border-radius: var(--radius-pill); background: rgb(255 255 255 / 0.28); position: relative; }
 .segtrack i.is-done { background: rgb(255 255 255 / 0.9); }
-.segtrack i.is-now { background: rgb(255 255 255 / 0.9); }
+.segtrack i.is-now {
+  background: linear-gradient(to right,
+    rgb(255 255 255 / 0.9) var(--at, 100%), rgb(255 255 255 / 0.28) var(--at, 100%));
+}
 .segtrack i.is-now::after {
-  content: ''; position: absolute; right: -3px; top: 50%; translate: 0 -50%;
+  content: ''; position: absolute; left: var(--at, 100%); top: 50%; translate: -50% -50%;
   width: 9px; height: 9px; border-radius: 50%; background: var(--ui-volt);
 }
 
@@ -620,6 +708,12 @@
 .media-num .v { font-family: var(--font-ui); font-weight: 700; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
 .media-num .v .u { font-size: 13px; color: rgb(255 255 255 / 0.86); }
 .media-num .k { font-family: var(--font-ui); font-size: 12px; color: rgb(255 255 255 / 0.86); margin-top: 4px; }
+/* O peso é um botão: tocar abre a roda do peso desta série. Parece-se com o número e mais
+   nada — sem caixa, sem sublinhado. */
+button.media-num {
+  border: 0; background: transparent; color: inherit; font: inherit; padding: 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
 .media-dial { position: relative; display: grid; place-items: center; }
 .media-dial .t { position: absolute; font-family: var(--font-ui); font-weight: 700; font-size: 32px; font-variant-numeric: tabular-nums; }
 
@@ -629,8 +723,150 @@
   background: rgb(255 255 255 / 0.07); backdrop-filter: blur(14px);
   border-radius: var(--radius-card); padding: var(--sp-3) var(--sp-4); margin-top: var(--sp-4);
 }
-.media-name .n { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
-.media-name .o { font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; color: var(--ui-volt); font-variant-numeric: tabular-nums; }
+.media-name .n { font-family: var(--font-ui); font-weight: 700; font-size: 15px; min-width: 0; }
+/* "1 de 4" nunca parte em duas linhas: o nome é que cede e desce de linha */
+.media-name .o { font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; color: var(--ui-volt); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; word-spacing: 0.14em; }
+
+/* O cartão do nome quando é a PEGA da folha das séries. Portado de `button.media-name`
+   em proto/v2/system.css, tal e qual: a pega cinzenta vive lá dentro, ao centro, por
+   cima do texto, e o cartão ganha o espaço dela em cima. */
+button.media-name {
+  width: 100%; text-align: left; cursor: pointer; border: 0;
+  padding-top: calc(var(--sp-3) + 12px); position: relative;
+  color: var(--ui-on-media); font: inherit;
+}
+button.media-name::before {
+  content: ''; position: absolute; top: 9px; left: 50%; translate: -50% 0;
+  width: 38px; height: 4px; border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.38);
+}
+
+/* A `.session-bar` dentro do rodapé do `<Sheet>`: o rodapé já traz o traço, o fundo e
+   as margens, por isso a barra encosta-lhe sem os repetir. É o irmão de
+   `.logsheet .session-bar` no protótipo, onde a folha era desenhada à mão. */
+.session-bar.sheet-total {
+  margin: 0; padding: 0; background: transparent; border-top: 0;
+}
+
+/* O ECRÃ DA LADDER — skill clipes-como-a-ladder (.claude/skills/clipes-como-a-ladder/SKILL.md).
+   Pedido dele, 2026-09-23, com a imagem do Romanian Deadlift da Ladder: o clipe enche o
+   ecrã, e os números assentam no CHÃO LIVRE do próprio clipe. Não é o layout que protege
+   a execução — é o MOLDE de scripts/clips/make.mjs: todos os clipes são 720×1280, a
+   pessoa inteira dentro da caixa x 60–660 · y 24–880, e os 31% de baixo livres. As
+   margens de 60px aguentam o `cover` de um telefone até 390×844 sem cortar ninguém.
+
+   A foto (exercício sem clipe) é deitada, 1000×667: `.is-fit` põe-na inteira sobre a
+   própria foto desfocada, porque cortar cabeças é o defeito. */
+.media-screen.is-fit > img,
+.media-screen.is-fit > video { object-fit: contain; z-index: 1; }
+.media-screen > img.media-bg {
+  position: absolute; inset: -8%; width: 116%; height: 116%;
+  object-fit: cover; filter: blur(26px) brightness(0.85); z-index: 0;
+}
+
+/* O mostrador do tempo é um CALIBRE DE TRAÇOS, e não um anel liso — é o que a imagem
+   de referência dele mostra. Os traços que já passaram são volt; os que faltam são
+   brancos esbatidos. */
+.dial-ticks line {
+  stroke: rgb(255 255 255 / 0.3); stroke-width: 3; stroke-linecap: round;
+  transition: stroke 220ms var(--ease-out);
+}
+.dial-ticks line.is-on { stroke: var(--ui-volt); }
+
+/* ------------------------------------------------------------------
+   OS DOIS ESTADOS DA SESSÃO CONDUZIDA — preparar e série
+   ------------------------------------------------------------------
+   Transcritos da gravação dele, proto/v2/video/TRANSCRICAO.md:
+
+     PREPARAR   véu + título + contagem 3·2·1  ·  sem números, sem mostrador
+     SÉRIE      números + mostrador           ·  sem véu, sem título
+
+   O estado vive numa classe na .media-screen: .media-run.is-set.
+   ------------------------------------------------------------------ */
+
+.media-run .media-set { display: none; }
+.media-run.is-set .media-set { display: block; }
+
+/* z-index 1: por baixo do .media-top e do .media-bottom (que são 2), para o relógio,
+   os ícones, a tira e o cartão do nome ficarem por cima do véu — é o que a gravação
+   mostra. O véu é 0,62 e não menos: sobre o pior frame possível (branco puro) um véu
+   de 0,48 dava 2,85:1 ao rótulo volt de 13px, abaixo dos 4,5; a 0,62 dá 4,75:1. */
+.media-prep {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 104px var(--sp-5) 116px;
+  background: rgb(0 0 0 / 0.62);
+}
+.media-run.is-set .media-prep { display: none; }
+
+.prep-title .s { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: var(--ui-volt); }
+.prep-title .n {
+  font-family: var(--font-ui); font-weight: 700; font-size: 26px; line-height: 1.15;
+  margin-top: 4px;
+}
+.prep-title .n b { color: var(--ui-volt); font-weight: 700; }
+
+/* A CONTAGEM 3 · 2 · 1. Correção dele, 2026-09-22: a pílula "Somar tempo para
+   preparar" da gravação saiu — só somava e não havia como tirar. Portado de
+   proto/v2/system.css, tarefa 5. O numeral é Anton a volt; o anel são os traços do
+   mostrador, acesos a volt e a apagar-se no sentido dos ponteiros enquanto conta.
+   Cada algarismo ENTRA a encolher de 1,15 para 1; nada salta, nada gira. */
+.media-prep { transition: opacity 240ms var(--ease-out); }
+/* Os últimos 240 ms do "1": o véu dissolve e o vídeo já está a mexer por baixo. */
+.media-run.is-going .media-prep { opacity: 0; }
+.prep-count {
+  position: relative; align-self: center; margin-block: auto;
+  width: 168px; height: 168px; display: grid; place-items: center;
+}
+.count-ticks { position: absolute; inset: 0; }
+.count-ticks line {
+  stroke: var(--ui-volt); stroke-width: 3; stroke-linecap: round;
+  /* 36 traços em 3 s: cada um apaga-se no seu momento, no sentido dos ponteiros. */
+  animation: count-tick-off 120ms linear both;
+  animation-delay: calc(var(--i) * 3000ms / 36);
+}
+@keyframes count-tick-off { to { stroke: rgb(255 255 255 / 0.22); } }
+/* "Terminar treino?" aberto: a contagem para onde está, os traços também (bug B4). */
+.prep-count.is-paused .count-ticks line,
+.prep-count.is-paused .count-n span { animation-play-state: paused; }
+/* Tocar no ecrã salta a contagem: um botão transparente por baixo do título e dos
+   números, que deixam passar o toque. */
+.prep-skip {
+  position: absolute; inset: 0; background: transparent; border: 0; padding: 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.prep-skip:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: -6px; }
+/* A demonstração a passar (B1 de .claude/skills/executar-demo-equipamento-ordem/PLANO.md):
+   tocar no ecrã salta-a. Por baixo do topo e do fundo, que são 2. */
+.demo-skip { z-index: 1; }
+/* Uma variante sem vídeo próprio (B4): diz-se, ao centro, e nunca o vídeo de outro exercício. */
+.run-nodemo {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: var(--sp-7);
+  text-align: center; font-family: var(--font-ui); font-size: 15px; color: rgb(255 255 255 / 0.7);
+}
+.media-prep > :not(.prep-skip) { position: relative; pointer-events: none; }
+.count-n {
+  margin: 0; font-family: var(--font-display); font-size: 104px; line-height: 1;
+  color: var(--ui-volt); font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 24px rgb(0 0 0 / 0.45);
+  /* A caixa da Anton tem um ascendente alto e o algarismo assentava abaixo do centro
+     do anel. Corta-se a caixa à altura do próprio algarismo. */
+  text-box: trim-both cap alphabetic;
+}
+.count-n span { display: inline-block; animation: count-in 240ms var(--ease-out) both; }
+@keyframes count-in {
+  from { transform: scale(1.15); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .count-n span, .count-ticks line { animation: none; }
+  .media-prep { transition: none; }
+}
+
+/* Música e definições da sessão existem no ecrã porque a imagem de referência as tem,
+   mas ainda não têm para onde ir — a música é a fase 012. Desativadas, e não fingidas:
+   um botão que não faz nada é pior do que um botão que diz que ainda não faz. */
+.btn-icon.on-media:disabled { opacity: 0.45; cursor: default; }
 
 /* ============================================================
    ANÉIS, TRACKS, GRÁFICOS
@@ -855,9 +1091,10 @@
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   padding: var(--sp-6) var(--sp-4) var(--sp-4);
   color: var(--ui-on-media);
-  /* O passo do meio é 0,62 e não 0,55: sobre um frame branco, a linha de meta a
-     86% de branco lia 3,98:1 no ponto mais claro por onde o texto passa. Dá 5,10:1. */
-  background: linear-gradient(to top, rgb(0 0 0 / 0.86), rgb(0 0 0 / 0.62) 46%, transparent);
+  /* B1 (.claude/skills/clipes-como-a-ladder/PLANO.md): véu curto, 0,6 no máximo; o contraste
+     do texto vem da sombra das letras, não de escurecer o exercício. */
+  background: linear-gradient(to top, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.35) 40%, transparent);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.7), 0 0 12px rgb(0 0 0 / 0.45);
 }
 .exdemo.is-active .exdemo-name { font-size: 18px; white-space: normal; }
 .exdemo.is-active .exdemo-meta { color: rgb(255 255 255 / 0.86); font-size: 13px; }
@@ -906,13 +1143,128 @@
 .exdemo.is-active.wants-tap .exdemo-manual { display: grid; }
 .exdemo.is-active.wants-tap .exdemo-play { display: grid; background: rgb(0 0 0 / 0.3); }
 
-/* A bolha do treinador, sobre o vídeo, como na fotografia de referência. */
+/* A BOLHA DA TREINADORA — portada de proto/v2/system.css tal e qual. É a PRIMEIRA
+   LINHA do .media-set e os números a segunda: duas linhas de uma coluna não se tocam,
+   e o peso nunca lhe pinta por cima da cara (era o `bottom:148px` de antes). */
+.media-coachrow { display: flex; justify-content: flex-end; padding-bottom: var(--sp-4); }
 .media-coach {
-  position: absolute; right: var(--sp-5); bottom: 148px; z-index: 2;
   width: 56px; height: 56px; border-radius: 50%; overflow: hidden;
-  border: 2px solid var(--ui-volt); box-shadow: var(--ui-shadow-body);
+  border: 2px solid rgb(255 255 255 / 0.3);
+  /* O anel preto por fora dá ao contorno volt com que contrastar num frame claro. */
+  box-shadow: 0 0 0 3px rgb(0 0 0 / 0.5), var(--ui-shadow-body);
+  transition: border-color var(--duration-state) var(--ease-out);
 }
+/* Contorno volt aceso enquanto ela fala, apagado quando cala — como na gravação. */
+.media-coach.is-speaking { border-color: var(--ui-volt); }
 .media-coach img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes coach-in {
+  from { transform: translateX(140%); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.media-run.is-set .media-coach { animation: coach-in 240ms var(--ease-out) 120ms both; }
+
+/* ------------------------------------------------------------------
+   O CARTÃO DO NOME, O SEGUINTE A ESPREITAR, E A FOLHA QUE SOBE
+   ------------------------------------------------------------------
+   Imagens da Ladder (tarefa 7): por baixo do cartão do nome já se vê o exercício
+   seguinte, cortado pela borda do ecrã. Deslizar PARA CIMA no cartão faz a folha subir
+   de baixo com o dedo — nada de gesto para os lados. */
+.media-run .media-bottom { padding-bottom: 0; }
+.run-peek {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-top: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+  height: 46px; overflow: hidden; pointer-events: none;
+}
+.run-peek .thumb { width: 52px; height: 52px; border-radius: 10px; }
+.run-peek p { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgb(255 255 255 / 0.92); }
+button.media-name { touch-action: none; }
+
+/* A camada da folha vive DENTRO do telefone, por cima do vídeo — é assim que o vidro
+   deixa ver o vídeo a mexer desfocado por trás, como na primeira imagem. */
+.run-layer { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; justify-content: flex-end; }
+.run-layer .scrim { transition: opacity 300ms var(--ease-out); }
+.run-layer .sheet {
+  position: relative; max-height: 90%; padding-bottom: 0;
+  transform: translateY(var(--drag, 0px));
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.run-layer.is-dragging .sheet { transition: none; }
+/* A folha das séries enche a altura, como a da Ladder, mesmo com três séries só; a
+   lista dos outros exercícios mora por baixo (erro 4, proto/v2/system.css "3 · A folha
+   enche a altura"). */
+.run-layer .logsheet { height: 90%; }
+/* "Já feitos": o separador quando a lista passa aos exercícios acabados. */
+.queue-label { margin-top: var(--sp-7); color: var(--ui-text-muted); }
+
+/* O EXECUTAR NO BROWSER — a partir de 1024px (erro 3 de
+   .claude/skills/executar-quatro-erros-do-browser/PLANO.md; proto/v2/system.css "4 · O
+   executar no browser", frame 4d). A janela inteira: o clipe inteiro (contain) à altura
+   toda, e por trás o mesmo clipe desfocado a encher os lados. Os números e o cartão
+   crescem, numa coluna de 680px ao centro. As séries abrem num painel de 420px à
+   direita, e o vídeo encosta-se à esquerda e continua a correr. */
+.run-wide-bg { display: none; }
+@media (min-width: 1024px) {
+  .run-frame .media-screen > video.run-wide-bg {
+    display: block; object-fit: cover; filter: blur(34px) brightness(0.85); transform: scale(1.12);
+  }
+  .run-frame .media-screen > video:not(.run-wide-bg) { object-fit: contain; z-index: 1; }
+  /* Sem transição na margem (animar layout dá solavancos): o painel é que desliza, com
+     transform, e o vídeo encosta-se de uma vez. */
+  .run-frame.is-panel .media-screen { margin-right: 420px; }
+  .run-frame .media-top { padding: var(--sp-5) var(--sp-7); }
+  .run-frame .media-clock { font-size: 20px; }
+  .run-frame .media-bottom { padding: var(--sp-5) max(var(--sp-7), calc((100% - 680px) / 2)) var(--sp-7); }
+  .run-frame .media-num { min-width: 96px; }
+  .run-frame .media-num .v { font-size: 52px; }
+  .run-frame .media-num .v .u { font-size: 18px; }
+  .run-frame .media-num .k { font-size: 14px; }
+  .run-frame .dial-ticks { width: 168px; height: 168px; }
+  .run-frame .media-dial .t { font-size: 44px; }
+  .run-frame .media-name { width: 100%; padding: var(--sp-4) var(--sp-5); }
+  .run-frame .media-name .n { font-size: 18px; }
+  .run-frame .media-name .o { font-size: 14px; }
+  .run-frame .run-peek { display: none; }
+
+  /* A folha das séries é o painel da direita: entra de lado, sem escurecer o vídeo. */
+  .run-frame .run-layer { left: auto; width: 420px; max-width: 100%; }
+  .run-frame .run-layer .scrim { display: none; }
+  .run-frame .run-layer .sheet {
+    height: 100%; max-height: none; border-radius: 0;
+    border-left: 1px solid var(--ui-glass-edge);
+    transform: translateX(var(--drag, 0px));
+  }
+  .run-frame .run-layer .sheet-handle { display: none; }
+}
+
+.run-layer.is-entering .sheet { transform: translateY(100%); }
+.run-layer .sheet-head { touch-action: none; cursor: grab; }
+.run-layer .sheet-handle { touch-action: none; }
+.run-layer .sheet-body { padding-bottom: var(--sp-5); min-height: 0; flex: 1 1 auto; }
+.run-layer .session-bar {
+  margin: 0 calc(var(--sp-5) * -1);
+  padding-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom, 0));
+}
+.run-layer .blockhead { cursor: default; }
+.queued-tap {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
+  padding-block: var(--sp-3); border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-field);
+}
+.run-panel {
+  margin-bottom: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-field); background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--ui-glass-edge);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.45; color: var(--ui-text-muted);
+}
+.run-panel .row-h { display: flex; justify-content: space-between; gap: var(--sp-3); padding-block: 4px; }
+.run-panel .row-h b { color: var(--ui-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.run-panel .presetrow { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .media-run.is-set .media-coach { animation: none; }
+  .run-layer .sheet, .run-layer .scrim { transition: none; }
+}
 
 /* ============================================================
    MÚSICA  ·  .nowplaying, .scrub, .musicbar
@@ -1107,3 +1459,289 @@
   }
 }
 }
+
+/* ============================================================
+   ENTRADA — portada de proto/v2/01-entrada.html (fundo-vidro-e-entrada T4). Como a foto Red Bricks (2026-09-22):
+   a mesma foto a ecrã inteiro por trás dos três, escurecida em gradiente;
+   título centrado; rótulo pequeno por cima de campos claros; botão cheio;
+   "ou entra com" + três sociais; rodapé com a troca. Nada de regras antes de escrever.
+   ============================================================ */
+.auth {
+  /* Na app o ecrã inteiro, sempre: 100% de um body sem altura dava a altura do
+     formulário, e o resto do ecrã ficava cinzento por baixo (foto dele, 2026-09-23). */
+  position: relative; min-height: 100dvh; overflow: hidden;
+  display: flex; flex-direction: column; color: #fff; background: #0b0c0e;
+}
+.auth-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.auth-veil {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgb(8 9 11 / 0.35) 0%, rgb(8 9 11 / 0.72) 38%, rgb(8 9 11 / 0.94) 72%, #08090b 100%);
+}
+.auth-veil.is-splash {
+  background: linear-gradient(180deg, rgb(8 9 11 / 0.05) 0%, rgb(8 9 11 / 0.25) 45%, rgb(8 9 11 / 0.92) 80%, #08090b 100%);
+}
+.auth-body {
+  position: relative; z-index: 1; flex: 1 1 auto; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--sp-9)) var(--sp-6) var(--sp-6);
+}
+/* Num ecrã largo o formulário fica ao centro, na vertical também. */
+@media (min-width: 640px) {
+  .auth .auth-body { justify-content: center; padding-top: var(--sp-6); }
+  .auth .auth-foot { margin-top: 0; }
+}
+.auth-title {
+  margin: 0 0 var(--sp-6); text-align: center;
+  font-family: var(--font-ui); font-weight: 700; font-size: 28px; letter-spacing: -0.01em;
+}
+.auth-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-field label { font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; color: #fff; }
+.auth-input-wrap { position: relative; }
+.auth-input {
+  width: 100%; min-height: 46px; padding: 11px 44px 11px 14px;
+  font-family: var(--font-ui); font-size: 16px; color: #fff;
+  background: rgb(255 255 255 / 0.14); border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 8px;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: border-color 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.auth-input::placeholder { color: rgb(255 255 255 / 0.55); }
+.auth-input:focus { outline: none; border-color: var(--ui-volt); background: rgb(255 255 255 / 0.18); }
+.auth-input.is-error { border-color: #ff8577; }
+.auth-eye {
+  position: absolute; right: 4px; top: 50%; translate: 0 -50%;
+  width: 40px; height: 40px; border: 0; background: none; color: rgb(255 255 255 / 0.7);
+  display: grid; place-items: center; cursor: pointer;
+}
+.auth-eye svg { width: 18px; height: 18px; }
+/* A única regra que aparece: a que falta, e só depois de escrever. */
+.auth-hint { margin: 2px 0 0; font-size: 12px; color: #ff8577; }
+.auth-hint[hidden] { display: none; }
+.auth-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-size: 12.5px; }
+.auth-row .switch { transform: scale(0.8); transform-origin: left center; }
+.auth-row label { display: flex; align-items: center; gap: var(--sp-2); color: rgb(255 255 255 / 0.8); }
+.auth-link { color: var(--ui-volt); font-weight: 700; text-decoration: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.auth-link.is-quiet { color: rgb(255 255 255 / 0.75); font-weight: 500; }
+.auth-submit {
+  min-height: 48px; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--ui-volt); color: var(--ui-volt-ink);
+  font-family: var(--font-ui); font-weight: 700; font-size: 16px;
+  margin-top: var(--sp-2);
+}
+.auth-or {
+  display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-5) 0 var(--sp-4);
+  font-size: 12.5px; color: rgb(255 255 255 / 0.7);
+}
+.auth-or::before, .auth-or::after { content: ''; flex: 1 1 auto; height: 1px; background: rgb(255 255 255 / 0.25); }
+.auth-social { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
+.auth-social button {
+  min-height: 42px; border-radius: 8px; cursor: pointer; color: #fff;
+  background: rgb(255 255 255 / 0.12); border: 1px solid rgb(255 255 255 / 0.18);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  display: grid; place-items: center;
+}
+.auth-social svg { width: 18px; height: 18px; }
+.auth-foot { margin-top: auto; padding-top: var(--sp-6); text-align: center; font-size: 13px; color: rgb(255 255 255 / 0.75); }
+.auth-bar { width: 72px; height: 4px; border-radius: var(--radius-pill); background: var(--ui-volt); margin: var(--sp-4) auto 0; }
+.auth-brand {
+  position: relative; z-index: 1; margin: auto 0; text-align: center; padding: 0 var(--sp-6);
+}
+.auth-brand .mark {
+  width: 64px; height: 64px; margin: 0 auto var(--sp-4); border-radius: 18px;
+  display: grid; place-items: center; background: var(--ui-volt); color: var(--ui-volt-ink);
+}
+.auth-brand .mark svg { width: 34px; height: 34px; }
+.auth-brand .name {
+  margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
+  font-size: 44px; line-height: 0.95; letter-spacing: 0.01em;
+}
+.auth-brand .name span { color: var(--ui-volt); }
+.auth-brand .sub { margin: var(--sp-3) 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: rgb(255 255 255 / 0.75); }
+.auth-splash-foot { position: relative; z-index: 1; padding: 0 var(--sp-6) calc(env(safe-area-inset-bottom, 0px) + var(--sp-5)); }
+
+
+/* ============================================================
+   JORNADA  ·  .journey-*
+   ------------------------------------------------------------
+   A fita do ciclo de periodização, no ecrã Treino.
+
+   O DEFEITO QUE ISTO CORRIGE: eram quatro .card de width:150px
+   dentro de um .hscroll. 4x150 + 3x8 = 624px numa tela de 390.
+   O terceiro cartão ficava a meio, o quarto não existia, e a
+   Descarga (1 semana) tinha a largura do Bloco 1 (4 semanas) —
+   uma fita que representa tempo sem representar tempo.
+
+   A REGRA DESTA PEÇA: cada banda é tão larga quanto é longa.
+   Não se finge com percentagens: a banda CONTÉM as suas semanas,
+   uma célula cada, e a proporção 4:4:3:1 sai da contagem. Mexer
+   nas semanas mexe na largura sozinho.
+
+   A cor diz o tempo e o contorno diz a escolha — são coisas
+   diferentes e não se misturam. Volt = semana cumprida, facto.
+   Contorno = a fase que estás a ver, preferência.
+   ============================================================ */
+
+.journey-rail {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  height: var(--tap-set);
+  border-radius: var(--radius-field);
+  background: var(--ui-surface-sunken);
+}
+
+/* --weeks é a duração da fase E a largura da banda. É o mesmo número. */
+.journey-band {
+  flex: var(--weeks) 1 0;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transform-origin: left center;
+  animation: journey-draw 520ms var(--ease-out) both;
+}
+.journey-band:nth-child(1) { animation-delay: 0ms; }
+.journey-band:nth-child(2) { animation-delay: 60ms; }
+.journey-band:nth-child(3) { animation-delay: 120ms; }
+.journey-band:nth-child(4) { animation-delay: 180ms; }
+
+/* A fase que está escolhida. O contorno cabe nos 6px de intervalo
+   entre bandas (1px de folga + 1.5px de traço, com 3px de cada lado). */
+.journey-band[aria-selected='true'] { outline: 1.5px solid var(--ui-accent); outline-offset: 1px; }
+.journey-band:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+
+/* Uma célula por semana. A separação vem do fundo da calha a
+   aparecer pelo intervalo — sem risca desenhada, sem hairline que
+   precise de contraste próprio em dois temas. */
+.journey-week {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 3px;
+  background: var(--ui-surface-raised);
+  overflow: hidden;
+}
+
+/* O volt entra por cima, a crescer da esquerda: é o tempo a passar,
+   não um preenchimento estático. A meia-semana é mesmo meia. */
+.journey-week.is-done::before,
+.journey-week.is-half::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ui-accent);
+  transform-origin: left center;
+  animation: journey-fill 420ms var(--ease-out) both;
+  animation-delay: calc(560ms + var(--i, 0) * 90ms);
+}
+.journey-week.is-half::before { right: 50%; }
+
+/* A descarga não é treino por fazer: é recuperação planeada. Lê-se
+   como outra coisa sem estrear cor nenhuma. */
+.journey-band.is-deload .journey-week {
+  background-image: repeating-linear-gradient(135deg, var(--ui-text-muted) 0 2px, transparent 2px 7px);
+}
+
+/* A régua: os mesmos --weeks, para cada rótulo cair debaixo da sua
+   banda. A da descarga tem ~24px e por isso diz "12" e não "Sem 12" —
+   o nome inteiro vive no painel e na folha, não cortado a meio. */
+.journey-scale {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-inline: 4px;
+}
+.journey-scale > span {
+  flex: var(--weeks) 1 0;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ui-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* O painel da fase escolhida. Altura fixa: as frases têm
+   comprimentos diferentes e o bloco não pode saltar ao trocar. */
+.journey-panel {
+  position: relative;
+  margin-top: var(--sp-4);
+  min-height: 62px;
+}
+.journey-panel-layer { display: block; }
+.journey-panel-layer.phase-leave { position: absolute; inset: 0; }
+.journey-panel .journey-name { font-size: 16px; }
+.journey-state {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ui-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.journey-state.is-now { color: var(--ui-accent); }
+
+/* A linha da folha: a fase inteira, com a faixa que prescreve.
+   Sem regra colorida à esquerda — o destaque é a superfície. */
+.journey-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap-set);
+  padding: var(--sp-4);
+  border: 0;
+  border-radius: var(--radius-field);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  cursor: pointer;
+  transition: background-color 160ms var(--ease-out);
+}
+.journey-row[aria-selected='true'] {
+  background: var(--ui-surface-raised);
+  box-shadow: var(--ui-edge-light);
+  outline: 1.5px solid var(--ui-accent);
+  outline-offset: -1.5px;
+}
+.journey-facts {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--ui-rule);
+}
+.journey-facts span {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ui-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
+@keyframes journey-draw { from { transform: scaleX(0); } }
+@keyframes journey-fill { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .journey-band,
+  .journey-week.is-done::before,
+  .journey-week.is-half::before { animation: none; }
+}
+
+/* A pega de arrastar (B5 de .claude/skills/executar-demo-equipamento-ordem/PLANO.md). No
+   cartão do dia fica no canto de cima, sobre a foto; no cartão do exercício, ao lado do nome. */
+.reorder-handle { color: var(--ui-text-muted); margin: -10px -8px -10px 0; transition: color 160ms var(--ease-out); }
+.reorder-handle:hover, .reorder-handle:focus-visible { color: var(--ui-text); }
+.daycard > .reorder-handle, .card-flat > .reorder-handle {
+  position: absolute; top: var(--sp-2); right: var(--sp-2); margin: 0; z-index: 1;
+}
+.daycard > .reorder-handle { color: var(--ui-on-media); background: rgb(0 0 0 / 0.35); border-radius: 999px; }
+.queued-lifted { transform: scale(1.02); background: var(--ui-surface-raised, rgb(255 255 255 / 0.06)); border-radius: 16px; box-shadow: var(--shadow-float); }
+.run-layer .blockhead .reorder-handle { margin: 0; }
