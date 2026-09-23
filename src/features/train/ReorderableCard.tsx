@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
 import { Reorder, useDragControls, useReducedMotion } from 'motion/react';
+
+import { Icon } from '../../ui/Icon';
 
 import { ReorderContext, type CardReorder } from './reorder-context';
 
@@ -113,14 +116,17 @@ export function ReorderableCard({
   const rootProps: CardReorder['rootProps'] = {
     onPointerDown: (event) => {
       if (dragging.current || event.button !== 0) return;
+      /*
+       * A press on a control INSIDE the card is that control's. The card itself can be
+       * `role="button"` (the day card is), and it must not count: `closest` finds the
+       * card first and the hold never started — bug B5 of
+       * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`.
+       */
       const el = event.target as HTMLElement;
-      if (
-        el.closest(
-          'button, a, input, textarea, select, label, iframe, [role="button"], [contenteditable="true"]',
-        )
-      ) {
-        return;
-      }
+      const control = el.closest(
+        'button, a, input, textarea, select, label, iframe, [role="button"], [contenteditable="true"]',
+      );
+      if (control && control !== event.currentTarget) return;
       origin.current = { x: event.clientX, y: event.clientY, event };
       holdTimer.current = setTimeout(() => {
         if (origin.current) beginDrag(origin.current.event);
@@ -162,5 +168,37 @@ export function ReorderableCard({
         {children}
       </ReorderContext.Provider>
     </Reorder.Item>
+  );
+}
+
+/**
+ * The grab handle: an immediate pickup on pointer (`touch-none`, so a drag off it never
+ * scrolls) and the keyboard path — focus it, Arrow Up / Down moves the row one place.
+ * It came back after the redesign took it out and left no visible way to reorder (B5).
+ * Renders nothing outside a reorderable list.
+ */
+export function ReorderHandle({
+  name,
+  words,
+}: {
+  name: string;
+  words: { reorder: string; position: string; positionOf: string };
+}) {
+  const reorder = useContext(ReorderContext);
+  if (!reorder) return null;
+  return (
+    <button
+      type="button"
+      aria-label={`${words.reorder}: ${name}, ${words.position} ${reorder.position} ${words.positionOf} ${reorder.total}`}
+      aria-describedby={reorder.hintId}
+      onPointerDown={reorder.handleProps.onPointerDown}
+      onKeyDown={reorder.handleProps.onKeyDown}
+      className={clsx(
+        'reorder-handle grid h-11 w-9 shrink-0 touch-none select-none place-items-center rounded-field',
+        reorder.lifted ? 'cursor-grabbing' : 'cursor-grab',
+      )}
+    >
+      <Icon name="grip" size={18} strokeWidth={2.2} />
+    </button>
   );
 }

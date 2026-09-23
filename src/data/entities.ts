@@ -26,6 +26,21 @@ const ownedRow = {
   updated_by_client: nullableText.optional(),
 };
 
+/**
+ * One set's own numbers, from `014`. Every field is optional: a set whose weight was
+ * changed on the wheel and nothing else carries only `weight`, and the rest still reads
+ * from the exercise-wide columns or the prescription. Numbers, not text — these are
+ * only ever written by the wheel, which only gives numbers.
+ */
+export const setValueSchema = z.object({
+  rest: z.number().nullable().optional(),
+  rpe: z.number().nullable().optional(),
+  reps: z.number().nullable().optional(),
+  weight: z.number().nullable().optional(),
+});
+
+export type SetValue = z.infer<typeof setValueSchema>;
+
 export const exerciseLogSchema = z.object({
   ...ownedRow,
   day_no: z.number().int(),
@@ -35,6 +50,13 @@ export const exerciseLogSchema = z.object({
   reps: nullableText,
   sets_done: z.array(z.boolean()),
   note: nullableText,
+  /*
+   * One entry per set, by position (`014`). Optional rather than required because a
+   * database where `014` has not been run yet has no such column, and the rows it
+   * sends are still whole rows — the screen reads a missing list as "no set has numbers
+   * of its own" and falls back to the columns above, which is exactly the truth there.
+   */
+  sets: z.array(setValueSchema).optional(),
   /*
    * Written only by `merge_exercise_log`, never by the client. It is read here
    * because replica identity full puts it on every realtime payload, and a schema
@@ -137,6 +159,9 @@ export const trainerSessionSchema = z.object({
   trainer_id: z.uuid(),
   session_date: nullableText,
   note: nullableText,
+  /* `016`: o instante marcado e quanto dura. Null nas marcações da app antiga. */
+  starts_at: timestamptz.nullable().optional(),
+  duration_min: z.number().int().nullable().optional(),
 });
 
 export const userProfileSchema = z.object({
@@ -321,6 +346,41 @@ export const dayAdditionSchema = z.object({
   block_config: z.record(z.string(), z.unknown()),
 });
 
+/* ---------- nutrição (015) -------------------------------------------------- */
+
+/** Numeric columns arrive as numbers from PostgREST, or as strings for `numeric`. */
+const num = z.union([z.number(), z.string().transform(Number)]);
+
+export const nutritionTargetSchema = z.object({
+  ...ownedRow,
+  kcal: z.number().int().nullable(),
+  protein_g: z.number().int().nullable(),
+});
+
+export const foodEntrySchema = z.object({
+  ...ownedRow,
+  id: z.uuid(),
+  local_date: z.string(),
+  meal: z.enum(['breakfast', 'lunch', 'snack', 'dinner']),
+  name: z.string(),
+  kcal: z.number().int().nullable(),
+  protein_g: num.nullable(),
+  carbs_g: num.nullable(),
+  fat_g: num.nullable(),
+  source: z.enum(['text', 'voice', 'ai', 'code']),
+  estimate: z.boolean(),
+  barcode: nullableText,
+  created_at: timestamptz,
+});
+
+export const weightLogSchema = z.object({
+  ...ownedRow,
+  id: z.uuid(),
+  local_date: z.string(),
+  kg: num,
+  created_at: timestamptz,
+});
+
 /* ---------- the registry --------------------------------------------------- */
 
 /**
@@ -347,6 +407,9 @@ export const TABLES = {
   catalog_exercises: catalogExerciseSchema,
   day_additions: dayAdditionSchema,
   day_order: dayOrderSchema,
+  nutrition_targets: nutritionTargetSchema,
+  food_entries: foodEntrySchema,
+  weight_logs: weightLogSchema,
 } as const;
 
 export type TableName = keyof typeof TABLES;
@@ -381,6 +444,8 @@ export const SHARED_TABLES: ReadonlySet<TableName> = new Set<TableName>([
   'catalog_exercises',
   'day_additions',
   'day_order',
+  /* `017`: a lista de treinadores é de toda a gente (decisão dele, 2026-09-23). */
+  'trainers',
 ]);
 
 /**
@@ -417,6 +482,9 @@ export type ExerciseOrder = z.infer<typeof exerciseOrderSchema>;
 export type CatalogExercise = z.infer<typeof catalogExerciseSchema>;
 export type DayAddition = z.infer<typeof dayAdditionSchema>;
 export type DayOrder = z.infer<typeof dayOrderSchema>;
+export type NutritionTarget = z.infer<typeof nutritionTargetSchema>;
+export type FoodEntry = z.infer<typeof foodEntrySchema>;
+export type WeightLog = z.infer<typeof weightLogSchema>;
 
 /**
  * The primary key of each table, which the realtime bridge needs to find the row a
@@ -448,4 +516,7 @@ export const PRIMARY_KEYS: Record<TableName, readonly string[]> = {
   catalog_exercises: ['id'],
   day_additions: ['id'],
   day_order: ['id'],
+  nutrition_targets: ['user_id'],
+  food_entries: ['id'],
+  weight_logs: ['id'],
 };

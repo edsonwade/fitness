@@ -1,18 +1,24 @@
 import { createBrowserRouter } from 'react-router';
 
 import { Catalog } from '../features/catalog/Catalog';
+import { Nutrition } from '../features/nutrition/Nutrition';
+import { Profile } from '../features/profile/Profile';
+import { Onboarding } from '../features/onboarding/Onboarding';
+import { Team } from '../features/team/Team';
 import { DayView } from '../features/train/DayView';
+import { Calendar } from '../features/calendar/Calendar';
+import { Progress } from '../features/progress/Progress';
+import { Evolution } from '../features/progress/Evolution';
+import { RunSession } from '../features/train/RunSession';
 import { Today } from '../features/today/Today';
 import { Train } from '../features/train/Train';
 import { AppShell } from './AppShell';
 import {
   NotFound,
-  ProfilePending,
   RequireNoSession,
   RequireSession,
   RouteError,
   SessionBoundary,
-  SurfacePending,
 } from './route-elements';
 
 /**
@@ -65,12 +71,23 @@ export const router = createBrowserRouter(
                 { index: true, element: <Today /> },
                 { path: 'treino', element: <Train /> },
                 { path: 'catalogo', element: <Catalog /> },
-                { path: 'nutricao', element: <SurfacePending /> },
-                { path: 'equipa', element: <SurfacePending /> },
-                { path: 'perfil', element: <ProfilePending /> },
+                { path: 'nutricao', element: <Nutrition /> },
+                { path: 'equipa', element: <Team /> },
+                { path: 'perfil', element: <Profile /> },
               ],
             },
+            { path: 'boas-vindas', element: <Onboarding /> },
+            { path: 'progresso', element: <Progress /> },
+            { path: 'calendario', element: <Calendar /> },
+            { path: 'evolucao', element: <Evolution /> },
             { path: 'treino/:dia', element: <DayView /> },
+            /*
+             * O Executar está fora do <AppShell> pela mesma razão que o dia está, e
+             * com mais força ainda: é o ecrã onde se treina entre séries, e uma barra
+             * de separadores a meio de uma série são cinco maneiras de perder o sítio.
+             * Entra-se por COMEÇAR TREINO, que é a única porta, como a gravação mostra.
+             */
+            { path: 'treino/:dia/executar', element: <RunSession /> },
           ],
         },
         { path: 'entrar', element: <RequireNoSession /> },

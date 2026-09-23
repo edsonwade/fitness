@@ -2,11 +2,19 @@ import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-q
 
 import { clientId, stamp } from './client-id';
 import { deleteRow as deleteRowFromDb, parseRow, upsertRow as upsertRowInDb } from './db';
-import type { CatalogExercise, DayAddition, ExerciseLog, RowOf, Session, TableName } from './entities';
+import type {
+  CatalogExercise,
+  DayAddition,
+  ExerciseLog,
+  RowOf,
+  Session,
+  SetValue,
+  TableName,
+} from './entities';
 import { AUTHORED_TABLES, isShared, PRIMARY_KEYS, TABLES } from './entities';
 import { dbKeys, mutationKeys, scopeOfRow } from './keys';
 import { useUserId } from './queries';
-import { applyIncoming, applyOptimistic, removeRow } from './row-cache';
+import { applyIncoming, applyOptimistic, findRow, removeRow } from './row-cache';
 import { supabase } from './supabase';
 
 /**
@@ -130,7 +138,33 @@ function reportWriteError(table: string, kind: string, error: Error, variables: 
 }
 
 export type LogKey = { day_no: number; block: string; ex_key: string };
-export type LogFields = Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'sets_done' | 'note'>>;
+/**
+ * What changed in some sets, by position: `{ 2: { weight: 62.5 } }` is "the third set's
+ * weight is now 62.5", and says nothing about the others. An object and not an array so
+ * the position travels without the neighbours — `merge_exercise_log` (`014`) stamps
+ * each set's each field on its own, and a whole array would stamp them all.
+ */
+export type SetsPatch = Record<number, SetValue>;
+
+export type LogFields = Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'sets_done' | 'note'>> & {
+  sets?: SetsPatch;
+};
+
+/**
+ * A sets patch laid over the sets a row already has — the optimistic twin of the loop
+ * in `014`. Positions past the end are filled with empty sets first, for the same
+ * reason the SQL does it: the patch names a position, and appending would put the
+ * value in the wrong one.
+ */
+export function mergeSets(current: readonly SetValue[], patch: SetsPatch): SetValue[] {
+  const next = current.map((set) => ({ ...set }));
+  for (const [pos, fields] of Object.entries(patch)) {
+    const i = Number(pos);
+    while (next.length <= i) next.push({});
+    next[i] = { ...next[i], ...fields };
+  }
+  return next;
+}
 export type MergeLogVars = LogKey & { user_id: string; fields: LogFields; changedAt: string };
 
 /** One exercise inside a recorded session: what was prescribed, and what was done. */
@@ -573,38 +607,44 @@ export function useMergeExerciseLog() {
     onMutate: async (variables) => {
       const key = dbKeys.rows(variables.user_id, 'exercise_logs');
       const ctx = await beginOptimistic(client, key);
-      client.setQueryData<ExerciseLog[]>(
-        key,
-        (rows = []) =>
-          applyOptimistic(
-            rows,
-            'exercise_logs',
-            {
-              user_id: variables.user_id,
-              day_no: variables.day_no,
-              block: variables.block,
-              ex_key: variables.ex_key,
-              ...variables.fields,
-            },
-            /*
-             * What the row is worth the first time it is written. An exercise gets
-             * its log row on the edit that creates it, and until the server answers
-             * the only version of it that exists is this one, so it has to be
-             * complete. `updated_at` is the epoch rather than now: the point of the
-             * comment above is that the server's row must win, and a row stamped
-             * with the local clock would not lose to it.
-             */
-            {
-              weight: null,
-              reps: null,
-              note: null,
-              sets_done: [],
-              field_updated_at: {},
-              updated_at: new Date(0).toISOString(),
-              updated_by_client: clientId(),
-            },
-          ),
-      );
+      client.setQueryData<ExerciseLog[]>(key, (rows = []) => {
+        const where = {
+          user_id: variables.user_id,
+          day_no: variables.day_no,
+          block: variables.block,
+          ex_key: variables.ex_key,
+        };
+        /* `sets` travels as a patch and lives as an array: it is merged here, over what
+           the row already has, and not spread over it — spreading would put the patch
+           object where the array was. */
+        const { sets, ...fields } = variables.fields;
+        const merged = sets
+          ? { sets: mergeSets(findRow(rows, 'exercise_logs', where)?.sets ?? [], sets) }
+          : {};
+        return applyOptimistic(
+          rows,
+          'exercise_logs',
+          { ...where, ...fields, ...merged },
+          /*
+           * What the row is worth the first time it is written. An exercise gets
+           * its log row on the edit that creates it, and until the server answers
+           * the only version of it that exists is this one, so it has to be
+           * complete. `updated_at` is the epoch rather than now: the point of the
+           * comment above is that the server's row must win, and a row stamped
+           * with the local clock would not lose to it.
+           */
+          {
+            weight: null,
+            reps: null,
+            note: null,
+            sets_done: [],
+            sets: [],
+            field_updated_at: {},
+            updated_at: new Date(0).toISOString(),
+            updated_by_client: clientId(),
+          },
+        );
+      });
       return ctx;
     },
     onError: (error, variables, ctx) => {

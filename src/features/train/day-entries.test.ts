@@ -124,6 +124,8 @@ function resolve(input: Partial<Parameters<typeof resolveDayEntries>[0]> = {}) {
     day: DAY,
     dayNo: 1,
     block: 'b1',
+    /* Portuguese by name, so an expectation below can be read as a sentence. */
+    locale: 'pt',
     customs: [],
     overrides: [],
     hidden: [],
@@ -156,7 +158,13 @@ describe('resolveDayEntries', () => {
     const { entries, hiddenCount } = resolve();
     expect(entries.map((e) => e.key)).toEqual(DAY.items!.map((i) => i.ex));
     expect(hiddenCount).toBe(0);
-    expect(entries[0].prescription).toEqual(DAY.items![0].b1);
+    /*
+     * The authored prescription carries its load in four languages and an entry
+     * carries the one the screen asked for, so the two are equal field by field with
+     * the load resolved. That difference IS the fix: before it, the Carga column
+     * printed Portuguese in Spanish.
+     */
+    expect(entries[0].prescription).toEqual({ ...DAY.items![0].b1, l: DAY.items![0].b1.l.pt });
     expect(entries[0].exercise).toBe(EXERCISES.dbbench);
   });
 
@@ -182,6 +190,7 @@ describe('resolveDayEntries', () => {
     // Untouched fields keep the programme's values, including RPE, which the form
     // deliberately does not offer.
     expect(entry.prescription.r).toBe(base.r);
+    // `l` is not in this list: the override replaced it, and the line above checked it.
     expect(entry.prescription.rpe).toBe(base.rpe);
     expect(entry.prescription.rest).toBe(base.rest);
     expect(entry.override).toBeDefined();
@@ -197,7 +206,7 @@ describe('resolveDayEntries', () => {
   it('refuses a blank override field rather than blanking the card', () => {
     const { entries } = resolve({ overrides: [override({ name: '   ', sets: '' })] });
     const entry = entries.find((e) => e.key === 'dbbench')!;
-    expect(entry.name).toBe(EXERCISES.dbbench.nPT);
+    expect(entry.name).toBe(EXERCISES.dbbench.n.pt);
     expect(entry.prescription.s).toBe(DAY.items![0].b1.s);
   });
 
@@ -212,7 +221,7 @@ describe('resolveDayEntries', () => {
   it('never gives a custom exercise a baseline video or photo', () => {
     const { entries } = resolve({ customs: [custom({ name: 'Leg Press 45°' })] });
     const entry = entries.at(-1)!;
-    expect(entry.videoId).toBeNull();
+    expect(entry.clip).toBeNull();
     expect(entry.photo).toBeNull();
     expect(entry.exercise).toBeUndefined();
   });

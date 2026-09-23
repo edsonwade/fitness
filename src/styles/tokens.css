@@ -74,17 +74,22 @@
    */
   --ui-page: #050506;
   --ui-ground: #0a0a0b;
-  --ui-surface: #191a1c;
-  --ui-surface-raised: #26282b;
-  --ui-surface-sunken: #050506;
+  /* No escuro as superfícies são VIDRO sobre o gradiente, como no protótipo v2
+     — fundo-vidro-e-entrada T3, 2026-09-22: "o background continua preto (…) tem
+     que mudar toda app". Cinzento chapado deixou de existir. */
+  --ui-surface: rgb(255 255 255 / 0.045);
+  --ui-surface-raised: rgb(255 255 255 / 0.075);
+  --ui-surface-sunken: rgb(0 0 0 / 0.3);
 
   /*
    * A lavagem de pêssego era do mundo de agosto e não existe na v2: o topo do ecrã
    * é o ground, liso. O gradiente que os ecrãs desenham resolve-se numa cor só em
    * vez de ser suavizado — mesmo elemento, sem brilho nenhum.
    */
-  --ui-wash-from: #0a0a0b;
-  --ui-wash-to: #0a0a0b;
+  /* A lavagem de 420px do topo era #0a0a0b chapado: era o preto que acabava a meio
+     do Treinar, com a costura por baixo. No escuro fica transparente. */
+  --ui-wash-from: rgb(10 10 11 / 0);
+  --ui-wash-to: rgb(10 10 11 / 0);
 
   --ui-text: #f2f2f0; /* 17.65:1 no ground */
   --ui-text-muted: #a2a3a8; /* 7.86:1 no ground, 5.87:1 no raised */
@@ -154,6 +159,21 @@
    * preto. O que separa é um degrau de LUZ no topo da peça.
    */
   --ui-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.06);
+
+  /*
+   * O FUNDO PREMIUM DO ESCURO, portado de proto/v2/tokens.css (tarefa 6, confere dele à
+   * tarefa 7). Palavras dele, 2026-09-22: "todo tema escuro tem que ter o background das
+   * imagens, toda app no escuro". Ardósia em cima, malva em baixo, como a Fora; as folhas
+   * são vidro por cima dele, como a da Ladder.
+   */
+  --ui-ground-grad:
+    radial-gradient(90% 40% at 15% 0%, rgb(58 74 82 / 0.3) 0%, rgb(58 74 82 / 0) 100%),
+    linear-gradient(180deg, #273035 0%, #1d2429 34%, #1c1d22 62%, #2c2429 84%, #3a3034 100%);
+  --ui-glass: rgb(24 27 31 / 0.45);
+  --ui-glass-strong: rgb(22 24 29 / 0.55);
+  --ui-glass-edge: rgb(255 255 255 / 0.08);
+  --ui-glass-blur: blur(28px) saturate(1.35);
+  --ui-scrim-glass: rgb(0 0 0 / 0.26);
 
   color-scheme: dark;
 }
@@ -226,6 +246,14 @@
     /* Sobre uma folha clara a sombra chega, e o degrau de luz não teria o que fazer. */
     --ui-edge-light: none;
 
+    /* No claro não há vidro nem gradiente: as mesmas peças, lisas. */
+    --ui-ground-grad: none;
+    --ui-glass: var(--ui-surface);
+    --ui-glass-strong: var(--ui-surface);
+    --ui-glass-edge: transparent;
+    --ui-glass-blur: none;
+    --ui-scrim-glass: var(--ui-scrim);
+
     color-scheme: light;
   }
 }
@@ -286,6 +314,14 @@
     0 2px 4px -2px rgb(30 30 32 / 0.12), 0 16px 32px -10px rgb(30 30 32 / 0.18),
     0 44px 80px -28px rgb(30 30 32 / 0.22);
   --ui-edge-light: none;
+
+  /* No claro não há vidro nem gradiente: as mesmas peças, lisas. */
+  --ui-ground-grad: none;
+  --ui-glass: var(--ui-surface);
+  --ui-glass-strong: var(--ui-surface);
+  --ui-glass-edge: transparent;
+  --ui-glass-blur: none;
+  --ui-scrim-glass: var(--ui-scrim);
 
   color-scheme: light;
 }
@@ -523,6 +559,8 @@ input:-webkit-autofill:focus {
 
 html {
   background-color: var(--ui-page);
+  background-image: var(--ui-ground-grad);
+  background-attachment: fixed;
   color: var(--ui-text);
   font-family: var(--font-ui);
   -webkit-text-size-adjust: 100%;
@@ -531,7 +569,9 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background-color: var(--ui-page);
+  /* Transparente: o chão é o do html (gradiente no escuro). Pintar --ui-page aqui
+     tapava o gradiente e fazia a costura ao passar dos 100dvh. */
+  background: transparent;
   color: var(--ui-text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 
 import { useUserId } from '../../data/queries';
-import { useT } from '../../i18n/locale-context';
+import { useLocale, useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
@@ -268,7 +268,7 @@ function Row({
   onEdit: () => void;
   onPlace: () => void;
 }) {
-  const copy = useT();
+  const { locale, t: copy } = useLocale();
   const t = copy.catalog;
   const { row } = item;
   /*
@@ -276,7 +276,7 @@ function Row({
    * printing all four here would be sixteen figures on a screen someone is scanning;
    * the first block is the one it was written against.
    */
-  const p = derivePrescription(row, row.kind, 'b1');
+  const p = derivePrescription(row, row.kind, 'b1', locale);
 
   return (
     <article className="flex items-center gap-3 rounded-card bg-surface p-3 shadow-[var(--shadow-card)]">
@@ -307,12 +307,6 @@ function Row({
             <>
               <span aria-hidden="true"> · </span>
               {row.equipment}
-            </>
-          ) : null}
-          {row.video_id ? (
-            <>
-              <span aria-hidden="true"> · </span>
-              <Icon name="play" size={11} strokeWidth={2} className="inline align-[-1px]" />
             </>
           ) : null}
         </p>

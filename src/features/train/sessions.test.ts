@@ -32,7 +32,7 @@ function entry(over: Partial<DayEntry> = {}): DayEntry {
     name: 'Leg Press',
     equipment: 'Máquina',
     prescription: { s: 3, r: '10', rpe: '8', l: '60 kg', rest: '90 s' },
-    videoId: null,
+    clip: null,
     photo: null,
     fallbackPhoto: null,
     ...over,

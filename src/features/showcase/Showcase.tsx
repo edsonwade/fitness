@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { BLOCKS, DAYS, EXERCISES } from '../../content';
 import type { ThemePreference } from '../../app/theme';
 import { useThemeState } from '../../app/theme-context';
+import { useLocale } from '../../i18n/locale-context';
 import { builtinPoster, dayPoster } from '../train/day-entries';
 
 /**
@@ -213,6 +214,7 @@ function SectionHeading({ title, action }: { title: string; action?: string }) {
 /* ---------- filter pills (carousel) ----------------------------------------- */
 
 function BlockChips({ active, onSelect }: { active: number; onSelect: (i: number) => void }) {
+  const { locale } = useLocale();
   return (
     <div className="rail -mx-7 gap-2.5 px-7 pb-1" role="tablist" aria-label="Blocos de periodização">
       {BLOCKS.map((block, index) => {
@@ -240,7 +242,7 @@ function BlockChips({ active, onSelect }: { active: number; onSelect: (i: number
                 : 'bg-chip text-chip-ink',
             )}
           >
-            {block.t.pt}
+            {block.t[locale]}
           </button>
         );
       })}
@@ -253,6 +255,7 @@ function BlockChips({ active, onSelect }: { active: number; onSelect: (i: number
 const BLOCK_KEYS = ['b1', 'b2', 'b3', 'dl'] as const;
 
 function HeroCard({ day, blockIndex }: { day: (typeof DAYS)[number]; blockIndex: number }) {
+  const { locale } = useLocale();
   const items = day.items ?? [];
   const key = BLOCK_KEYS[blockIndex];
   const sets = items.reduce((total, item) => total + item[key].s, 0);
@@ -274,13 +277,13 @@ function HeroCard({ day, blockIndex }: { day: (typeof DAYS)[number]; blockIndex:
       </button>
 
       <div className="relative flex min-h-[238px] flex-col justify-end p-5">
-        <h3 className="font-ui text-[23px] font-700 leading-[1.12] text-white">{day.name.pt}</h3>
-        <p className="mt-1.5 line-clamp-1 font-ui text-[13px] text-white/80">{day.eyebrow.pt}</p>
+        <h3 className="font-ui text-[23px] font-700 leading-[1.12] text-white">{day.name[locale]}</h3>
+        <p className="mt-1.5 line-clamp-1 font-ui text-[13px] text-white/80">{day.eyebrow[locale]}</p>
 
         <ul className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-ui text-[12px] text-white/85">
           <MetaItem icon="M7 3v3M17 3v3M4 9h16M5 6h14v14H5z">{items.length} exercícios</MetaItem>
           <MetaItem icon="M12 3v18M5 8l7-5 7 5">{sets} séries</MetaItem>
-          <MetaItem icon="M4 18V9M10 18V5M16 18v-7M22 18h-20">{BLOCKS[blockIndex].s.pt}</MetaItem>
+          <MetaItem icon="M4 18V9M10 18V5M16 18v-7M22 18h-20">{BLOCKS[blockIndex].s[locale]}</MetaItem>
         </ul>
 
         <span className="mt-4 inline-flex w-fit items-center rounded-full bg-accent px-5 py-3 font-ui text-[13px] font-700 text-accent-ink">
@@ -311,6 +314,7 @@ function ProgramList({
   programs: (typeof DAYS)[number][];
   blockIndex: number;
 }) {
+  const { locale } = useLocale();
   const key = BLOCK_KEYS[blockIndex];
 
   return (
@@ -325,7 +329,7 @@ function ProgramList({
           <li key={day.id}>
             <article className="relative flex items-center gap-3 rounded-[20px] bg-surface p-3 shadow-[var(--shadow-card)]">
               <div className="min-w-0 flex-1 py-1 pl-1">
-                <h3 className="truncate font-ui text-[18px] font-700 text-text">{day.name.pt}</h3>
+                <h3 className="truncate font-ui text-[18px] font-700 text-text">{day.name[locale]}</h3>
 
                 <p className="mt-1.5 flex items-center gap-1.5 font-ui text-[12px] text-text-muted">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">

@@ -56,7 +56,11 @@ export type ExerciseInput = {
   reps: string;
   load: string;
   rest: string;
-  /** Already reduced to an id by `youtubeId`. Empty means no demonstration. */
+  /**
+   * The row's existing `video_id`, carried through untouched so a save never erases it.
+   * The app no longer shows or edits it: the demonstration is the local clip
+   * (`clips.ts`), and YouTube left the app on 2026-09-22.
+   */
   videoId: string;
   photoUrl: string | null;
   visibility: Visibility;

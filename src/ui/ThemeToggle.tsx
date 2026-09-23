@@ -1,48 +1,40 @@
 import clsx from 'clsx';
 
-import type { ThemePreference } from '../app/theme';
+import { nextTheme } from '../app/theme';
 import { useThemeState } from '../app/theme-context';
 import { useT } from '../i18n/locale-context';
-import { Icon, type IconName } from './Icon';
+import { Icon } from './Icon';
 
 /**
- * The theme control, lifted out of the Programs screen so every surface can carry it.
+ * O botão do tema, na barra de topo de TODOS os ecrãs — B1 de
+ * .claude/skills/tema-em-todas-as-barras/PLANO.md ("tem de estar visível em todos os
+ * menus e submenus, na parte de cima, dos exercícios também").
  *
- * It cycles system, light and dark and names the current state to a screen reader,
- * so it is never a mystery icon. Until there is a settings surface, this is the one
- * place the preference is reachable, which is why it sits in the header of each
- * screen rather than being buried.
+ * Alterna só entre escuro e claro: numa barra, um terceiro estado ("sistema") faz o
+ * toque parecer que não fez nada. O "sistema" continua nas Definições, e aqui resolve-se
+ * pelo telefone. O ícone mostra PARA ONDE vais: sol no escuro, lua no claro.
  */
-const NEXT: Record<ThemePreference, ThemePreference> = {
-  system: 'light',
-  light: 'dark',
-  dark: 'system',
-};
+function prefersDark(): boolean {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return false;
+  }
+}
 
-const GLYPH: Record<ThemePreference, IconName> = {
-  system: 'system',
-  light: 'sun',
-  dark: 'moon',
-};
-
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ onMedia = false, className }: { onMedia?: boolean; className?: string }) {
   const { theme, setTheme } = useThemeState();
   const t = useT().theme;
+  const next = nextTheme(theme, prefersDark());
 
   return (
     <button
       type="button"
-      onClick={() => setTheme(NEXT[theme])}
-      aria-label={`${t.label}: ${t[theme]}. ${t.hint}`}
-      className={clsx(
-        'grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface text-text',
-        'shadow-[var(--shadow-card)]',
-        'transition-transform duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-        'active:scale-[0.96] motion-reduce:active:scale-100',
-        className,
-      )}
+      onClick={() => setTheme(next)}
+      aria-label={next === 'light' ? t.toLight : t.toDark}
+      className={clsx('btn btn-icon', onMedia && 'on-media', className)}
     >
-      <Icon name={GLYPH[theme]} size={20} strokeWidth={1.9} />
+      <Icon name={next === 'light' ? 'sun' : 'moon'} size={20} strokeWidth={2} />
     </button>
   );
 }

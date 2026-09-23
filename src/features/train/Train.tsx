@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router';
 import { Reorder } from 'motion/react';
 import clsx from 'clsx';
 
-import { BLOCKS, type BlockKey } from '../../content';
-import { useT } from '../../i18n/locale-context';
-import { ThemeToggle } from '../../ui/ThemeToggle';
+import type { BlockKey } from '../../content';
+import { useLocale } from '../../i18n/locale-context';
 import { Icon, IconButton } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
-import { PhaseJourney } from './PhaseJourney';
+import { JourneyRail } from './JourneyRail';
+import { weekSlot } from './recommendation';
+import { localDate, useSessions } from './sessions';
+import { weekPlan } from '../today/week-plan';
+import { INTL_LOCALE } from '../../i18n';
 import { DaySheet, type DaySheetMode } from './DaySheet';
 import {
   applyDayDrag,
@@ -20,10 +23,11 @@ import {
   type DayInput,
   type DayRef,
 } from './custom-days';
-import { ReorderableCard } from './ReorderableCard';
-import { ReorderContext, type CardReorder } from './reorder-context';
+import { ReorderHandle, ReorderableCard } from './ReorderableCard';
+import { ReorderContext } from './reorder-context';
 import { dayPoster, useProgramme, type DayEntry } from './day-entries';
 import { BLOCK_KEYS, dayProgress, useExerciseLogs } from './logs';
+import { ThemeToggle } from '../../ui/ThemeToggle';
 
 
 /** Which week is being shown and edited: everybody's, or this account's own. */
@@ -53,7 +57,7 @@ const SCOPE_STORAGE = 'week-order-scope';
  * this list, so the control belongs on this list.
  */
 export function Train() {
-  const copy = useT();
+  const { locale, t: copy } = useLocale();
   const t = copy.train;
   const d = copy.days;
   const navigate = useNavigate();
@@ -107,8 +111,8 @@ export function Train() {
 
   /* The canonical sequence the server says this scope has, resolved to the real days. */
   const canonicalNos = useMemo(
-    () => resolveDays(d, week.customs ?? [], chosenOrder ?? undefined).map((day) => day.no),
-    [d, week.customs, chosenOrder],
+    () => resolveDays(d, locale, week.customs ?? [], chosenOrder ?? undefined).map((day) => day.no),
+    [d, locale, week.customs, chosenOrder],
   );
   const sig = canonicalNos.join(',');
 
@@ -146,8 +150,8 @@ export function Train() {
 
   /* The days in the order the list is drawn in, with the weekday label per position. */
   const days = useMemo(
-    () => resolveDays(d, week.customs ?? [], liveOrder),
-    [d, week.customs, liveOrder],
+    () => resolveDays(d, locale, week.customs ?? [], liveOrder),
+    [d, locale, week.customs, liveOrder],
   );
 
   function persist(next: number[]) {
@@ -267,69 +271,29 @@ export function Train() {
   }
 
   return (
-    <div className="relative min-h-full bg-ground">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-wash-from from-15% via-wash-from/75 via-45% to-wash-to"
-      />
+    <div className="relative min-h-full">
+      <div className="appbar pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <h1 className="display display-4">{copy.journey.screenTitle}</h1>
+        <span className="spacer" />
+        <Link className="btn btn-icon" to="/calendario" aria-label={copy.journey.calendar}>
+          <Icon name="calendar" size={20} strokeWidth={2} />
+        </Link>
+        <Link className="btn btn-icon" to="/progresso" aria-label={copy.journey.progress}>
+          <Icon name="chart" size={20} strokeWidth={2} />
+        </Link>
+        <ThemeToggle />
+      </div>
 
-      <div className="relative px-5 pb-10">
-        <header className="flex items-center gap-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
-          <div className="min-w-0 flex-1">
-            <h1 className="font-ui text-[26px] font-700 leading-[1.1] tracking-[-0.02em] text-text">
-              {t.title}
-            </h1>
-            <p className="mt-1 font-ui text-[13.5px] text-text-muted">{t.subtitle}</p>
-          </div>
-          <ThemeToggle />
-        </header>
-
-        {/*
-          * A prontidão VIVIA AQUI e mudou-se para o ecrã HOJE com o porte do sistema v2:
-          * em `proto/v2/02-hoje.html` ela é o primeiro cartão desse ecrã, e este passou a
-          * ser o ecrã do plano da semana. O cálculo, o texto e o caso de conta sem
-          * histórico são os mesmos da fase 007 — só mudou o sítio, por escolha dele.
-          *
-          * O catálogo também perdeu o separador de baixo, porque no v2 pendura-se daqui.
-          * Esta é a sua porta, e sem ela ficava sem nenhuma.
-          */}
-        <p className="mt-5">
-          <Link to="/catalogo" className="chip">
-            <Icon name="search" size={15} strokeWidth={2} />
-            {copy.nav.catalog}
-          </Link>
-        </p>
-
-        {/*
-          * The week's rail names the phase, not its number. These four names wrap rather
-          * than scroll, so every phase is one tap away and nothing hides.
-          */}
-        <div className="mt-5 flex flex-wrap gap-2.5" role="tablist" aria-label={t.blocksLabel}>
-          {BLOCKS.map((b) => {
-            const selected = b.k === block;
-            return (
-              <button
-                key={b.k}
-                role="tab"
-                type="button"
-                aria-selected={selected}
-                onClick={() => setBlock(b.k as BlockKey)}
-                className={clsx(
-                  'min-h-[44px] rounded-full px-5 font-ui text-[13.5px] font-500',
-                  'transition-colors duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-                  'active:scale-[0.97] motion-reduce:active:scale-100',
-                  selected
-                    ? 'bg-chip-selected font-600 text-chip-selected-ink'
-                    : 'bg-chip text-chip-ink',
-                )}
-              >
-                {t.phase[b.k as BlockKey]}
-              </button>
-            );
-          })}
+      <div className="relative pb-10">
+        <div className="px-5 pb-4">
+          <JourneyRail block={block} onBlock={setBlock} />
         </div>
 
-        <PhaseJourney block={block} />
+        <div className="px-5">
+          <WeekStrip days={days} onOpen={openDay} />
+        </div>
+
+        <div className="px-5">
 
         {logs.isError || programme.isError || week.isError ? (
           <p
@@ -343,13 +307,60 @@ export function Train() {
         <WriteFailureNotice failure={editing.failure} />
         <WriteFailureNotice failure={orderEditing.failure} />
 
+        <div className="row-between pb-3 pt-6">
+          <h2 className="display display-4">{copy.journey.yourDays}</h2>
+          <button type="button" className="chip chip-sm" onClick={() => openSheet({ kind: 'new' })}>
+            {copy.journey.newDay}
+          </button>
+        </div>
+
+        <Reorder.Group
+          as="ul"
+          axis="y"
+          values={liveOrder}
+          onReorder={reorder}
+          className="mt-4 flex flex-col gap-2.5"
+        >
+          {days.map((dayRef, index) => (
+            <ReorderableCard
+              key={dayRef.no}
+              value={dayRef.no}
+              position={index + 1}
+              total={days.length}
+              hintId={hintId}
+              onPickup={() => pickUp(dayRef.no)}
+              onDrop={drop}
+              onKeyMove={(direction) => moveByKey(dayRef.no, direction)}
+            >
+              <DayCard
+                dayRef={dayRef}
+                block={block}
+                entries={programme.resolve(dayRef.day, dayRef.no).entries}
+                logs={logs.byKey}
+                pending={logs.isPending || programme.isPending}
+                isToday={index === weekSlot(new Date())}
+                onOpen={() => openDay(dayRef.no)}
+                onArm={armTap}
+                /*
+                 * Only a day the user added. The programme's seven ship in the bundle
+                 * and nothing in the database can change or remove them, so a pencil on
+                 * one would open a form with no destination.
+                 */
+                onEdit={
+                  dayRef.kind === 'own' ? () => openSheet({ kind: 'edit', ref: dayRef }) : undefined
+                }
+              />
+            </ReorderableCard>
+          ))}
+        </Reorder.Group>
+
         {/*
           * Whose week this is, and the way back. Not a switch hidden in settings: the
           * order of the week is a thing people share, so which one you are looking at,
           * and how to return to everyone's, belong on the week itself. Quiet, two taps,
           * out of the way of the day cards it governs.
           */}
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div
             role="radiogroup"
             aria-label={d.orderLabel}
@@ -409,59 +420,10 @@ export function Train() {
           {scope === 'own' ? d.orderOwnActive : d.orderSharedActive}
         </p>
 
-        <Reorder.Group
-          as="ul"
-          axis="y"
-          values={liveOrder}
-          onReorder={reorder}
-          className="mt-4 flex flex-col gap-2.5"
-        >
-          {days.map((dayRef, index) => (
-            <ReorderableCard
-              key={dayRef.no}
-              value={dayRef.no}
-              position={index + 1}
-              total={days.length}
-              hintId={hintId}
-              onPickup={() => pickUp(dayRef.no)}
-              onDrop={drop}
-              onKeyMove={(direction) => moveByKey(dayRef.no, direction)}
-            >
-              <DayCard
-                dayRef={dayRef}
-                block={block}
-                entries={programme.resolve(dayRef.day, dayRef.no).entries}
-                logs={logs.byKey}
-                pending={logs.isPending || programme.isPending}
-                onOpen={() => openDay(dayRef.no)}
-                onArm={armTap}
-                /*
-                 * Only a day the user added. The programme's seven ship in the bundle
-                 * and nothing in the database can change or remove them, so a pencil on
-                 * one would open a form with no destination.
-                 */
-                onEdit={
-                  dayRef.kind === 'own' ? () => openSheet({ kind: 'edit', ref: dayRef }) : undefined
-                }
-              />
-            </ReorderableCard>
-          ))}
-        </Reorder.Group>
 
-        <button
-          type="button"
-          onClick={() => openSheet({ kind: 'new' })}
-          className={clsx(
-            'mt-3 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full',
-            'border border-dashed border-edge/60 bg-transparent',
-            'font-ui text-[14px] font-700 text-text',
-            'transition-[border-color,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-            'active:scale-[0.98] motion-reduce:active:scale-100 pointer-hover:border-edge',
-          )}
-        >
-          <Icon name="plus" size={18} strokeWidth={2.2} />
-          {d.create}
-        </button>
+        <Link to="/catalogo" className="btn btn-secondary btn-block mt-6">
+          {copy.journey.catalog}
+        </Link>
 
         {/* The reorder hint the grab handles point at, and the live region a keyboard move speaks. */}
         <p id={hintId} className="sr-only">
@@ -470,6 +432,7 @@ export function Train() {
         <p role="status" aria-live="polite" className="sr-only">
           {announce}
         </p>
+        </div>
       </div>
 
       {sheet ? (
@@ -495,9 +458,12 @@ function DayCard({
   onOpen,
   onArm,
   onEdit,
+  isToday,
 }: {
   dayRef: DayRef;
   block: BlockKey;
+  /** A ranhura de hoje, que o protótipo contorna a volt. */
+  isToday: boolean;
   /** The day the user actually has: baseline, plus their own, minus what they hid. */
   entries: readonly DayEntry[];
   logs: ReturnType<typeof useExerciseLogs>['byKey'];
@@ -509,7 +475,7 @@ function DayCard({
   /** Opens the day's own form, delete included. Only a day the user added has one. */
   onEdit?: () => void;
 }) {
-  const copy = useT();
+  const { locale, t: copy } = useLocale();
   const t = copy.train;
   const d = copy.days;
   const reorder = useContext(ReorderContext);
@@ -520,131 +486,96 @@ function DayCard({
    * day" on a day someone had just filled with their own exercises.
    */
   const isRest = dayRef.type === 'rest' && entries.length === 0;
-  /*
-   * A day of your own always opens, rest or not. The programme's rest day has nothing
-   * behind it and nothing you could do there; yours has a name to change and a delete.
-   */
   const opens = dayRef.kind === 'own' || !isRest;
   const photo = entries[0]?.photo ?? (dayRef.kind === 'built' ? dayPoster(dayRef.no) : null);
   const setCount = entries.reduce((sum, entry) => sum + entry.prescription.s, 0);
   const progress = dayProgress(dayRef.no, block, entries, logs);
+  const eyebrow = dayRef.day?.eyebrow[locale] ?? dayRef.label;
 
+  /*
+   * `proto/v2/03-treino.html` frame 1: o dia é um `daycard` com a foto a toda a largura,
+   * sobrancelha, nome em display e a contagem; o de hoje leva contorno volt e "Hoje ·" na
+   * sobrancelha; o descanso é um `card card-flat`. Prime e segura para arrastar, ou foca o
+   * cartão e usa as setas — sem pega e sem setas desenhadas, como o protótipo.
+   */
   return (
     <article
       {...reorder?.rootProps}
-      /*
-       * Capture, so it runs before `rootProps` starts the hold timer and does not
-       * override its `onPointerDown`. It only says "a new gesture has begun"; whether it
-       * becomes a drag is decided later, by the hold timer or the grab handle.
-       */
       onPointerDownCapture={onArm}
-      style={reorder?.lifted ? { touchAction: 'none' } : undefined}
-      /*
-       * The whole card taps to open — a big target for a hand mid-set — but a tap that
-       * lands on the "Abrir" link or the pencil is theirs, and a release at the end of a
-       * drag is not a tap at all: `onOpen` drops the drag's tail, and this returns early
-       * for the controls so they never navigate twice.
-       */
+      tabIndex={0}
+      role="button"
+      aria-label={`${eyebrow}, ${dayRef.name}. ${opens ? `${progress.pct}%` : ''}`}
+      aria-describedby={reorder?.hintId}
+      onKeyDown={(event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && opens) {
+          event.preventDefault();
+          onOpen();
+          return;
+        }
+        reorder?.handleProps.onKeyDown(event);
+      }}
+      style={{
+        ...(reorder?.lifted ? { touchAction: 'none' } : null),
+        ...(isToday ? { outline: '2px solid var(--ui-accent)', outlineOffset: 0 } : null),
+      }}
       onClick={(event) => {
         if (!opens) return;
         if ((event.target as HTMLElement).closest('a, button')) return;
         onOpen();
       }}
       className={clsx(
-        'relative flex items-center gap-3 rounded-[20px] bg-surface p-3',
+        isRest || !photo ? 'card card-flat' : 'daycard',
+        'relative cursor-pointer select-none',
         'transition-[box-shadow,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
-        reorder?.lifted
-          ? 'z-10 scale-[1.02] shadow-[var(--shadow-float)] motion-reduce:scale-100'
-          : 'shadow-[var(--shadow-card)]',
-        isRest && !reorder?.lifted && 'opacity-90',
+        reorder?.lifted && 'z-10 scale-[1.02] shadow-[var(--shadow-float)] motion-reduce:scale-100',
       )}
     >
-      {reorder ? <ReorderHandle name={dayRef.name} reorder={reorder} /> : null}
-
-      <div className="min-w-0 flex-1 py-1">
-        <p className="font-ui text-[11px] font-600 uppercase tracking-[0.04em] text-text-muted">
-          {dayRef.label}
-        </p>
-        <h2 className="mt-0.5 truncate font-ui text-[18px] font-700 text-text">{dayRef.name}</h2>
-
-        {isRest ? (
-          <p className="mt-1.5 font-ui text-[12px] text-text-muted">{t.restDay}</p>
-        ) : (
-          <p className="mt-1.5 flex items-start gap-1.5 font-ui text-[12px] leading-[1.45] text-text-muted">
-            <Icon name="dumbbell" size={13} strokeWidth={1.8} className="mt-0.5 shrink-0" />
-            {/*
-              * Uma frase num elemento só. Em items de flex anónimos cada pedaço de
-              * texto era uma caixa sua, e a 360 a linha partia-se a meio de
-              * "exercícios"; assim, se tiver mesmo de passar a duas linhas, parte
-              * entre palavras e o ícone fica onde está.
-              */}
-            <span className="min-w-0">
-              {entries.length} {entries.length === 1 ? t.exercise : t.exercises}{' '}
-              <span aria-hidden="true">·</span> {setCount}{' '}
-              {setCount === 1 ? t.serie : t.series}
-            </span>
+      {isRest || !photo ? (
+        <>
+          <p className="label">{isToday ? `${copy.journey.today} · ${eyebrow}` : eyebrow}</p>
+          <p className="title-2 mt-1">{isRest ? copy.today.rest : dayRef.name}</p>
+          <p className="body-2 muted mt-0.5">
+            {isRest
+              ? t.restDay
+              : `${entries.length} ${entries.length === 1 ? t.exercise : t.exercises} · ${setCount} ${setCount === 1 ? t.serie : t.series}`}
           </p>
-        )}
-
-        {opens ? (
-          <div className="mt-3 flex items-center gap-3">
-            {/*
-             * The real navigation control: a link, so the keyboard, the screen reader
-             * and a right-click all treat opening the day as what it is. The card's own
-             * tap handler covers the rest of the surface.
-             */}
-            <Link
-              to={`/treino/${dayRef.no}?bloco=${block}`}
-              aria-label={`${dayRef.name}. ${progress.pct}% concluído.`}
-              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-accent px-4 py-2.5 font-ui text-[12px] font-700 text-accent-ink transition-transform duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:active:scale-100"
-            >
-              {t.open}
-              <Icon name="forward" size={13} strokeWidth={2.4} />
-            </Link>
-            {pending ? (
-              <span
-                className="h-[38px] w-[38px] shrink-0 animate-pulse rounded-full bg-surface-sunken motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            ) : (
-              <Ring value={progress.pct} />
-            )}
-          </div>
-        ) : null}
-      </div>
-
-      {photo ? (
-        <img
-          src={photo}
-          alt=""
-          loading="lazy"
-          onError={(e) => {
-            const fallback = dayRef.kind === 'built' ? dayPoster(dayRef.no) : null;
-            if (!fallback || e.currentTarget.src.endsWith(fallback)) return;
-            e.currentTarget.src = fallback;
-          }}
-          className="h-[86px] w-[86px] shrink-0 rounded-[16px] object-cover min-[380px]:h-[108px] min-[380px]:w-[108px]"
-        />
+        </>
       ) : (
-        <span
-          aria-hidden="true"
-          className="grid h-[86px] w-[86px] shrink-0 place-items-center rounded-[16px] bg-surface-sunken text-text-muted min-[380px]:h-[108px] min-[380px]:w-[108px]"
-        >
-          <Icon name="dumbbell" size={30} strokeWidth={1.5} />
-        </span>
+        <>
+          <img
+            src={photo}
+            alt=""
+            loading="lazy"
+            draggable={false}
+            onError={(e) => {
+              const fallback = dayRef.kind === 'built' ? dayPoster(dayRef.no) : null;
+              if (!fallback || e.currentTarget.src.endsWith(fallback)) return;
+              e.currentTarget.src = fallback;
+            }}
+          />
+          <div className="veil" />
+          <div className="on-top">
+            <p className="eyebrow" style={isToday ? { color: 'var(--ui-volt)', opacity: 1 } : undefined}>
+              {isToday ? `${copy.journey.today} · ${eyebrow}` : eyebrow}
+            </p>
+            <p className="display display-3">{dayRef.name}</p>
+            <p className="meta tabular">
+              {entries.length} {entries.length === 1 ? t.exercise : t.exercises} · {setCount}{' '}
+              {setCount === 1 ? t.serie : t.series}
+              {!pending && progress.done > 0 ? ` · ${progress.pct}%` : ''}
+            </p>
+          </div>
+        </>
       )}
 
+      {/* A pega de arrastar, no canto: sem ela não havia maneira à vista de mudar a ordem (B5). */}
+      <ReorderHandle name={dayRef.name} words={d} />
       {onEdit ? (
         <IconButton
           icon="edit"
-          /*
-           * The default 44px, not the small one. It sits over a photograph on a card
-           * that scrolls under a thumb, and it is the way into a sheet with a delete in
-           * it: this is the last control on the screen to make hard to hit accurately.
-           */
           label={`${d.edit}: ${dayRef.name}`}
           onClick={onEdit}
-          className="absolute right-3 top-3 border border-rule"
+          className="absolute right-14 top-3 border border-rule"
         />
       ) : null}
     </article>
@@ -652,70 +583,41 @@ function DayCard({
 }
 
 /**
- * The grab handle, at the head of the day card.
- *
- * The same control the exercises got: an immediate, precise pickup on pointer
- * (`touch-none`, so a drag off it never scrolls), and the keyboard path — focus it,
- * Arrow Up / Down moves the day one place, announced by the week's live region. One
- * quiet grip, not two arrows: the ban on chevrons is not undone by the alternative
- * that replaces them.
+ * A tira da semana — `weekstrip` do frame 1. Sete botões Seg…Dom com a data, e o ponto:
+ * volt cheio se houve sessão desse dia do plano, contorno volt no dia de hoje por treinar.
  */
-function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }) {
-  const d = useT().days;
-  return (
-    <button
-      type="button"
-      aria-label={`${d.reorder}: ${name}, ${d.position} ${reorder.position} ${d.positionOf} ${reorder.total}`}
-      aria-describedby={reorder.hintId}
-      onPointerDown={reorder.handleProps.onPointerDown}
-      onKeyDown={reorder.handleProps.onKeyDown}
-      className={clsx(
-        '-ml-0.5 grid h-11 w-8 shrink-0 touch-none select-none place-items-center rounded-field',
-        'transition-colors duration-[160ms] pointer-hover:text-text',
-        reorder.lifted ? 'cursor-grabbing text-text' : 'cursor-grab text-text-muted',
-      )}
-    >
-      <Icon name="grip" size={18} strokeWidth={2.2} />
-    </button>
-  );
-}
-
-/** The reference's progress ring, wired to a real completion figure. */
-function Ring({ value }: { value: number }) {
-  const t = useT().train;
-  const size = 38;
-  const stroke = 4;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dash = (Math.max(0, Math.min(100, value)) / 100) * circumference;
+function WeekStrip({ days, onOpen }: { days: readonly DayRef[]; onOpen: (no: number) => void }) {
+  const { locale } = useLocale();
+  const sessions = useSessions();
+  const today = localDate(new Date());
+  const slots = days.map((x) => ({ no: x.no, rest: x.type === 'rest' }));
+  const plan = weekPlan(slots, sessions.data ?? [], today);
+  const wd = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: 'short' });
 
   return (
-    <div
-      role="progressbar"
-      aria-valuenow={value}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={t.progressLabel}
-      className="relative grid shrink-0 place-items-center"
-      style={{ width: size, height: size }}
-    >
-      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-accent-soft" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${circumference - dash}`}
-          className="text-accent-line transition-[stroke-dasharray] duration-[420ms] ease-[cubic-bezier(0.23,1,0.32,1)]"
-        />
-      </svg>
-      <span className="tabular absolute font-ui text-[10px] font-700 leading-none text-text">
-        {value}%
-      </span>
+    <div className="weekstrip card" style={{ padding: 'var(--sp-2)' }}>
+      {plan.map((row) => {
+        const [y, m, dd] = row.date.split('-').map(Number);
+        const date = new Date(y, m - 1, dd);
+        const day = days[row.slot];
+        return (
+          <button
+            key={row.date}
+            type="button"
+            aria-current={row.date === today ? 'date' : undefined}
+            aria-label={`${wd.format(date)} ${dd}, ${day?.name ?? ''}`}
+            onClick={() => day && day.type !== 'rest' && onOpen(day.no)}
+          >
+            <span className="d">{wd.format(date).replace('.', '')}</span>
+            <span className="n">{dd}</span>
+            <span
+              className={
+                row.state === 'done' ? 'dot is-done' : row.state === 'today' && !slots[row.slot]?.rest ? 'dot is-planned' : 'dot'
+              }
+            />
+          </button>
+        );
+      })}
     </div>
   );
 }

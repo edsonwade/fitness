@@ -5,6 +5,7 @@ import { LocalePicker } from '../i18n/LocalePicker';
 import { useT } from '../i18n/locale-context';
 import { useSessionState } from '../features/auth/session-context';
 import { Screen, SessionSplash } from '../ui/Screen';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 /*
  * The route elements live beside the route table rather than inside it so that
@@ -102,6 +103,8 @@ export function ProfilePending() {
     <div className="screen-pad stack-lg">
       <div className="appbar pt-[max(0.75rem,env(safe-area-inset-top))] -mx-5 px-5">
         <p className="title-3">{t.settings.title}</p>
+        <span className="spacer" />
+        <ThemeToggle />
       </div>
 
       <LocalePicker />

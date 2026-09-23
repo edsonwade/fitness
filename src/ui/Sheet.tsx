@@ -60,7 +60,9 @@ export function Sheet({
           <Drawer.Popup
             className={clsx(
               'flex max-h-[88dvh] w-full max-w-[26.5rem] flex-col',
-              'rounded-t-[28px] border border-b-0 border-rule bg-ground',
+              // Vidro da Ladder: o que está por trás vê-se desfocado. No claro é --ui-surface.
+              'rounded-t-[28px] border border-b-0 border-[var(--ui-glass-edge)]',
+              '[background:var(--ui-glass-strong)] [backdrop-filter:var(--ui-glass-blur)] [-webkit-backdrop-filter:var(--ui-glass-blur)]',
               'shadow-[var(--shadow-float)] outline-none',
               '[transform:translateY(var(--drawer-swipe-movement-y))]',
               'transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)]',

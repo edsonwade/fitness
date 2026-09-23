@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
+import { duck, shouldDuck } from './music';
 
 
 /**
@@ -19,10 +20,26 @@ export function RestTimer({
   seconds,
   exerciseName,
   onClose,
+  onAdd,
+  inline = false,
+  paused = false,
 }: {
   seconds: number;
   exerciseName: string;
   onClose: () => void;
+  /**
+   * Told when the rest is stretched. For an owner that shows the same rest a second
+   * way — the Executar dial — and would otherwise go on counting the shorter one.
+   */
+  onAdd?: (seconds: number) => void;
+  /**
+   * Inside another surface's footer — the sets sheet of the Executar screen — rather
+   * than docked at the bottom of the page. Same clock and same buttons; it only drops
+   * the card it would otherwise draw around itself, which would be a card in a card.
+   */
+  inline?: boolean;
+  /** "Terminar treino?" aberto no ecrã Executar: o descanso para onde está (bug B4). */
+  paused?: boolean;
 }) {
   const t = useT().train;
   const [remaining, setRemaining] = useState(seconds);
@@ -35,12 +52,18 @@ export function RestTimer({
   }, []);
 
   useEffect(() => {
-    if (done) return;
+    if (done || paused) return;
     const id = window.setInterval(() => {
       setRemaining((r) => Math.max(0, r - 1));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [done]);
+  }, [done, paused]);
+
+  /* Fase 012: nos últimos 3 segundos a música desce para 30%, e volta ao fim. */
+  useEffect(() => {
+    duck(!paused && shouldDuck(remaining));
+  }, [remaining, paused]);
+  useEffect(() => () => duck(false), []);
 
   const mm = Math.floor(remaining / 60);
   const ss = remaining % 60;
@@ -53,7 +76,11 @@ export function RestTimer({
       tabIndex={-1}
       role="status"
       aria-live="polite"
-      className="pointer-events-auto mx-auto w-full max-w-[26.5rem] rounded-t-[24px] border border-b-0 border-rule bg-surface px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[var(--shadow-float)]"
+      className={
+        inline
+          ? 'w-full outline-none'
+          : 'pointer-events-auto mx-auto w-full max-w-[26.5rem] rounded-t-[24px] border border-b-0 border-rule bg-surface px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[var(--shadow-float)]'
+      }
     >
       <div className="flex items-center gap-3">
         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-line">
@@ -83,6 +110,7 @@ export function RestTimer({
           onClick={() => {
             setRemaining((r) => r + 15);
             setTotal((tot) => tot + 15);
+            onAdd?.(15);
           }}
           disabled={done}
           className="min-h-[46px] flex-1 rounded-full border border-rule bg-transparent font-ui text-[13px] font-600 text-text transition-colors duration-[160ms] pointer-hover:border-edge disabled:opacity-50"

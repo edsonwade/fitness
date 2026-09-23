@@ -28,6 +28,11 @@ const PATHS = {
   check: 'M5 13l4 4L19 7',
   x: 'M6 6l12 12M18 6L6 18',
   play: 'M8 5v14l11-7z',
+  /* Saltar: o ▶| da Ladder e do protótipo (tarefa 7). */
+  skip: 'M5 5v14l9-7zM17.5 5v14',
+  /* Histórico: a linha a subir do chip do protótipo. */
+  history: 'M3 3v18h18M19 9l-5 5-4-4-3 3',
+  music: 'M9 18V5l12-2v13M3 18a3 3 0 1 0 6 0 3 3 0 1 0-6 0M15 16a3 3 0 1 0 6 0 3 3 0 1 0-6 0',
   clock: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',

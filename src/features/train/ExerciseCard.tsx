@@ -1,16 +1,17 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useState } from 'react';
+import { Link } from 'react-router';
 import clsx from 'clsx';
 
 import type { Exercise } from '../../content';
 import type { ExerciseLog } from '../../data/entities';
-import type { LogFields } from '../../data/mutations';
-import { useT } from '../../i18n/locale-context';
-import { Field } from '../../ui/Field';
+import { INTL_LOCALE } from '../../i18n';
+import { useLocale, useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
-import { VideoFacade } from './VideoFacade';
 import type { DayEntry } from './day-entries';
-import { exerciseState, parseRestSeconds, setsDoneFor } from './logs';
-import { ReorderContext, type CardReorder } from './reorder-context';
+import { exerciseState, setsDoneFor } from './logs';
+import { ReorderContext } from './reorder-context';
+import { ReorderHandle } from './ReorderableCard';
+import type { Suggestion } from './suggestion';
 
 
 /**
@@ -34,21 +35,23 @@ import { ReorderContext, type CardReorder } from './reorder-context';
 export function ExerciseCard({
   entry,
   log,
-  onSave,
-  onRest,
+  suggestion,
+  runHref,
   controls,
 }: {
   entry: DayEntry;
   log: ExerciseLog | undefined;
-  onSave: (exKey: string, fields: LogFields) => void;
-  onRest: (seconds: number, name: string) => void;
+  /** A carga sugerida do histórico (fase 013); sem histórico daquele exercício, nada. */
+  suggestion?: Suggestion | null;
+  /** "Registar" leva ao ecrã Executar deste dia. */
+  runHref: string;
   /** Absent while the day is still loading, or when there is nothing to compose. */
   controls?: {
     onEdit: () => void;
     onHide?: () => void;
   };
 }) {
-  const copy = useT();
+  const { locale, t: copy } = useLocale();
   const t = copy.train;
   const e = copy.editor;
   const reorder = useContext(ReorderContext);
@@ -56,198 +59,123 @@ export function ExerciseCard({
   const p = entry.prescription;
   const done = setsDoneFor(log, p.s);
   const state = exerciseState(done);
+  const kg = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
 
-  function toggleSet(index: number) {
-    const next = done.slice();
-    next[index] = !next[index];
-    onSave(entry.key, { sets_done: next });
-    if (next[index]) onRest(parseRestSeconds(p.rest), entry.name);
-  }
-
+  /*
+   * `proto/v2/03-treino.html` frame 2: miniatura, nome em title-3, a prescrição em duas
+   * linhas ("4 séries · 10-12 reps · RPE 7-8" e "60 kg a calibrar · 2–3 min"), a sugestão
+   * a volt com de onde saiu, a nota como alternativa com um traço à esquerda, e os chips
+   * Técnica e Registar. As séries marcam-se no Executar, que é a porta do Registar.
+   */
   return (
     <article
       {...reorder?.rootProps}
+      tabIndex={reorder ? 0 : undefined}
+      aria-describedby={reorder?.hintId}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget) reorder?.handleProps.onKeyDown(event);
+      }}
       style={reorder?.lifted ? { touchAction: 'none' } : undefined}
       className={clsx(
-        'overflow-hidden rounded-card border bg-surface',
-        'transition-[box-shadow,transform,border-color] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
-        reorder?.lifted
-          ? 'z-10 scale-[1.02] border-edge shadow-[var(--shadow-float)] motion-reduce:scale-100'
-          : 'border-rule shadow-[var(--shadow-card)]',
+        'card select-none',
+        'transition-[box-shadow,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+        reorder?.lifted && 'z-10 scale-[1.02] shadow-[var(--shadow-float)] motion-reduce:scale-100',
       )}
     >
-      <div className="p-3">
-        <VideoFacade
-          videoId={entry.videoId}
-          poster={entry.photo}
-          fallbackPoster={entry.fallbackPhoto}
-          name={entry.name}
-        />
-      </div>
-
-      <div className="px-4 pb-4">
-        <div className="flex items-start gap-2">
-          {reorder ? <ReorderHandle name={entry.name} reorder={reorder} /> : null}
-          <div className="min-w-0 flex-1">
-            <h2 className="font-ui text-[17px] font-700 leading-tight text-text">{entry.name}</h2>
-            {entry.equipment ? (
-              <p className="mt-0.5 font-ui text-[12.5px] text-text-muted">{entry.equipment}</p>
+      <div className="row">
+        <CardThumb photo={entry.photo} fallback={entry.fallbackPhoto} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <p className="title-3 min-w-0 flex-1">{entry.name}</p>
+            {/* A pega de arrastar (B5): prime e segura no cartão, ou arrasta por aqui. */}
+            <ReorderHandle name={entry.name} words={e} />
+            {state === 'done' ? (
+              <span className="shrink-0 text-accent-line" aria-label={t.exDone}>
+                <Icon name="check" size={18} strokeWidth={2.6} />
+              </span>
             ) : null}
           </div>
-          {entry.kind === 'custom' ? <Badge>{e.badgeOwn}</Badge> : null}
-          {/*
-            * "De todos" is not decoration. It is the only thing on the card that says
-            * editing this changes it on everyone's phone, and removing it removes it
-            * from everyone's day. Someone reaching for the pencil mid-set needs that
-            * before they press it, not after.
-            */}
-          {entry.kind === 'shared' ? <Badge>{e.badgeShared}</Badge> : null}
-          {entry.override ? <Badge>{e.badgeChanged}</Badge> : null}
-        </div>
-
-        {entry.note ? (
-          <p className="mt-2 rounded-field bg-surface-sunken px-3 py-2 font-ui text-[12.5px] leading-snug text-text-muted">
-            {entry.note.pt}
+          <p className="body-2 muted tabular">
+            {p.s} {p.s === 1 ? t.serie : t.series} · {p.r} reps{p.rpe ? ` · RPE ${p.rpe}` : ''}
           </p>
-        ) : null}
-
-        {/* Prescription: this block's target, after anything the user changed. */}
-        <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 font-ui text-[12.5px]">
-          <Stat label={t.target} value={`${p.s} × ${p.r}`} />
-          <Stat label={t.rpe} value={p.rpe} />
-          <Stat label={t.weight} value={p.l} />
-          <Stat label={t.rest} value={p.rest} />
-        </dl>
-
-        {/* Set tracker. */}
-        <div className="mt-4">
-          {/*
-            * The exercise's own state, beside its sets and nowhere else. This is the
-            * middle of the three levels: the sets decide it, and it decides nothing
-            * about the workout — a card saying "Completo" does not finish a training
-            * session, which is what the day's card used to claim. The word carries the
-            * meaning, so it still reads with the colour ignored.
-            */}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="font-ui text-[12px] font-600 text-text-muted">{t.sets}</p>
-            <p
-              className={clsx(
-                'font-ui text-[11px] font-700 uppercase tracking-[0.04em]',
-                state === 'done' ? 'text-accent-line' : 'text-text-muted',
-              )}
-            >
-              {state === 'done' ? t.exDone : state === 'doing' ? t.exDoing : t.exIdle}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {done.map((isDone, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => toggleSet(index)}
-                aria-pressed={isDone}
-                aria-label={`${t.setLabel} ${index + 1}`}
-                className={clsx(
-                  'grid h-11 w-11 place-items-center rounded-field font-ui text-[14px] font-700 tabular',
-                  'transition-[background-color,color,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
-                  'active:scale-[0.94] motion-reduce:active:scale-100',
-                  isDone
-                    ? 'bg-accent text-accent-ink'
-                    : 'border border-rule bg-surface-raised text-text pointer-hover:border-edge',
-                )}
-              >
-                {isDone ? <Icon name="check" size={18} strokeWidth={2.6} /> : index + 1}
-              </button>
-            ))}
-          </div>
+          <p className="body-2 muted">
+            {p.l}
+            {p.rest ? ` · ${p.rest}` : ''}
+          </p>
+          {suggestion ? (
+            <>
+              <p className="body-2 mt-1 tabular" style={{ color: 'var(--ui-accent)' }}>
+                {t.suggestion}: {kg.format(suggestion.kg)} kg
+              </p>
+              <p className="body-2 muted tabular">
+                {t.lastTimePre} {kg.format(suggestion.lastKg)} kg {t.lastTimeIn} {suggestion.setsDone}{' '}
+                {suggestion.setsDone === 1 ? t.serie : t.series}.
+              </p>
+            </>
+          ) : null}
+          {entry.equipment ? <p className="body-2 muted">{entry.equipment}</p> : null}
         </div>
-
-        {/* What was actually done. */}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <LogInput
-            label={t.weight}
-            placeholder={t.weightPlaceholder}
-            inputMode="text"
-            remote={log?.weight ?? ''}
-            onCommit={(v) => onSave(entry.key, { weight: v })}
-          />
-          <LogInput
-            label={t.reps}
-            placeholder={t.repsPlaceholder}
-            inputMode="text"
-            remote={log?.reps ?? ''}
-            onCommit={(v) => onSave(entry.key, { reps: v })}
-          />
-        </div>
-        <div className="mt-3">
-          <LogInput
-            label={t.note}
-            placeholder={t.notePlaceholder}
-            inputMode="text"
-            remote={log?.note ?? ''}
-            onCommit={(v) => onSave(entry.key, { note: v })}
-          />
-        </div>
-
-        {/* Technique, folded away until asked for. Baseline exercises only: nothing
-            else in the app has authored execution steps, and inventing them would be
-            the one thing PRODUCT.md says this content never does. */}
-        {entry.exercise ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-              className="mt-4 flex min-h-[44px] w-full items-center justify-between rounded-field border border-rule px-4 font-ui text-[13px] font-600 text-text transition-colors duration-[160ms] pointer-hover:border-edge"
-            >
-              {open ? t.hideDetails : t.details}
-              <Icon
-                name="forward"
-                size={16}
-                strokeWidth={2}
-                className={clsx('transition-transform duration-[200ms]', open ? 'rotate-90' : 'rotate-0')}
-              />
-            </button>
-
-            {open ? <Technique exercise={entry.exercise} /> : null}
-          </>
-        ) : null}
-
-        {controls ? (
-          <Controls name={entry.name} controls={controls} shared={entry.kind === 'shared'} />
-        ) : null}
       </div>
+
+      {entry.note ? (
+        <p
+          className="body-2 muted mt-3"
+          style={{ paddingLeft: 'var(--sp-3)', borderLeft: '2px solid var(--ui-rule)' }}
+        >
+          {entry.note}
+        </p>
+      ) : null}
+
+      <div className="row mt-3 flex-wrap" style={{ gap: 'var(--sp-2)' }}>
+        {entry.exercise ? (
+          <button
+            type="button"
+            className={open ? 'chip chip-sm chip-selected' : 'chip chip-sm'}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {t.technique}
+          </button>
+        ) : null}
+        <Link to={runHref} className="chip chip-sm no-underline">
+          {t.log}
+        </Link>
+        {entry.kind === 'custom' ? <Badge>{e.badgeOwn}</Badge> : null}
+        {entry.kind === 'shared' ? <Badge>{e.badgeShared}</Badge> : null}
+        {entry.override ? <Badge>{e.badgeChanged}</Badge> : null}
+      </div>
+
+      {open && entry.exercise ? <Technique exercise={entry.exercise} /> : null}
+
+      {controls ? (
+        <Controls name={entry.name} controls={controls} shared={entry.kind === 'shared'} />
+      ) : null}
     </article>
   );
 }
 
-/**
- * The grab handle, at the head of the card, left of the title.
- *
- * It carries two jobs the chevrons used to fake. On pointer it is an immediate,
- * precise pickup — `touch-none` so a drag off it never scrolls the page — while a
- * press-and-hold anywhere on the card body does the same through `rootProps`. On the
- * keyboard it is the accessible path: focus it, then Arrow Up / Down moves the card one
- * place, announced by the day's live region. One quiet control, not two arrows: the
- * requirement's ban on chevrons is not undone by the alternative that replaces them.
- */
-function ReorderHandle({ name, reorder }: { name: string; reorder: CardReorder }) {
-  const e = useT().editor;
+/** A `.thumb` do protótipo, com a mesma queda para a foto de reserva. */
+function CardThumb({ photo, fallback }: { photo: string | null; fallback: string | null }) {
+  const [src, setSrc] = useState(photo ?? fallback);
+  if (!src) {
+    return (
+      <span className="thumb grid place-items-center bg-surface-sunken text-text-muted" aria-hidden="true">
+        <Icon name="dumbbell" size={22} strokeWidth={1.6} />
+      </span>
+    );
+  }
   return (
-    <button
-      type="button"
-      aria-label={`${e.reorder}: ${name}, ${e.position} ${reorder.position} ${e.positionOf} ${reorder.total}`}
-      aria-describedby={reorder.hintId}
-      onPointerDown={reorder.handleProps.onPointerDown}
-      onKeyDown={reorder.handleProps.onKeyDown}
-      className={clsx(
-        '-my-1 -ml-1.5 grid h-11 w-9 shrink-0 touch-none select-none place-items-center rounded-field',
-        'transition-colors duration-[160ms] pointer-hover:text-text',
-        reorder.lifted ? 'cursor-grabbing text-text' : 'cursor-grab text-text-muted',
-      )}
-    >
-      <Icon name="grip" size={18} strokeWidth={2.2} />
-    </button>
+    <img
+      className="thumb"
+      src={src}
+      alt=""
+      loading="lazy"
+      draggable={false}
+      onError={() => {
+        if (fallback && src !== fallback) setSrc(fallback);
+        else setSrc(null);
+      }}
+    />
   );
 }
 
@@ -330,70 +258,14 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="font-500 text-text-muted">{label}</dt>
-      <dd className="font-700 text-text">{value}</dd>
-    </div>
-  );
-}
-
-/** A text input that commits on blur and stays in step with a realtime update. */
-function LogInput({
-  label,
-  placeholder,
-  inputMode,
-  remote,
-  onCommit,
-}: {
-  label: string;
-  placeholder: string;
-  /*
-   * Só 'text'. O 'decimal' saiu com o porte do sistema v2: ninguém o passava, e
-   * deixar a opção aberta era deixar a porta aberta ao teclado numérico que a regra
-   * de 2026-09-12 tirou. Peso e reps de uma série passam a entrar pelas peças de
-   * seleção (`ValuePill`), e quem as liga ao registo é a fase 011.
-   */
-  inputMode: 'text';
-  remote: string;
-  onCommit: (value: string) => void;
-}) {
-  const [value, setValue] = useState(remote);
-  const focused = useRef(false);
-
-  // A write from another device lands as a new `remote`. Take it only when the field
-  // is idle, so it never overwrites what a thumb is in the middle of typing.
-  useEffect(() => {
-    if (!focused.current) setValue(remote);
-  }, [remote]);
-
-  return (
-    <Field
-      label={label}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      value={value}
-      onChange={(e2) => setValue(e2.target.value)}
-      onFocus={() => {
-        focused.current = true;
-      }}
-      onBlur={() => {
-        focused.current = false;
-        const trimmed = value.trim();
-        if (trimmed !== remote) onCommit(trimmed);
-      }}
-    />
-  );
-}
-
 function Technique({ exercise }: { exercise: Exercise }) {
-  const t = useT().train;
+  const { locale, t: copy } = useLocale();
+  const t = copy.train;
   return (
     <div className="mt-3 flex flex-col gap-4">
       <Block title={t.technique}>
         <ol className="flex flex-col gap-1.5">
-          {exercise.steps.pt.map((step, i) => (
+          {exercise.steps[locale].map((step, i) => (
             <li key={i} className="flex gap-2 font-ui text-[13px] leading-snug text-text">
               <span className="tabular shrink-0 font-700 text-accent-line">{i + 1}.</span>
               {step}
@@ -402,10 +274,10 @@ function Technique({ exercise }: { exercise: Exercise }) {
         </ol>
       </Block>
 
-      {exercise.errs.pt.length ? (
+      {exercise.errs[locale].length ? (
         <Block title={t.commonErrors}>
           <ul className="flex flex-col gap-2">
-            {exercise.errs.pt.map((fault, i) => (
+            {exercise.errs[locale].map((fault, i) => (
               <li key={i} className="rounded-field bg-surface-sunken px-3 py-2">
                 <p className="font-ui text-[12.5px] font-600 leading-snug text-text">{fault.e}</p>
                 <p className="mt-1 font-ui text-[12.5px] leading-snug text-text-muted">
@@ -420,7 +292,7 @@ function Technique({ exercise }: { exercise: Exercise }) {
 
       <Block title={t.safety}>
         <ul className="flex flex-col gap-1.5">
-          {exercise.safe.pt.map((line, i) => (
+          {exercise.safe[locale].map((line, i) => (
             <li key={i} className="flex gap-2 font-ui text-[13px] leading-snug text-text">
               <span aria-hidden="true" className="shrink-0 text-accent-line">
                 ·
@@ -432,7 +304,7 @@ function Technique({ exercise }: { exercise: Exercise }) {
       </Block>
 
       <Block title={t.breathing}>
-        <p className="font-ui text-[13px] leading-snug text-text">{exercise.breath.pt}</p>
+        <p className="font-ui text-[13px] leading-snug text-text">{exercise.breath[locale]}</p>
       </Block>
     </div>
   );
@@ -448,3 +320,4 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
     </section>
   );
 }
+

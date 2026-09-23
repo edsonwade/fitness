@@ -19,13 +19,11 @@ import { BLOCKS, prog } from './blocks';
 import { DAYS } from './days';
 import { EXERCISES } from './exercises';
 import { MUSCLES } from './muscles';
-import { VIDEOS } from './videos';
 import { blockSchema, cardioEntrySchema, daySchema, exerciseSchema } from './schema';
 
 /** What the port is required to contain. Asserted here and in the content test. */
 export const CONTENT_INVARIANTS = {
   exercises: 36,
-  videos: 38,
   cardio: 2,
   days: 7,
   // A semana partilhada de 2026-09-21: 6+6+6+0+6+18+0. Dois dias de descanso (4 e 7)
@@ -59,7 +57,6 @@ export function validateContent(): void {
   for (const [key, exercise] of Object.entries(EXERCISES)) {
     const result = exerciseSchema.safeParse(exercise);
     if (!result.success) problems.push(`exercise ${key}: ${result.error.message}`);
-    if (!VIDEOS[key]) problems.push(`exercise ${key}: has no video`);
   }
 
   for (const [key, entry] of Object.entries(CARDIO)) {
@@ -84,7 +81,6 @@ export function validateContent(): void {
 
   const counted: Record<keyof typeof CONTENT_INVARIANTS, number> = {
     exercises: Object.keys(EXERCISES).length,
-    videos: Object.keys(VIDEOS).length,
     cardio: Object.keys(CARDIO).length,
     days: DAYS.length,
     daySlots: countDaySlots(),
@@ -107,14 +103,13 @@ if (import.meta.env?.DEV) validateContent();
 
 export const CONTENT = Object.freeze({
   EXERCISES,
-  VIDEOS,
   CARDIO,
   DAYS,
   BLOCKS,
   MUSCLES,
 });
 
-export { BLOCKS, CARDIO, DAYS, EXERCISES, MUSCLES, VIDEOS, prog };
+export { BLOCKS, CARDIO, DAYS, EXERCISES, MUSCLES, prog };
 export * from './schema';
 export type { ExerciseKey } from './exercises';
 export type { MuscleKey } from './muscles';
