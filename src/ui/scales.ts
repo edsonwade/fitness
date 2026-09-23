@@ -31,7 +31,8 @@ export type ScaleKey =
   | 'height'
   | 'goalKg'
   | 'count'
-  | 'cm';
+  | 'cm'
+  | 'sets';
 
 export type Scale = {
   min: number;
@@ -70,6 +71,8 @@ export const SCALES: Record<ScaleKey, Scale> = {
   count: { min: 0, max: 100, step: 1, unit: '', dec: 0 },
   /** Onboarding (fase 024): a altura em centímetros. */
   cm: { min: 120, max: 220, step: 1, unit: 'cm', dec: 0 },
+  /** As séries que uma prescrição pede: de 1 a 10, de uma em uma. */
+  sets: { min: 1, max: 10, step: 1, unit: '', dec: 0 },
 };
 
 /**
