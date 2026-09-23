@@ -25,7 +25,7 @@ const QUALITY = 0.82;
 export const PHOTO_ACCEPT = 'image/*';
 
 export class PhotoError extends Error {
-  readonly reason: 'decode' | 'upload' | 'offline';
+  readonly reason: 'decode' | 'upload' | 'offline' | 'size';
 
   constructor(reason: PhotoError['reason'], message: string) {
     super(message);
@@ -92,6 +92,51 @@ export async function uploadExercisePhoto(
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw new PhotoError('upload', error.message);
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/** What the video input accepts: whatever a phone camera records. */
+export const VIDEO_ACCEPT = 'video/mp4,video/webm,video/quicktime';
+
+/**
+ * The biggest clip that goes up. It is the storage's own per-file ceiling, and a clip of
+ * a few repetitions filmed on a phone sits well under it; saying so before the upload is
+ * kinder than a failure half a minute into it on gym wifi.
+ */
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Uploads one demonstration clip and returns the public URL, which is stored in the
+ * row's `video_id` and becomes the clip the Executar screen plays.
+ *
+ * Unlike a photo it is sent as it is: re-encoding video in the browser is a lot of
+ * machinery for a file the phone already compressed.
+ */
+export async function uploadExerciseVideo(
+  file: File,
+  userId: string,
+  key: string,
+): Promise<string> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new PhotoError('offline', 'video: no connection');
+  }
+  if (!file.type.startsWith('video/')) {
+    throw new PhotoError('decode', 'video: the file is not a video');
+  }
+  if (file.size > VIDEO_MAX_BYTES) {
+    throw new PhotoError('size', 'video: the file is over the limit');
+  }
+
+  const ext = (file.name.split('.').pop() ?? 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+  const safeKey = key.replace(/[^a-z0-9_-]+/gi, '').slice(0, 32) || 'ex';
+  const path = `user/${userId}/${safeKey}-${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
   if (error) throw new PhotoError('upload', error.message);
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);

@@ -22,7 +22,7 @@ import type {
 import { useRows } from '../../data/queries';
 import type { Locale } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
-import { clipFor, type Clip } from './clips';
+import { clipFor, uploadedClip, type Clip } from './clips';
 import {
   EQUIP_NAMES,
   chosenVariant,
@@ -359,7 +359,13 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
         : ((knownEquip ? null : text(override?.equipment)) ?? exercise?.eq[locale] ?? null),
       prescription: overriddenPrescription(item[block], override, locale),
       note: item.note?.[locale],
-      clip: variant ? (variant.ex ? clipFor(variant.ex) : null) : clipFor(item.ex),
+      // A video someone put on this exercise wins over the bundled one: it is the
+      // demonstration they chose, and the sheet is where they chose it.
+      clip: variant
+        ? variant.ex
+          ? clipFor(variant.ex)
+          : null
+        : (uploadedClip(override?.video_id, text(override?.photo_url)) ?? clipFor(item.ex)),
       photo: variant
         ? variant.ex
           ? builtinPoster(variant.ex)
@@ -389,8 +395,9 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
       equipment: text(row.equipment),
       prescription: customPrescription(row, block, locale),
       // No name matching, ever. A user's own exercise showing a baseline
-      // demonstration would be the app claiming a video the user never chose.
-      clip: null,
+      // demonstration would be the app claiming a video the user never chose; the
+      // only clip it has is the one they uploaded.
+      clip: uploadedClip(row.video_id, text(row.photo_url)),
       photo: text(row.photo_url),
       fallbackPhoto: null,
       custom: row,
@@ -430,7 +437,7 @@ export function resolveDayEntries(input: ResolveInput): ResolvedDay {
       name: text(row.name_pt) ?? addition.ex_key,
       equipment: text(row.equipment),
       prescription: derivePrescription(row, row.kind, block, locale),
-      clip: null,
+      clip: uploadedClip(row.video_id, text(row.photo_url)),
       photo: text(row.photo_url),
       fallbackPhoto: null,
       shared: { catalog: row, addition },

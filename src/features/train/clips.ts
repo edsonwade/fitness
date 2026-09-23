@@ -73,3 +73,18 @@ export function clipFor(exKey: string): Clip | null {
   const base = `${import.meta.env.BASE_URL}video/ex-${stem}`;
   return { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}.jpg` };
 }
+
+/**
+ * A clip the person uploaded from the exercise sheet (`uploadExerciseVideo`).
+ *
+ * Its public URL is kept in `video_id`, the column that used to hold a YouTube id. Only a
+ * full `https://` URL is a clip: a leftover YouTube id is not a file this app can play,
+ * so it stays ignored exactly as it was. The file is whatever the phone recorded, mp4 or
+ * mov, so it travels in `mp4` with no `webm` twin and no poster of its own — the
+ * exercise photo stands in when there is one.
+ */
+export function uploadedClip(videoId: string | null | undefined, poster: string | null): Clip | null {
+  const url = videoId?.trim();
+  if (!url || !/^https:\/\//i.test(url)) return null;
+  return { webm: '', mp4: url, poster: poster ?? '' };
+}

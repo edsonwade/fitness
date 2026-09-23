@@ -238,12 +238,13 @@ function Demo({
       playsInline
       onEnded={onEnded}
       preload={backdrop ? 'metadata' : 'auto'}
-      poster={clip.poster}
+      poster={clip.poster || undefined}
       aria-label={backdrop ? undefined : label}
       aria-hidden={backdrop || undefined}
     >
-      <source src={clip.webm} type="video/webm" />
-      <source src={clip.mp4} type="video/mp4" />
+      {/* An uploaded clip has no webm twin, and may be a .mov: no type, the browser sniffs it. */}
+      {clip.webm ? <source src={clip.webm} type="video/webm" /> : null}
+      <source src={clip.mp4} type={clip.webm ? 'video/mp4' : undefined} />
     </video>
   );
 }
