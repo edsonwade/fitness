@@ -82,46 +82,48 @@ export function ExerciseCard({
         reorder?.lifted && 'z-10 scale-[1.02] shadow-[var(--shadow-float)] motion-reduce:scale-100',
       )}
     >
-      <div className="row">
+      {/*
+        * B7 (foto dele das 17:43, "AI slop"): eram quatro linhas cinzentas com o mesmo
+        * peso, um "— to fill in" à vista, e o lápis e o ✕ numa linha só para eles.
+        * Agora há uma linha forte (a prescrição) e uma discreta (carga · descanso ·
+        * máquina). O que falta não se escreve, e os botões vivem no canto, ao lado da pega.
+        */}
+      <div className="flex items-start gap-3">
         <CardThumb photo={entry.photo} fallback={entry.fallbackPhoto} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            <p className="title-3 min-w-0 flex-1">{entry.name}</p>
-            {/* A pega de arrastar (B5): prime e segura no cartão, ou arrasta por aqui. */}
-            <ReorderHandle name={entry.name} words={e} />
+          <div className="flex items-start gap-1">
+            <p className="exc-name min-w-0 flex-1">{entry.name}</p>
             {state === 'done' ? (
-              <span className="shrink-0 text-accent-line" aria-label={t.exDone}>
+              <span className="grid h-8 w-8 shrink-0 place-items-center text-accent-line" aria-label={t.exDone}>
                 <Icon name="check" size={18} strokeWidth={2.6} />
               </span>
             ) : null}
+            {controls ? <Controls name={entry.name} controls={controls} shared={entry.kind === 'shared'} /> : null}
+            {/* A pega de arrastar (B5): prime e segura no cartão, ou arrasta por aqui. */}
+            <ReorderHandle name={entry.name} words={e} />
           </div>
-          <p className="body-2 muted tabular">
-            {p.s} {p.s === 1 ? t.serie : t.series} · {p.r} reps{p.rpe ? ` · RPE ${p.rpe}` : ''}
+          <p className="exc-rx tabular">
+            {p.s} × {p.r}
+            {p.rpe ? <span className="exc-rpe"> · RPE {p.rpe}</span> : null}
           </p>
-          <p className="body-2 muted">
-            {p.l}
-            {p.rest ? ` · ${p.rest}` : ''}
-          </p>
+          {(() => {
+            const quiet = [filled(p.l), filled(p.rest), filled(entry.equipment)].filter(Boolean).join(' · ');
+            return quiet ? <p className="exc-meta tabular">{quiet}</p> : null;
+          })()}
           {suggestion ? (
-            <>
-              <p className="body-2 mt-1 tabular" style={{ color: 'var(--ui-accent)' }}>
+            <p className="exc-meta tabular mt-1">
+              <span style={{ color: 'var(--ui-accent)', fontWeight: 700 }}>
                 {t.suggestion}: {kg.format(suggestion.kg)} kg
-              </p>
-              <p className="body-2 muted tabular">
-                {t.lastTimePre} {kg.format(suggestion.lastKg)} kg {t.lastTimeIn} {suggestion.setsDone}{' '}
-                {suggestion.setsDone === 1 ? t.serie : t.series}.
-              </p>
-            </>
+              </span>{' '}
+              · {t.lastTimePre} {kg.format(suggestion.lastKg)} kg {t.lastTimeIn} {suggestion.setsDone}{' '}
+              {suggestion.setsDone === 1 ? t.serie : t.series}
+            </p>
           ) : null}
-          {entry.equipment ? <p className="body-2 muted">{entry.equipment}</p> : null}
         </div>
       </div>
 
       {entry.note ? (
-        <p
-          className="body-2 muted mt-3"
-          style={{ paddingLeft: 'var(--sp-3)', borderLeft: '2px solid var(--ui-rule)' }}
-        >
+        <p className="exc-note mt-3">
           {entry.note}
         </p>
       ) : null}
@@ -142,14 +144,11 @@ export function ExerciseCard({
         </Link>
         {entry.kind === 'custom' ? <Badge>{e.badgeOwn}</Badge> : null}
         {entry.kind === 'shared' ? <Badge>{e.badgeShared}</Badge> : null}
-        {entry.override ? <Badge>{e.badgeChanged}</Badge> : null}
+        {entry.override ? <Badge strong>{e.badgeChanged}</Badge> : null}
       </div>
 
       {open && entry.exercise ? <Technique exercise={entry.exercise} /> : null}
 
-      {controls ? (
-        <Controls name={entry.name} controls={controls} shared={entry.kind === 'shared'} />
-      ) : null}
     </article>
   );
 }
@@ -180,12 +179,10 @@ function CardThumb({ photo, fallback }: { photo: string | null; fallback: string
 }
 
 /**
- * Composing controls, at the foot of the card rather than the head.
- *
- * The head of a card is where a thumb lands while scrolling a day mid-session, and
- * "remove from day" is not a thing to put under an accidental tap. Editing and removing
- * live below the logging controls, past everything used during a set. Ordering left the
- * foot entirely: it is direct manipulation now, on the card itself, not a button here.
+ * Editar e tirar, no canto de cima, ao lado da pega (B7). Ele pediu que deixassem de
+ * gastar uma linha inteira no pé do cartão. Tirar do dia continua a não apagar nada:
+ * o exercício partilhado esconde-se só para esta conta, e o que apaga a sério está
+ * atrás de uma confirmação dentro da folha.
  */
 function Controls({
   name,
@@ -200,8 +197,7 @@ function Controls({
   const copy = useT();
   const e = copy.editor;
   return (
-    <div className="mt-4 flex items-center gap-2 border-t border-rule pt-3">
-      <span className="flex-1" />
+    <div className="flex shrink-0 items-center">
       <SmallButton icon="edit" label={`${copy.common.edit}: ${name}`} onClick={controls.onEdit} />
       {controls.onHide ? (
         <SmallButton
@@ -238,24 +234,34 @@ function SmallButton({
       disabled={disabled}
       aria-label={label}
       className={clsx(
-        'grid h-11 w-11 place-items-center rounded-full border border-rule text-text',
+        'grid h-8 w-8 place-items-center rounded-full text-text-muted pointer-hover:text-text',
         'transition-[border-color,opacity,transform] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
         disabled
           ? 'cursor-not-allowed opacity-35'
-          : 'active:scale-[0.94] motion-reduce:active:scale-100 pointer-hover:border-edge',
+          : 'active:scale-[0.94] motion-reduce:active:scale-100',
       )}
     >
-      <Icon name={icon} size={17} strokeWidth={2} />
+      <Icon name={icon} size={16} strokeWidth={2} />
     </button>
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+function Badge({ children, strong }: { children: React.ReactNode; strong?: boolean }) {
   return (
-    <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 font-ui text-[10.5px] font-700 uppercase tracking-[0.04em] text-accent-line">
+    <span
+      className={clsx(
+        'shrink-0 self-center rounded-full px-2.5 py-1 font-ui text-[10.5px] font-700 uppercase tracking-[0.06em]',
+        strong ? 'bg-[var(--ui-volt)] text-[var(--ui-volt-ink)]' : 'bg-accent-soft text-accent-line',
+      )}
+    >
       {children}
     </span>
   );
+}
+
+/** Um valor que ainda não existe vem como "— …". Não se escreve: fica de fora (B7). */
+function filled(v: string | null | undefined): string | null {
+  return v && !/^\s*[—–-]/.test(v) ? v : null;
 }
 
 function Technique({ exercise }: { exercise: Exercise }) {

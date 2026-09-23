@@ -14,6 +14,7 @@ import { Screen, SessionSplash } from '../../ui/Screen';
 import { Icon } from '../../ui/Icon';
 import { WriteFailureNotice } from '../../ui/Notice';
 import { Sheet } from '../../ui/Sheet';
+import { AppBackdrop } from '../../ui/AppBackdrop';
 import { useSuggestions } from './suggestion';
 import { DaySheet } from './DaySheet';
 import { ExerciseCard } from './ExerciseCard';
@@ -416,15 +417,24 @@ export function DayView() {
    */
   return (
     <div className="min-h-[100dvh] bg-page py-0 sm:py-8">
-      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[26.5rem] overflow-hidden bg-ground sm:min-h-0 sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
+      <div className="relative isolate mx-auto min-h-[100dvh] w-full max-w-[26.5rem] overflow-hidden bg-ground sm:min-h-0 sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
+        {/* B8: a foto do dia, desfocada, por trás dos cartões de vidro — como o vídeo
+            por trás da folha das séries. */}
+        {heroPhoto ? <AppBackdrop src={heroPhoto} /> : null}
         <div className="relative h-[190px]">
           {heroPhoto ? (
-            <img src={heroPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img
+              src={heroPhoto}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ maskImage: 'linear-gradient(to bottom, #000 45%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 45%, transparent)' }}
+            />
           ) : null}
+          {/* A foto dissolve-se na mesma foto desfocada, e não numa faixa de chão opaca. */}
           <div
             aria-hidden="true"
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(to top, var(--ui-ground), rgb(0 0 0 / 0.2) 65%)' }}
+            style={{ background: 'linear-gradient(to bottom, rgb(0 0 0 / 0.35), transparent 45%)' }}
           />
           <button
             type="button"
@@ -443,7 +453,7 @@ export function DayView() {
             <ThemeToggle onMedia />
           </div>
           <div className="absolute inset-x-5 bottom-4">
-            <p className="label">{day.day?.eyebrow[locale] ?? day.label}</p>
+            <p className="label">{day.eyebrow}</p>
             <h1 className="display display-2 mt-0.5">{day.name}</h1>
           </div>
         </div>

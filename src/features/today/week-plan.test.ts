@@ -40,6 +40,15 @@ describe('o plano da semana do HOJE', () => {
     expect(rows[0].state).toBe('todo');
   });
 
+  it('mostra outra semana, passada ou futura, quando a tira anda (B7)', () => {
+    const past = weekPlan(SLOTS, [session(1, '2026-08-31')], '2026-09-12', '2026-09-02');
+    expect(past.map((r) => r.date)).toEqual(['2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06']);
+    expect(past[0].state).toBe('done');
+    const future = weekPlan(SLOTS, [], '2026-09-12', '2027-01-06');
+    expect(future[0].date).toBe('2027-01-04');
+    expect(future.some((r) => r.state === 'today')).toBe(false);
+  });
+
   it('a consistência só conta dias de treino que já chegaram', () => {
     const c = weekConsistency(SLOTS, [session(1, '2026-09-07'), session(3, '2026-09-09')], '2026-09-10');
     expect(c).toEqual({ done: 2, planned: 3 });

@@ -381,6 +381,18 @@ export const weightLogSchema = z.object({
   created_at: timestamptz,
 });
 
+/** `018`: um evento do calendário — B7, skill calendario-aberto-e-eventos. */
+export const calendarEventSchema = z.object({
+  ...ownedRow,
+  id: z.uuid(),
+  local_date: z.string(),
+  local_time: nullableText,
+  title: z.string(),
+  note: nullableText,
+  notify: z.boolean(),
+  created_at: timestamptz,
+});
+
 /* ---------- the registry --------------------------------------------------- */
 
 /**
@@ -410,6 +422,7 @@ export const TABLES = {
   nutrition_targets: nutritionTargetSchema,
   food_entries: foodEntrySchema,
   weight_logs: weightLogSchema,
+  calendar_events: calendarEventSchema,
 } as const;
 
 export type TableName = keyof typeof TABLES;
@@ -485,6 +498,7 @@ export type DayOrder = z.infer<typeof dayOrderSchema>;
 export type NutritionTarget = z.infer<typeof nutritionTargetSchema>;
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 export type WeightLog = z.infer<typeof weightLogSchema>;
+export type CalendarEvent = z.infer<typeof calendarEventSchema>;
 
 /**
  * The primary key of each table, which the realtime bridge needs to find the row a
@@ -519,4 +533,5 @@ export const PRIMARY_KEYS: Record<TableName, readonly string[]> = {
   nutrition_targets: ['user_id'],
   food_entries: ['id'],
   weight_logs: ['id'],
+  calendar_events: ['id'],
 };

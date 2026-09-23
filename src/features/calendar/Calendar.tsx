@@ -1,16 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import type { Session } from '../../data/entities';
-import { useRows } from '../../data/queries';
 import { INTL_LOCALE } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
-import { Sheet } from '../../ui/Sheet';
 import { useDays } from '../train/custom-days';
-import { sessionLoad } from '../train/metrics';
 import { localDate, sessionDate, useSessions } from '../train/sessions';
-import { daySheet, dayState, monthGrid, monthSummary, weekdayIndex, yearMap, type DayState } from './calendar';
+import { dayState, monthGrid, monthSummary, yearMap, type DayState } from './calendar';
+import { DayAgendaSheet } from './DayAgendaSheet';
+import { datesWithEvents } from './events';
+import { useEvents } from './use-events';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 
 /**
@@ -25,6 +24,10 @@ import { ThemeToggle } from '../../ui/ThemeToggle';
  * .claude/skills/calendario-ir-para-hoje/PLANO.md — "clico num dia e manda-me para o
  * treino"): feito mostra a sessão, planeado ou falhado mostra o treino do plano, descanso
  * diz que é descanso. Só o botão de dentro da folha leva a outro ecrã.
+ *
+ * B7 (skill calendario-aberto-e-eventos): nenhum dia está bloqueado. Os dias de fora do
+ * mês também abrem, os meses andam sem limite, e a folha é a `DayAgendaSheet`, com o
+ * treino do dia e os eventos dele. Um dia com evento leva o ponto.
  */
 export function Calendar() {
   const { locale, t: copy } = useLocale();
@@ -33,7 +36,9 @@ export function Calendar() {
   const today = localDate(new Date());
   const [view, setView] = useState<'month' | 'year'>('month');
   const [ym, setYm] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }));
-  const [picked, setPicked] = useState<{ date: string; state: DayState } | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const { events } = useEvents();
+  const eventDates = useMemo(() => datesWithEvents(events), [events]);
 
   const sessions = useSessions();
   const days = useDays();
@@ -71,8 +76,8 @@ export function Calendar() {
     });
   }
 
-  function tap(date: string, state: DayState) {
-    setPicked({ date, state });
+  function tap(date: string) {
+    setPicked(date);
   }
 
   /*
@@ -83,12 +88,8 @@ export function Calendar() {
   function goToday() {
     setView('month');
     setYm({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) });
-    setPicked({ date: today, state: dayState(today, today, restSlots, doneDates, firstSession) });
+    setPicked(today);
   }
-
-  const pickedSession = picked ? rows.find((s) => sessionDate(s) === picked.date) ?? null : null;
-  const pickedKind = picked ? daySheet(picked.state, pickedSession !== null) : null;
-  const pickedSlot = picked ? days.days[weekdayIndex(picked.date)] : undefined;
 
   const stateLabel: Record<DayState, string> = {
     done: t.done,
@@ -154,24 +155,19 @@ export function Calendar() {
               </div>
               <div className="cal-grid" style={{ marginTop: 2 }}>
                 {cells.map((c) => {
-                  if (!c.inMonth) {
-                    return (
-                      <button key={c.date} type="button" className="cal-day is-outside" disabled aria-hidden="true">
-                        {c.day}
-                      </button>
-                    );
-                  }
                   const state = dayState(c.date, today, restSlots, doneDates, firstSession);
+                  const hasEvent = eventDates.has(c.date);
                   return (
                     <button
                       key={c.date}
                       type="button"
-                      className={cls[state]}
+                      className={c.inMonth ? cls[state] : 'cal-day is-outside'}
                       aria-current={c.date === today ? 'date' : undefined}
-                      aria-label={`${long(c.date)}, ${stateLabel[state]}`}
-                      onClick={() => tap(c.date, state)}
+                      aria-label={`${long(c.date)}, ${stateLabel[state]}${hasEvent ? `, ${t.events}` : ''}`}
+                      onClick={() => tap(c.date)}
                     >
                       {c.day}
+                      {hasEvent ? <span className="m is-event" aria-hidden="true" /> : null}
                     </button>
                   );
                 })}
@@ -233,76 +229,7 @@ export function Calendar() {
         )}
       </div>
 
-      <Sheet
-        open={picked !== null}
-        onOpenChange={(o) => !o && setPicked(null)}
-        title={picked ? long(picked.date) : ''}
-        description={
-          pickedSession ? (pickedSession.finished_at ? t.complete : t.open) : picked ? stateLabel[picked.state] : undefined
-        }
-      >
-        {pickedKind === 'session' && pickedSession ? (
-          <DaySession
-            session={pickedSession}
-            onOpen={() => navigate(`/treino/${pickedSession.day_no ?? 1}?bloco=${pickedSession.block ?? 'b1'}`)}
-          />
-        ) : pickedKind === 'rest' ? (
-          <p className="body-2 muted">{t.restBody}</p>
-        ) : pickedKind === 'plan' ? (
-          <div className="stack">
-            {pickedSlot ? (
-              <div>
-                <p className="display display-3">{pickedSlot.name}</p>
-                <p className="body-2 muted mt-1">{t.planBody}</p>
-              </div>
-            ) : (
-              <p className="body-2 muted">{t.planBody}</p>
-            )}
-            {pickedSlot && pickedSlot.type !== 'rest' ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-block"
-                onClick={() => navigate(`/treino/${pickedSlot.no}`)}
-              >
-                {t.openDay}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </Sheet>
-    </div>
-  );
-}
-
-function DaySession({ session, onOpen }: { session: Session; onOpen: () => void }) {
-  const { locale, t: copy } = useLocale();
-  const t = copy.calendar;
-  const entries = useRows('session_entries', [session.id]);
-  const load = sessionLoad(entries.data ?? []);
-  const kg = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 0 });
-  return (
-    <div className="stack">
-      <p className="display display-3">{session.day_name ?? ''}</p>
-      <div className="grid-2">
-        <div className="card card-sunken">
-          <p className="label">{t.volume}</p>
-          {load.ok ? (
-            <p className="metric metric-md tabular mt-1">
-              {kg.format(load.value)}
-              <span className="unit">kg</span>
-            </p>
-          ) : (
-            <p className="body-2 muted mt-2">{t.noData}</p>
-          )}
-        </div>
-        <div className="card card-sunken">
-          <p className="label">{t.duration}</p>
-          <p className="body-2 muted mt-2">{t.noData}</p>
-        </div>
-      </div>
-      <button type="button" className="btn btn-secondary btn-block" onClick={onOpen}>
-        {t.seeSession}
-      </button>
+      <DayAgendaSheet date={picked} onClose={() => setPicked(null)} />
     </div>
   );
 }

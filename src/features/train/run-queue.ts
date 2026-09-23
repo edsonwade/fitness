@@ -18,3 +18,14 @@ export function sheetQueue(
     finished: others.filter((i) => done[i]),
   };
 }
+
+/**
+ * Os nomes dos exercícios do dia para a roda (B3 de
+ * `.claude/skills/folha-series-e-seletor/PLANO.md`). A roda escolhe pelo texto, por isso
+ * dois exercícios com o mesmo nome levam o número da posição: nunca se escolhe o errado.
+ */
+export function wheelNames(names: readonly string[]): string[] {
+  const seen = new Map<string, number>();
+  for (const name of names) seen.set(name, (seen.get(name) ?? 0) + 1);
+  return names.map((name, i) => ((seen.get(name) ?? 0) > 1 ? `${name} · ${i + 1}` : name));
+}

@@ -1,7 +1,9 @@
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useLocation } from 'react-router';
 
 import type { Copy } from '../i18n';
 import { useT } from '../i18n/locale-context';
+import { EventReminders } from '../features/calendar/EventReminders';
+import { AppBackdrop } from '../ui/AppBackdrop';
 
 /**
  * The application frame every tabbed surface lives inside.
@@ -23,16 +25,31 @@ import { useT } from '../i18n/locale-context';
  * estado chega à tecnologia de apoio pelo atributo, não só pela cor.
  */
 export function AppShell() {
+  const { pathname } = useLocation();
   return (
     <div className="h-[100dvh] bg-page sm:flex sm:h-auto sm:min-h-[100dvh] sm:items-center sm:justify-center sm:py-8">
-      <div className="relative mx-auto flex h-[100dvh] w-full max-w-[26.5rem] flex-col overflow-hidden bg-ground sm:h-[calc(100dvh-4rem)] sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
+      <div className="relative mx-auto flex h-[100dvh] w-full max-w-[26.5rem] flex-col overflow-hidden bg-ground isolate sm:h-[calc(100dvh-4rem)] sm:rounded-[40px] sm:shadow-[var(--shadow-float)]">
+        {/* B8: a foto desfocada por trás de todo o vidro. Sem ela o vidro lia-se preto. */}
+        <AppBackdrop src={backdropFor(pathname)} />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
         <BottomNav />
+        {/* Os avisos dos eventos do calendário, com a app aberta (B7). Não desenha nada. */}
+        <EventReminders />
       </div>
     </div>
   );
+}
+
+/** A foto de cada separador. Todas estão em `public/img/`. */
+function backdropFor(pathname: string): string {
+  const img = (name: string) => `${import.meta.env.BASE_URL}img/${name}.jpg`;
+  if (pathname.startsWith('/treino')) return img('day-1');
+  if (pathname.startsWith('/nutricao')) return img('onboard-goal');
+  if (pathname.startsWith('/equipa')) return img('day-3');
+  if (pathname.startsWith('/perfil')) return img('day-5');
+  return img('onboard-welcome');
 }
 
 type Tab = {

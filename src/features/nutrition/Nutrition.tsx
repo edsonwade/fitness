@@ -5,6 +5,7 @@ import { useRows } from '../../data/queries';
 import { INTL_LOCALE } from '../../i18n';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
+import { ProgressRing } from '../../ui/ProgressRing';
 import { Sheet } from '../../ui/Sheet';
 import { Stepper } from '../../ui/Stepper';
 import { shiftDays } from '../train/readiness';
@@ -90,14 +91,18 @@ export function Nutrition() {
         <ThemeToggle />
       </div>
 
-      <div className="hscroll" style={{ paddingBottom: 'var(--sp-4)' }}>
+      {/* B6: a .hscroll puxa -20px de cada lado para viver dentro de um contentor com
+          padding. Aqui não há nenhum, e a fila saía do telefone: "Today" colado à borda e
+          "Macros" cortado. Sem a margem negativa, o padding dela é a margem do ecrã. */}
+      <div className="hscroll" style={{ marginInline: 0, paddingBottom: 'var(--sp-4)' }}>
         {tabs.map(([k, label]) => (
           <button
             key={k}
             type="button"
             className="chip"
             aria-pressed={tab === k}
-            onClick={() => {
+            onClick={(e) => {
+              e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
               if (k === 'quick') {
                 setCapture({ meal: 'snack', quick: true });
                 return;
@@ -148,26 +153,12 @@ export function Nutrition() {
               <div className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-card)' }} />
             </div>
           ) : tab === 'macros' ? (
-            <div className="card mx-5 mt-4">
-              <p className="label">{t.macrosTitle}</p>
-              <div className="row mt-3 flex-wrap" style={{ gap: 'var(--sp-5)' }}>
-                {(
-                  [
-                    [t.protein, totals.protein],
-                    [t.carbs, totals.carbs],
-                    [t.fat, totals.fat],
-                  ] as const
-                ).map(([label, v]) => (
-                  <div key={label}>
-                    <p className="label">{label}</p>
-                    <p className="metric metric-md tabular mt-1">
-                      {dec.format(v)}
-                      <span className="unit">g</span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MacroCard
+              protein={totals.protein}
+              carbs={totals.carbs}
+              fat={totals.fat}
+              onLog={() => setCapture({ meal: mealNow(), quick: false })}
+            />
           ) : dayEntries.length === 0 && date === today && !trend ? (
             <div className="screen-pad mt-6">
               <div className="empty">
@@ -282,6 +273,75 @@ function mealNow(): Meal {
   if (h < 16) return 'lunch';
   if (h < 19) return 'snack';
   return 'dinner';
+}
+
+/*
+ * B6: os macros do dia eram três "0g" soltos, e o ecrã ficava meio vazio. Agora são
+ * três anéis. Cada anel mostra a fatia das calorias que esse macro dá (4 kcal/g na
+ * proteína e nos hidratos, 9 na gordura), com os gramas ao centro. Não há metas de
+ * hidratos nem de gordura guardadas, e por isso não se inventa uma. Sem nada
+ * registado, o cartão diz isso e dá a ação para registar.
+ */
+function MacroCard({
+  protein,
+  carbs,
+  fat,
+  onLog,
+}: {
+  protein: number;
+  carbs: number;
+  fat: number;
+  onLog: () => void;
+}) {
+  const { locale, t: copy } = useLocale();
+  const t = copy.nutrition;
+  const num = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 0 });
+  const kcal = protein * 4 + carbs * 4 + fat * 9;
+  const macros = [
+    [t.protein, protein, protein * 4],
+    [t.carbs, carbs, carbs * 4],
+    [t.fat, fat, fat * 9],
+  ] as const;
+
+  return (
+    <div className="card mx-5 mt-4">
+      <p className="label">{t.macrosTitle}</p>
+      {kcal === 0 ? (
+        <div className="mt-3">
+          <p className="body-2 muted">{t.emptyBody}</p>
+          <button type="button" className="btn btn-primary mt-4" onClick={onLog}>
+            {t.logMeal}
+          </button>
+        </div>
+      ) : (
+        <div className="grid-3 mt-4">
+          {macros.map(([label, grams, part]) => {
+            const share = Math.round((part / kcal) * 100);
+            return (
+              <div key={label} className="grid justify-items-center gap-2 text-center">
+                <ProgressRing
+                    value={share}
+                    label={`${label}: ${num.format(grams)} g, ${share}% ${t.macrosOfKcal}`}
+                    size={84}
+                    stroke={8}
+                    center={
+                      <span className="metric metric-sm tabular absolute" style={{ color: 'var(--ui-text)' }}>
+                        {num.format(grams)}
+                        <span className="unit">g</span>
+                      </span>
+                    }
+                  />
+                <p className="label">{label}</p>
+                <p className="body-2 muted tabular">
+                  {share}% {t.macrosOfKcal}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Rings({
