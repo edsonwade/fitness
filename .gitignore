@@ -103,7 +103,9 @@ designs/
 diagramas/
 
 screenshots/
-scripts/
+scripts/*
+!scripts/clips/
+!scripts/clips/**
 
 qa-admin-dashboard.png
 qa-product-service.png

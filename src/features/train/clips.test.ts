@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -46,6 +46,24 @@ describe('clips', () => {
   it('gives every exercise of the shared programme a clip', () => {
     const missing = [...distinctPrescribedKeys()].filter((key) => clipFor(key) === null).sort();
     expect(missing, `sem clipe: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  /*
+   * Ele, 2026-09-27: "tem que aparecer o corpo todo e a máquina de exercícios". Cada
+   * clipe sai da janela que scripts/clips/frame.py escolheu (a origem inteira, nunca
+   * apertada ao corpo) e leva o veredicto do portão. Um clipe feito à mão, sem janela,
+   * ou que ninguém mediu, falha aqui.
+   */
+  it('cuts every clip from the window frame.py chose, with the gate recorded', () => {
+    const manifest = JSON.parse(
+      readFileSync(fileURLToPath(new URL('../../../scripts/clips/manifest.json', import.meta.url)), 'utf8'),
+    ) as { clips: { stem: string; window?: number[]; gate?: string }[] };
+    const byStem = new Map(manifest.clips.map((c) => [c.stem, c]));
+    for (const stem of CLIP_STEMS) {
+      const clip = byStem.get(stem);
+      expect(clip?.window, `${stem}: sem janela no manifest`).toHaveLength(4);
+      expect(clip?.gate, `${stem}: sem portão`).toBeTruthy();
+    }
   });
 
   it('borrows only clips that exist, and never for an exercise that has its own', () => {

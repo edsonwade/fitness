@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // scripts/clips/.venv e .cache: o Python do MediaPipe e as fontes descarregadas, fora do git.
+  globalIgnores(['dist', 'scripts/clips/.venv', 'scripts/clips/.cache']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

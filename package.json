@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "port:content": "node scripts/port-content.mjs",
     "check:contrast": "node scripts/contrast.mjs",
+    "clips:add": "node scripts/clips/add.mjs",
+    "clips:check": "node scripts/clips/make.mjs --check",
     "verify": "npm run lint && npm run build && npm test && npm run check:contrast",
     "validate": "node scripts/validate-phase.mjs",
     "validate:live": "node scripts/validate-live.mjs",

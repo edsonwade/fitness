@@ -4,9 +4,10 @@ import type { Clip } from './clips';
 
 /**
  * A demonstração: o clipe local, parado no primeiro frame enquanto a contagem corre, e
- * a andar a partir do fim do "1". Passa UMA vez e fecha — bug B1 de
- * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`: "é para demonstrar o
- * exercício antes de iniciar e depois ele fecha". Sem `loop`; no fim, `onEnded`.
+ * a andar a partir do fim do "1". Com `loop` repete-se até ao ✕ — skill
+ * `demonstracao-inteira-e-com-mostrador` (ele, 2026-09-27: "o vídeo de demonstração acaba
+ * muito rápido"), que substitui o "passa UMA vez e fecha" do B1 de
+ * `executar-demo-equipamento-ordem`. Sem `loop`, no fim chama `onEnded`.
  * `playing` é o único interruptor, e parado volta ao primeiro frame. O `<video>` é
  * remontado com a chave do exercício, por isso começa sempre do princípio. Com
  * movimento reduzido não arranca sozinho.
@@ -17,6 +18,7 @@ export function Demo({
   hold,
   label,
   backdrop = false,
+  loop = false,
   onEnded,
   onProgress,
 }: {
@@ -26,11 +28,13 @@ export function Demo({
   hold: boolean;
   label: string;
   /**
-   * A cópia desfocada que enche a janela por trás do clipe inteiro, a partir de 1024px
-   * (erro 3). Abaixo disso o CSS esconde-a. Não se anuncia: é o mesmo vídeo.
+   * A cópia desfocada que enche o ecrã por trás do clipe inteiro, em todas as larguras:
+   * o clipe fica sempre em `contain`, nunca cortado. Não se anuncia: é o mesmo vídeo.
    */
   backdrop?: boolean;
-  /** O clipe chegou ao fim: a demonstração fecha. */
+  /** Repete-se até ao ✕: nunca chega ao fim, e o mostrador dá uma volta por passagem. */
+  loop?: boolean;
+  /** O clipe chegou ao fim (só sem `loop`). */
   onEnded?: () => void;
   /**
    * Onde o clipe vai, em segundos, enquanto anda — o mostrador enche com ele (B8 de
@@ -65,6 +69,7 @@ export function Demo({
     video.addEventListener('pause', halt);
     video.addEventListener('ended', halt);
     video.addEventListener('seeked', report);
+    video.addEventListener('timeupdate', report);
     video.addEventListener('loadedmetadata', report);
     return () => {
       cancelAnimationFrame(raf);
@@ -72,17 +77,13 @@ export function Demo({
       video.removeEventListener('pause', halt);
       video.removeEventListener('ended', halt);
       video.removeEventListener('seeked', report);
+      video.removeEventListener('timeupdate', report);
       video.removeEventListener('loadedmetadata', report);
     };
   }, [follows]);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
-    /* A cópia desfocada só se vê a partir de 1024px; abaixo disso não gasta bateria. */
-    if (backdrop && !window.matchMedia?.('(min-width: 1024px)').matches) {
-      video.pause();
-      return;
-    }
     if (playing && !hold) {
       video.play().catch(() => {});
     } else if (hold) {
@@ -95,13 +96,14 @@ export function Demo({
         /* ainda sem metadados: já está no princípio */
       }
     }
-  }, [playing, hold, backdrop]);
+  }, [playing, hold]);
   return (
     <video
       ref={ref}
       className={backdrop ? 'run-wide-bg' : undefined}
       muted
       playsInline
+      loop={loop}
       onEnded={onEnded}
       preload={backdrop ? 'metadata' : 'auto'}
       poster={clip.poster || undefined}
