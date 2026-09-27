@@ -44,3 +44,20 @@ export function shiftAnchor(anchor: DialAnchor, ms: number): DialAnchor {
 export function finishAction(setsDone: number): 'record' | 'leave' {
   return setsDone > 0 ? 'record' : 'leave';
 }
+
+/**
+ * O ✕ do treino (B2 de `.claude/skills/demo-nao-marca-series/PLANO.md`): sem nenhuma série
+ * marcada não há nada para guardar nem nada que se perca, e sai-se sem perguntar. Com
+ * pelo menos uma, pergunta "Terminar treino?".
+ */
+export function quitAction(setsDone: number): 'leave' | 'ask' {
+  return setsDone > 0 ? 'ask' : 'leave';
+}
+
+/**
+ * A demonstração só passa quando ele a pede para ESTE exercício (B2): ver o vídeo e fazer
+ * o treino não dependem um do outro, e entrar no treino não liga o vídeo.
+ */
+export function demoOn(hasClip: boolean, askedFor: string | null, key: string): boolean {
+  return hasClip && askedFor === key;
+}

@@ -850,6 +850,7 @@ export const fr = {
     equipBodyweight: 'Poids du corps',
     demoSkip: 'Passer la démonstration et aller aux séries',
     replayDemo: 'Voir la démo',
+    demoClose: 'Fermer la démonstration',
     noDemo: 'Pas encore de démonstration vidéo pour cette variante.',
     coach: 'Coach de la séance',
     pickWeight: 'Choisir le poids de cette série',

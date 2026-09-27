@@ -8,6 +8,7 @@ import { INTL_LOCALE } from '../../i18n';
 import { useLocale, useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 import type { DayEntry } from './day-entries';
+import { DemoViewer } from './DemoViewer';
 import { exerciseState, setsDoneFor } from './logs';
 import { ReorderContext } from './reorder-context';
 import { ReorderHandle } from './ReorderableCard';
@@ -56,6 +57,8 @@ export function ExerciseCard({
   const e = copy.editor;
   const reorder = useContext(ReorderContext);
   const [open, setOpen] = useState(false);
+  /* Ver o vídeo sem começar treino (B2, skill demonstracao-separada-do-treino). */
+  const [watching, setWatching] = useState(false);
   const p = entry.prescription;
   const done = setsDoneFor(log, p.s);
   const state = exerciseState(done);
@@ -139,6 +142,17 @@ export function ExerciseCard({
             {t.technique}
           </button>
         ) : null}
+        {entry.clip ? (
+          <button
+            type="button"
+            className="chip chip-sm"
+            aria-haspopup="dialog"
+            onClick={() => setWatching(true)}
+          >
+            <Icon name="play" size={12} strokeWidth={2} />
+            {copy.run.replayDemo}
+          </button>
+        ) : null}
         <Link to={runHref} className="chip chip-sm no-underline">
           {t.log}
         </Link>
@@ -148,6 +162,9 @@ export function ExerciseCard({
       </div>
 
       {open && entry.exercise ? <Technique exercise={entry.exercise} /> : null}
+      {watching && entry.clip ? (
+        <DemoViewer clip={entry.clip} name={entry.name} onClose={() => setWatching(false)} />
+      ) : null}
 
     </article>
   );
