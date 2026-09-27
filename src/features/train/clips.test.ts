@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { distinctPrescribedKeys } from '../../content';
-import { CLIP_STEMS, STAND_INS, clipFor } from './clips';
+import { CLIP_STEMS, HELD_FOR_QUALITY, STAND_INS, clipFor, clipStem } from './clips';
 
 /**
  * The clip list and `public/video/` must say the same thing, in both directions: a stem
@@ -44,7 +44,9 @@ describe('clips', () => {
    * a sua demonstração, e a mensagem de falha diz quais faltam.
    */
   it('gives every exercise of the shared programme a clip', () => {
-    const missing = [...distinctPrescribedKeys()].filter((key) => clipFor(key) === null).sort();
+    const missing = [...distinctPrescribedKeys()]
+      .filter((key) => clipFor(key) === null && !HELD_FOR_QUALITY.has(clipStem(key)))
+      .sort();
     expect(missing, `sem clipe: ${missing.join(', ')}`).toEqual([]);
   });
 
@@ -64,6 +66,21 @@ describe('clips', () => {
       expect(clip?.window, `${stem}: sem janela no manifest`).toHaveLength(4);
       expect(clip?.gate, `${stem}: sem portão`).toBeTruthy();
     }
+  });
+
+  /*
+   * Ele, 2026-09-27 21:30: "não podemos ter vídeos com má qualidade". O portão de
+   * qualidade de scripts/clips/make.mjs (ampliação e nitidez) decide; um clipe chumbado
+   * não se oferece — o exercício fica com a foto, sem ▶ e sem "Ver demonstração", até
+   * haver substituto aprovado por ele. A lista e o manifest dizem o mesmo.
+   */
+  it('holds back exactly the clips the quality gate failed, and offers none of them', () => {
+    const manifest = JSON.parse(
+      readFileSync(fileURLToPath(new URL('../../../scripts/clips/manifest.json', import.meta.url)), 'utf8'),
+    ) as { clips: { stem: string; quality?: { verdict?: string } }[] };
+    const failed = manifest.clips.filter((c) => c.quality?.verdict !== 'ok').map((c) => c.stem);
+    expect([...HELD_FOR_QUALITY].sort()).toEqual(failed.sort());
+    for (const stem of HELD_FOR_QUALITY) expect(clipFor(stem), stem).toBeNull();
   });
 
   it('borrows only clips that exist, and never for an exercise that has its own', () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../data/supabase';
+import { shouldForget } from './remember';
 
 export type SessionState = {
   session: Session | null;
@@ -27,6 +28,12 @@ export function useSession(): SessionState {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
+      // "Lembrar-me" desligado e aba nova: a sessão de ontem não abre a app.
+      if (data.session && shouldForget()) {
+        void supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
       currentUserId = data.session?.user.id ?? null;
       setSession(data.session);
       setLoading(false);
@@ -34,6 +41,8 @@ export function useSession(): SessionState {
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       if (!active) return;
+      // A sessão que o getSession acima está a deitar fora não passa por aqui.
+      if (next && shouldForget()) return;
       const nextUserId = next?.user.id ?? null;
 
       // A token refresh keeps the same user. Swap the session object so callers

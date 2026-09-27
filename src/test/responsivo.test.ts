@@ -132,8 +132,11 @@ for (const locale of LOCALES) {
     }
 
     /* A língua, nas Definições: presets que partem em linhas (antes, um segmentado de 4). */
-    const lang = read('src/features/profile/Profile.tsx');
-    const langWraps = /className="presetrow" role="radiogroup" aria-label=\{t\.language\}/.test(lang);
+    /* Desde a skill lingua-na-entrada-e-definicoes a fila vive no LocalePicker, que o Perfil monta. */
+    const lang = read('src/i18n/LocalePicker.tsx');
+    const langWraps =
+      /<LocalePicker \/>/.test(read('src/features/profile/Profile.tsx')) &&
+      /className="presetrow" role="radiogroup" aria-label=\{label\}/.test(lang);
     for (const l of LOCALES) {
       const name = LOCALE_NAMES[l];
       const need = langWraps ? measure(name, { size: 14 }) + 32 + 2 : measure(name, SEG);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DEMO_RATE } from './clips';
 import { DIAL_START, DIAL_TICKS, demoDial, dialAt, dialSeconds, litTicks, restDial, tickDial } from './run-dial';
 
 describe('the Executar dial', () => {
@@ -41,21 +42,33 @@ describe('the dial from its anchor', () => {
 });
 
 describe('the dial during the demonstration', () => {
+  /* The media clock, at 1× — the arithmetic of the dial on its own. */
   it('fills with the video and counts down what is left', () => {
-    expect(demoDial(0, 6)).toEqual({ lit: 0, left: 6 });
-    expect(demoDial(3, 6).lit).toBe(Math.round(DIAL_TICKS / 2));
-    expect(demoDial(6, 6)).toEqual({ lit: DIAL_TICKS, left: 0 });
-    expect(demoDial(0.8, 6).left).toBe(6);
+    expect(demoDial(0, 6, 1)).toEqual({ lit: 0, left: 6 });
+    expect(demoDial(3, 6, 1).lit).toBe(Math.round(DIAL_TICKS / 2));
+    expect(demoDial(6, 6, 1)).toEqual({ lit: DIAL_TICKS, left: 0 });
+    expect(demoDial(0.8, 6, 1).left).toBe(6);
   });
 
   it('never goes past the ends', () => {
-    expect(demoDial(9, 6)).toEqual({ lit: DIAL_TICKS, left: 0 });
-    expect(demoDial(-1, 6)).toEqual({ lit: 0, left: 6 });
+    expect(demoDial(9, 6, 1)).toEqual({ lit: DIAL_TICKS, left: 0 });
+    expect(demoDial(-1, 6, 1)).toEqual({ lit: 0, left: 6 });
   });
 
   it('stays at zero while the video has no length', () => {
     expect(demoDial(1, 0)).toEqual({ lit: 0, left: 0 });
     expect(demoDial(1, Number.NaN)).toEqual({ lit: 0, left: 0 });
     expect(demoDial(1, Number.POSITIVE_INFINITY)).toEqual({ lit: 0, left: 0 });
+  });
+
+  /* T6 (ele, 2026-09-27): "não podem ser muito rápidos porque senão não se aprende nada". */
+  it('plays the demonstration slowed down, at half speed', () => {
+    expect(DEMO_RATE).toBe(0.5);
+  });
+
+  it('counts real seconds at the slowed speed, not seconds of the clip', () => {
+    expect(demoDial(0, 6)).toEqual({ lit: 0, left: 12 });
+    expect(demoDial(3, 6)).toEqual({ lit: Math.round(DIAL_TICKS / 2), left: 6 });
+    expect(demoDial(6, 6)).toEqual({ lit: DIAL_TICKS, left: 0 });
   });
 });

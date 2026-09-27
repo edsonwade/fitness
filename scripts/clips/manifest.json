@@ -18,7 +18,12 @@
     2.5168
    ],
    "gate": "a origem corta o corpo em 6 de 36 frames (pés fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés atrás da plataforma)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés atrás da plataforma)",
+   "quality": {
+    "upscale": 0.47,
+    "sharp": 414.6,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "legext",
@@ -35,7 +40,12 @@
     1,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 452.6,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "dip",
@@ -53,7 +63,12 @@
     2.0473
    ],
    "gate": "ok",
-   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27"
+   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27",
+   "quality": {
+    "upscale": 0.58,
+    "sharp": 927.3,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "pulldown",
@@ -71,7 +86,12 @@
     2.3963
    ],
    "gate": "a origem corta o corpo em 18 de 20 frames (pés, tornozelo fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (visto de cima; os pés ficam por baixo do rolo)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (visto de cima; os pés ficam por baixo do rolo)",
+   "quality": {
+    "upscale": 0.49,
+    "sharp": 173.4,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "plank",
@@ -88,7 +108,12 @@
     0.998,
     3.1542
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.38,
+    "sharp": 55.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "cablecurl",
@@ -106,7 +131,12 @@
     0.3265,
     1.0319
    ],
-   "gate": "a origem corta o corpo em 35 de 36 frames (pés, tornozelo fora da imagem)"
+   "gate": "a origem corta o corpo em 35 de 36 frames (pés, tornozelo fora da imagem)",
+   "quality": {
+    "upscale": 1.72,
+    "sharp": 10.5,
+    "verdict": "amplia a origem 1.72×; mole (nitidez 10.5 < 50)"
+   }
   },
   {
    "stem": "legpressh",
@@ -125,7 +155,12 @@
     1.0816
    ],
    "gate": "a origem corta o corpo em 28 de 48 frames (pés fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés na plataforma)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés na plataforma)",
+   "quality": {
+    "upscale": 1.1,
+    "sharp": 88.8,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "calfs",
@@ -141,7 +176,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 17 de 25 frames (corpo não reconhecido, pés fora da imagem)"
+   "gate": "a origem corta o corpo em 17 de 25 frames (corpo não reconhecido, pés fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 11.4,
+    "verdict": "mole (nitidez 11.4 < 50)"
+   }
   },
   {
    "stem": "cgbench",
@@ -157,7 +197,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 25 de 34 frames (corpo não reconhecido, pés fora da imagem)"
+   "gate": "a origem corta o corpo em 25 de 34 frames (corpo não reconhecido, pés fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 43,
+    "verdict": "mole (nitidez 43 < 50)"
+   }
   },
   {
    "stem": "csrow",
@@ -174,7 +219,12 @@
     1
    ],
    "gate": "a origem corta o corpo em 9 de 44 frames (pulso fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (um pulso sai 1 frame)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (um pulso sai 1 frame)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 74.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "dbbench",
@@ -190,7 +240,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 27 de 27 frames (cabeça, pés fora da imagem)"
+   "gate": "a origem corta o corpo em 27 de 27 frames (cabeça, pés fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 24.6,
+    "verdict": "mole (nitidez 24.6 < 50)"
+   }
   },
   {
    "stem": "dbcurl",
@@ -206,7 +261,12 @@
     1.0025,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 35.5,
+    "verdict": "mole (nitidez 35.5 < 50)"
+   }
   },
   {
    "stem": "dbohp",
@@ -222,7 +282,12 @@
     1.0025,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 87.6,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "dbrdl",
@@ -239,7 +304,12 @@
     1
    ],
    "gate": "a origem corta o corpo em 3 de 27 frames (pés fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés no limite em 3 frames)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés no limite em 3 frames)",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 556.6,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "hack",
@@ -257,23 +327,33 @@
     1
    ],
    "gate": "a origem corta o corpo em 23 de 37 frames (corpo não reconhecido, pés fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (os pés estão na plataforma; a pose não os apanha de lado)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (os pés estão na plataforma; a pose não os apanha de lado)",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 804.4,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "hammer",
    "source": {
-    "kind": "local",
-    "file": "scripts/clips/.cache/orig/ex-hammer.mp4"
+    "kind": "pexels",
+    "id": "34957899"
    },
-   "start": 0,
-   "end": 5.6,
+   "start": 0.5,
+   "end": 6.5,
    "window": [
-    -0.0012,
     0,
-    1.0025,
+    0,
+    1,
     1
    ],
-   "gate": "a origem corta o corpo em 34 de 34 frames (pés fora da imagem)"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 1104.4,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "hipthrust",
@@ -291,7 +371,12 @@
     2.942
    ],
    "gate": "ok",
-   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27"
+   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27",
+   "quality": {
+    "upscale": 0.4,
+    "sharp": 243.8,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "incldb",
@@ -307,7 +392,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 25 de 25 frames (anca, pulso, pés fora da imagem)"
+   "gate": "a origem corta o corpo em 25 de 25 frames (anca, pulso, pés fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 28,
+    "verdict": "mole (nitidez 28 < 50)"
+   }
   },
   {
    "stem": "kickback",
@@ -323,7 +413,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 30 de 31 frames (pulso, tornozelo fora da imagem)"
+   "gate": "a origem corta o corpo em 30 de 31 frames (pulso, tornozelo fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 56.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "lateral",
@@ -339,24 +434,33 @@
     1.0025,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 140.4,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "legraise",
    "source": {
-    "kind": "local",
-    "file": "scripts/clips/.cache/orig/ex-legraise.mp4"
+    "kind": "pexels",
+    "id": "6455075"
    },
-   "start": 0,
-   "end": 4.9,
+   "start": 0.9,
+   "end": 5.9,
    "window": [
-    -0.0012,
     0,
-    1.0025,
+    0,
+    1,
     1
    ],
-   "gate": "a origem corta o corpo em 16 de 30 frames (ombro, pés, tornozelo fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pernas sobem ao topo)"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 2193.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "lunge",
@@ -373,7 +477,12 @@
     1
    ],
    "gate": "a origem corta o corpo em 2 de 14 frames (tornozelo fora da imagem)",
-   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pé de trás sai 2 frames)"
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pé de trás sai 2 frames)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 90.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "ohext",
@@ -389,7 +498,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 28 de 28 frames (pés fora da imagem)"
+   "gate": "a origem corta o corpo em 28 de 28 frames (pés fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 29.3,
+    "verdict": "mole (nitidez 29.3 < 50)"
+   }
   },
   {
    "stem": "pallof",
@@ -405,7 +519,12 @@
     1.0006,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 89.7,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "pecdeck",
@@ -422,7 +541,12 @@
     1,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 364.1,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "pushdown",
@@ -438,7 +562,12 @@
     1.001,
     1
    ],
-   "gate": "a origem corta o corpo em 31 de 31 frames (pés, tornozelo fora da imagem)"
+   "gate": "a origem corta o corpo em 31 de 31 frames (pés, tornozelo fora da imagem)",
+   "quality": {
+    "upscale": 0.67,
+    "sharp": 347,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "reardelt",
@@ -455,7 +584,12 @@
     0.5483,
     1.7329
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 0.68,
+    "sharp": 2030.2,
+    "verdict": "ok"
+   }
   },
   {
    "stem": "seatedrow",
@@ -471,7 +605,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 20 de 20 frames (pés, tornozelo fora da imagem)"
+   "gate": "a origem corta o corpo em 20 de 20 frames (pés, tornozelo fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 40.3,
+    "verdict": "mole (nitidez 40.3 < 50)"
+   }
   },
   {
    "stem": "skull",
@@ -487,7 +626,12 @@
     1.0025,
     1
    ],
-   "gate": "a origem corta o corpo em 32 de 32 frames (anca, pés, tornozelo fora da imagem)"
+   "gate": "a origem corta o corpo em 32 de 32 frames (anca, pés, tornozelo fora da imagem)",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 17.7,
+    "verdict": "mole (nitidez 17.7 < 50)"
+   }
   },
   {
    "stem": "strarm",
@@ -503,7 +647,12 @@
     1.0025,
     1
    ],
-   "gate": "ok"
+   "gate": "ok",
+   "quality": {
+    "upscale": 1.19,
+    "sharp": 199.3,
+    "verdict": "ok"
+   }
   }
  ]
 }

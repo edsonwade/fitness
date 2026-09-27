@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DAYS, EXERCISES } from '../../content';
 import type { ExerciseOverride } from '../../data/entities';
 import { entryLogKey, resolveDayEntries } from './day-entries';
-import { clipFor } from './clips';
+import { clipFor, clipStem } from './clips';
 import { EQUIP_IDS, VARIANTS, chosenVariant, equipIdOf, variantLogKey } from './variants';
 
 /**
@@ -111,6 +111,8 @@ describe('a day entry on a variant', () => {
   it('pointing at another exercise of the programme takes its clip', () => {
     const cable = VARIANTS.dbcurl.find((v) => v.equip === 'cable')!;
     expect(cable.ex).toBe('cablecurl');
-    expect(clipFor(cable.ex!)).not.toEqual(clipFor('dbcurl'));
+    // The clip it points at, not the file on offer: both are held for quality (T5).
+    expect(clipStem(cable.ex!)).toBe('cablecurl');
+    expect(clipStem(cable.ex!)).not.toBe(clipStem('dbcurl'));
   });
 });

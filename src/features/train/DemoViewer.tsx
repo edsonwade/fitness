@@ -79,7 +79,8 @@ export function DemoViewer({
       onPlaying={() => setPlaying(true)}
       onPause={() => setPlaying(false)}
     >
-      <Demo clip={clip} playing hold={false} label={name} backdrop loop />
+      {/* A foto do clipe desfocada, e não uma segunda cópia do vídeo (T5: travava). */}
+      <img className="run-wide-bg" src={clip.poster} alt="" aria-hidden="true" />
       <Demo clip={clip} playing hold={false} label={name} loop onProgress={follow} />
       <div className="demo-rings" aria-hidden="true">
         <i />
