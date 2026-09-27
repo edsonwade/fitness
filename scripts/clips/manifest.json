@@ -1,0 +1,509 @@
+{
+ "_": "Um clipe por exercício, no molde de make.mjs. start/end em segundos da FONTE: só repetições, a começar no movimento. crop = [x, y, largura, altura] em frações. Skill clipes-como-a-ladder.",
+ "clips": [
+  {
+   "stem": "legpress",
+   "source": {
+    "kind": "pexels",
+    "id": 32239228
+   },
+   "start": 0,
+   "end": 6,
+   "gamma": 1.25,
+   "note": "Pexels: Intense Leg Workout Using Leg Press Machine — de lado, corpo inteiro",
+   "window": [
+    0.0453,
+    -0.7601,
+    0.7963,
+    2.5168
+   ],
+   "gate": "a origem corta o corpo em 6 de 36 frames (pés fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés atrás da plataforma)"
+  },
+  {
+   "stem": "legext",
+   "source": {
+    "kind": "pexels",
+    "id": 32709558
+   },
+   "start": 0,
+   "end": 7.3,
+   "note": "Pexels: Gym Workout Motivation with Leg Extensions — ao alto, de lado",
+   "window": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "dip",
+   "source": {
+    "kind": "pexels",
+    "id": 4804788
+   },
+   "start": 2,
+   "end": 8,
+   "note": "Pexels: dip no banco (variante aprovada por ele em 2026-09-27; nas paralelas não há origem com o corpo inteiro)",
+   "window": [
+    0.1774,
+    -0.5236,
+    0.6478,
+    2.0473
+   ],
+   "gate": "ok",
+   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27"
+  },
+  {
+   "stem": "pulldown",
+   "source": {
+    "kind": "pexels",
+    "id": 4110016
+   },
+   "start": 0,
+   "end": 3.2,
+   "note": "Pexels: A Man Doing Lateral Pull Down Exercise — de cima, a pessoa inteira na máquina (troca de 2026-09-27: a origem 35585700 era de costas e sem pernas)",
+   "window": [
+    0.2334,
+    -0.6982,
+    0.7582,
+    2.3963
+   ],
+   "gate": "a origem corta o corpo em 18 de 20 frames (pés, tornozelo fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (visto de cima; os pés ficam por baixo do rolo)"
+  },
+  {
+   "stem": "plank",
+   "source": {
+    "kind": "pexels",
+    "id": 6023273
+   },
+   "start": 1,
+   "end": 7,
+   "note": "Pexels: A Woman Planking — de lado, corpo inteiro (exercício parado)",
+   "window": [
+    0.002,
+    -1.0947,
+    0.998,
+    3.1542
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "cablecurl",
+   "source": {
+    "kind": "pexels",
+    "id": 4367641
+   },
+   "start": 0,
+   "end": 6,
+   "gamma": 1.35,
+   "note": "Pexels: A Man Doing Cable Biceps Curls — de lado",
+   "window": [
+    0.2715,
+    0,
+    0.3265,
+    1.0319
+   ],
+   "gate": "a origem corta o corpo em 35 de 36 frames (pés, tornozelo fora da imagem)"
+  },
+  {
+   "stem": "legpressh",
+   "source": {
+    "kind": "pexels",
+    "id": 36457367
+   },
+   "start": 0,
+   "end": 8,
+   "gamma": 1.8,
+   "note": "Pexels: Man Exercising on Leg Press Machine at Gym — de lado",
+   "window": [
+    0.3961,
+    -0.0816,
+    0.3422,
+    1.0816
+   ],
+   "gate": "a origem corta o corpo em 28 de 48 frames (pés fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés na plataforma)"
+  },
+  {
+   "stem": "calfs",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-calfs.mp4"
+   },
+   "start": 0.5,
+   "end": 4.5,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 17 de 25 frames (corpo não reconhecido, pés fora da imagem)"
+  },
+  {
+   "stem": "cgbench",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-cgbench.mp4"
+   },
+   "start": 6,
+   "end": 11.5,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 25 de 34 frames (corpo não reconhecido, pés fora da imagem)"
+  },
+  {
+   "stem": "csrow",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-csrow.mp4"
+   },
+   "start": 0.7,
+   "end": 7.9,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 9 de 44 frames (pulso fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (um pulso sai 1 frame)"
+  },
+  {
+   "stem": "dbbench",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-dbbench.mp4"
+   },
+   "start": 3.5,
+   "end": 8,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 27 de 27 frames (cabeça, pés fora da imagem)"
+  },
+  {
+   "stem": "dbcurl",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-dbcurl.mp4"
+   },
+   "start": 3.5,
+   "end": 8,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "dbohp",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-dbohp.mp4"
+   },
+   "start": 0,
+   "end": 6,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "dbrdl",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-dbrdl.mp4"
+   },
+   "start": 1.9,
+   "end": 6.3,
+   "window": [
+    -0.0005,
+    0,
+    1.001,
+    1
+   ],
+   "gate": "a origem corta o corpo em 3 de 27 frames (pés fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pés no limite em 3 frames)"
+  },
+  {
+   "stem": "hack",
+   "source": {
+    "kind": "pexels",
+    "id": 37997498
+   },
+   "start": 4,
+   "end": 10,
+   "note": "Pexels: Man performing squats in gym with weight machine — ao alto, a pessoa inteira na máquina de hack squat (troca de 2026-09-27: na origem antiga os pés saíam)",
+   "window": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "gate": "a origem corta o corpo em 23 de 37 frames (corpo não reconhecido, pés fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (os pés estão na plataforma; a pose não os apanha de lado)"
+  },
+  {
+   "stem": "hammer",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-hammer.mp4"
+   },
+   "start": 0,
+   "end": 5.6,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 34 de 34 frames (pés fora da imagem)"
+  },
+  {
+   "stem": "hipthrust",
+   "source": {
+    "kind": "pexels",
+    "id": 6525487
+   },
+   "start": 0,
+   "end": 6,
+   "note": "Pexels: ponte de glúteos no chão (variante aprovada por ele em 2026-09-27; sem banco nem barra)",
+   "window": [
+    0.0691,
+    -0.8951,
+    0.9309,
+    2.942
+   ],
+   "gate": "ok",
+   "seen": "inteiro, numa faixa com desfocado em cima e em baixo — conferido na folha em 2026-09-27"
+  },
+  {
+   "stem": "incldb",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-incldb.mp4"
+   },
+   "start": 0,
+   "end": 4,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 25 de 25 frames (anca, pulso, pés fora da imagem)"
+  },
+  {
+   "stem": "kickback",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-kickback.mp4"
+   },
+   "start": 0,
+   "end": 5,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 30 de 31 frames (pulso, tornozelo fora da imagem)"
+  },
+  {
+   "stem": "lateral",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-lateral.mp4"
+   },
+   "start": 1,
+   "end": 6,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "legraise",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-legraise.mp4"
+   },
+   "start": 0,
+   "end": 4.9,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 16 de 30 frames (ombro, pés, tornozelo fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pernas sobem ao topo)"
+  },
+  {
+   "stem": "lunge",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-lunge.mp4"
+   },
+   "start": 0,
+   "end": 2.2,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 2 de 14 frames (tornozelo fora da imagem)",
+   "seen": "inteiro, com a máquina — conferido na folha em 2026-09-27 (pé de trás sai 2 frames)"
+  },
+  {
+   "stem": "ohext",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-ohext.mp4"
+   },
+   "start": 0,
+   "end": 4.5,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 28 de 28 frames (pés fora da imagem)"
+  },
+  {
+   "stem": "pallof",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-pallof.mp4"
+   },
+   "start": 0,
+   "end": 4.7,
+   "window": [
+    -0.0003,
+    0,
+    1.0006,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "pecdeck",
+   "source": {
+    "kind": "pexels",
+    "id": 37496984
+   },
+   "start": 0.5,
+   "end": 6.5,
+   "note": "Pexels: Man performing chest exercises in gym — ao alto, a pessoa inteira na peck deck (troca de 2026-09-27: na origem antiga os pés saíam)",
+   "window": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "pushdown",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-pushdown.mp4"
+   },
+   "start": 0,
+   "end": 5,
+   "window": [
+    -0.0005,
+    0,
+    1.001,
+    1
+   ],
+   "gate": "a origem corta o corpo em 31 de 31 frames (pés, tornozelo fora da imagem)"
+  },
+  {
+   "stem": "reardelt",
+   "source": {
+    "kind": "pexels",
+    "id": 39347710
+   },
+   "start": 10,
+   "end": 16,
+   "note": "Pexels: Man exercising in modern gym facility — de costas, a pessoa inteira na máquina de rear delt (troca de 2026-09-27: a origem antiga cortava a cabeça)",
+   "window": [
+    0.1876,
+    -0.3375,
+    0.5483,
+    1.7329
+   ],
+   "gate": "ok"
+  },
+  {
+   "stem": "seatedrow",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-seatedrow.mp4"
+   },
+   "start": 0,
+   "end": 3.3,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 20 de 20 frames (pés, tornozelo fora da imagem)"
+  },
+  {
+   "stem": "skull",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-skull.mp4"
+   },
+   "start": 0,
+   "end": 5.3,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "a origem corta o corpo em 32 de 32 frames (anca, pés, tornozelo fora da imagem)"
+  },
+  {
+   "stem": "strarm",
+   "source": {
+    "kind": "local",
+    "file": "scripts/clips/.cache/orig/ex-strarm.mp4"
+   },
+   "start": 0.5,
+   "end": 5.4,
+   "window": [
+    -0.0012,
+    0,
+    1.0025,
+    1
+   ],
+   "gate": "ok"
+  }
+ ]
+}

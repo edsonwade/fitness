@@ -1,0 +1,4 @@
+.cache/
+.sheets/
+.venv/
+__pycache__/
