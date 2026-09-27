@@ -1025,6 +1025,7 @@ export const pt = {
     equipBodyweight: 'Peso corporal',
     demoSkip: 'Saltar a demonstração e ir às séries',
     replayDemo: 'Ver demonstração',
+    demoClose: 'Fechar a demonstração',
     noDemo: 'Ainda sem demonstração em vídeo para esta variante.',
     coach: 'Treinadora da sessão',
     pickWeight: 'Escolher o peso desta série',

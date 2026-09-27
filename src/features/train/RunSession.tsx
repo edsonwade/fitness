@@ -40,12 +40,12 @@ import {
   useSessions,
 } from './sessions';
 import { DIAL_START, demoDial, dialAt, dialSeconds, litTicks, type DialAnchor } from './run-dial';
-import { GO_MS, countFrom, finishAction, shiftAnchor } from './run-pause';
+import { GO_MS, countFrom, demoOn, finishAction, quitAction, shiftAnchor } from './run-pause';
 import { sheetQueue, wheelNames } from './run-queue';
 import { EntryThumb, SetSheet, type HistoryLine } from './SetSheet';
 import { useDayEditing } from './use-day-editing';
 import { EQUIP_NAMES, variantsOf } from './variants';
-import type { Clip } from './clips';
+import { Demo } from './DemoClip';
 import { MusicBar, MusicSheet } from './MusicPlayer';
 import { useSuggestions } from './suggestion';
 import { useRestDefault } from '../profile/rest-default';
@@ -133,119 +133,6 @@ function PrepCount({ label, onGo, paused }: { label: string; onGo: () => void; p
         <span key={digit}>{digit}</span>
       </p>
     </div>
-  );
-}
-
-/**
- * A demonstração: o clipe local, parado no primeiro frame enquanto a contagem corre, e
- * a andar a partir do fim do "1". Passa UMA vez e fecha — bug B1 de
- * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`: "é para demonstrar o
- * exercício antes de iniciar e depois ele fecha". Sem `loop`; no fim, `onEnded`.
- * `playing` é o único interruptor, e parado volta ao primeiro frame. O `<video>` é
- * remontado com a chave do exercício, por isso começa sempre do princípio. Com
- * movimento reduzido não arranca sozinho.
- */
-function Demo({
-  clip,
-  playing,
-  hold,
-  label,
-  backdrop = false,
-  onEnded,
-  onProgress,
-}: {
-  clip: Clip;
-  playing: boolean;
-  /** Em pausa ("Terminar treino?" aberto): para onde está, sem voltar ao princípio. */
-  hold: boolean;
-  label: string;
-  /**
-   * A cópia desfocada que enche a janela por trás do clipe inteiro, a partir de 1024px
-   * (erro 3). Abaixo disso o CSS esconde-a. Não se anuncia: é o mesmo vídeo.
-   */
-  backdrop?: boolean;
-  /** O clipe chegou ao fim: a demonstração fecha. */
-  onEnded?: () => void;
-  /**
-   * Onde o clipe vai, em segundos, enquanto anda — o mostrador enche com ele (B8 de
-   * `.claude/skills/executar-demo-equipamento-ordem/PLANO.md`). Pausado, não chama.
-   */
-  onProgress?: (t: number, d: number) => void;
-}) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const progressRef = useRef(onProgress);
-  useEffect(() => {
-    progressRef.current = onProgress;
-  });
-  const follows = onProgress !== undefined;
-  useEffect(() => {
-    const video = ref.current;
-    if (!video || !follows) return;
-    let raf = 0;
-    const report = () => progressRef.current?.(video.currentTime, video.duration);
-    const loop = () => {
-      report();
-      raf = requestAnimationFrame(loop);
-    };
-    const run = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(loop);
-    };
-    const halt = () => {
-      cancelAnimationFrame(raf);
-      report();
-    };
-    video.addEventListener('playing', run);
-    video.addEventListener('pause', halt);
-    video.addEventListener('ended', halt);
-    video.addEventListener('seeked', report);
-    video.addEventListener('loadedmetadata', report);
-    return () => {
-      cancelAnimationFrame(raf);
-      video.removeEventListener('playing', run);
-      video.removeEventListener('pause', halt);
-      video.removeEventListener('ended', halt);
-      video.removeEventListener('seeked', report);
-      video.removeEventListener('loadedmetadata', report);
-    };
-  }, [follows]);
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
-    /* A cópia desfocada só se vê a partir de 1024px; abaixo disso não gasta bateria. */
-    if (backdrop && !window.matchMedia?.('(min-width: 1024px)').matches) {
-      video.pause();
-      return;
-    }
-    if (playing && !hold) {
-      video.play().catch(() => {});
-    } else if (hold) {
-      video.pause();
-    } else {
-      video.pause();
-      try {
-        video.currentTime = 0;
-      } catch {
-        /* ainda sem metadados: já está no princípio */
-      }
-    }
-  }, [playing, hold, backdrop]);
-  return (
-    <video
-      ref={ref}
-      className={backdrop ? 'run-wide-bg' : undefined}
-      muted
-      playsInline
-      onEnded={onEnded}
-      preload={backdrop ? 'metadata' : 'auto'}
-      poster={clip.poster || undefined}
-      aria-label={backdrop ? undefined : label}
-      aria-hidden={backdrop || undefined}
-    >
-      {/* An uploaded clip has no webm twin, and may be a .mov: no type, the browser sniffs it. */}
-      {clip.webm ? <source src={clip.webm} type="video/webm" /> : null}
-      <source src={clip.mp4} type={clip.webm ? 'video/mp4' : undefined} />
-    </video>
   );
 }
 
@@ -362,6 +249,7 @@ export function RunSession() {
   const programme = useProgramme(block);
   const logs = useExerciseLogs();
   const { entries } = programme.resolve(dayRef?.day ?? null, dayId);
+  const progress = dayProgress(dayId, block, entries, logs.byKey);
   const editing = useDayEditing(dayId);
 
   /* O relógio do canto. */
@@ -382,15 +270,14 @@ export function RunSession() {
   const [reopened, setReopened] = useState<string | null>(null);
   /* A folha das séries. Fechada é o estado de partida: quem entra quer ver a demonstração. */
   const [sheetOpen, setSheetOpen] = useState(false);
-  /* O exercício de que a folha fala. Muda o exercício, a folha fecha, para a demonstração
-     do seguinte se ver antes das séries dele (B1). */
+  /* O exercício de que a folha fala. Muda o exercício, a folha fecha, e a contagem do
+     seguinte volta a abri-la. */
   const [sheetFor, setSheetFor] = useState<string | null>(null);
   /*
-   * A demonstração (B1): o exercício cuja demonstração já passou, ou que ele saltou. Com
-   * movimento reduzido não passa sozinha; `replayFor` é o exercício em que ele pediu
-   * "Ver demonstração", e `replay` remonta o vídeo para começar do princípio.
+   * A demonstração só passa a pedido dele (B2 de `.claude/skills/demo-nao-marca-series/PLANO.md`):
+   * ver o vídeo e fazer o treino não dependem um do outro. `replayFor` é o exercício em
+   * que ele pediu "Ver demonstração", e `replay` remonta o vídeo para começar do princípio.
    */
-  const [demoOver, setDemoOver] = useState<string | null>(null);
   const [replayFor, setReplayFor] = useState<string | null>(null);
   const [replay, setReplay] = useState(0);
   /* O mostrador durante a demonstração: o que o vídeo com esta chave já andou (B8). */
@@ -466,11 +353,34 @@ export function RunSession() {
     setQuit(null);
   }
 
+  /* O vídeo fechou (acabou, ele saltou-o, ou tocou no ✕): as séries voltam onde estavam. */
+  function closeDemo() {
+    setReplayFor(null);
+    setSheetOpen(true);
+  }
+
   /*
-   * A saída do ecrã: o ✕ no topo e, no teclado, o Esc — os dois perguntam "Terminar
-   * treino?" (erro 3 e bug B4 de `.claude/skills/executar-quatro-erros-do-browser/`).
+   * A saída do ecrã: o ✕ no topo e, no teclado, o Esc (erro 3 e bug B4 de
+   * `.claude/skills/executar-quatro-erros-do-browser/`). Com o vídeo a passar, fecham só o
+   * vídeo; sem nenhuma série marcada, saem sem perguntar; senão, "Terminar treino?" (B2).
    * Com o diálogo aberto, o Esc é "Continuar a treinar".
    */
+  function requestQuit() {
+    if (replayFor !== null) {
+      closeDemo();
+      return;
+    }
+    if (quitAction(progress.done) === 'leave') {
+      navigate(`/treino/${dayId}?bloco=${block}`, { replace: true });
+      return;
+    }
+    openQuit();
+  }
+  /* O Esc chama sempre o requestQuit deste render, com as séries marcadas de agora. */
+  const requestQuitRef = useRef(requestQuit);
+  useEffect(() => {
+    requestQuitRef.current = requestQuit;
+  });
   useEffect(() => {
     /* Com a folha aberta, o Esc é dela — fecha a roda ou a folha, e não a sessão. */
     if (sheetOpen) return;
@@ -478,7 +388,7 @@ export function RunSession() {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       event.preventDefault();
       if (quit) resume();
-      else openQuit();
+      else requestQuitRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -522,8 +432,6 @@ export function RunSession() {
     );
   }
 
-  const progress = dayProgress(dayId, block, entries, logs.byKey);
-
   const setsOf = (entry: DayEntry) =>
     setsDoneFor(logs.byKey.get(logId(dayId, block, entry.logKey ?? entry.key)), entry.prescription.s);
 
@@ -551,14 +459,12 @@ export function RunSession() {
     setSheetFor(entry.key);
     if (sheetFor !== null) setSheetOpen(false);
   }
-  /* A demonstração a passar: depois da contagem, até ao fim do clipe, uma vez só. */
-  const demoing =
-    entry.clip !== null &&
-    phase === 'set' &&
-    demoOver !== entry.key &&
-    (!reduced || replayFor === entry.key);
-  /* O vídeo anda desde o fim do "1" — já durante os 240 ms do véu a dissolver. */
-  const playing = (!reduced && isGoing) || demoing;
+  /* Um vídeo pedido para outro exercício não fica pendurado neste. */
+  if (replayFor !== null && replayFor !== entry.key) setReplayFor(null);
+  /* A demonstração a passar: só quando ele a pediu para este exercício, até ao fim do
+     clipe, uma vez só (B2). Entrar no treino não a liga. */
+  const demoing = demoOn(entry.clip !== null, replayFor, entry.key);
+  const playing = demoing;
   /*
    * O mostrador só conta o DESCANSO, depois de se marcar uma série, e a zeros no resto do
    * tempo. A série a subir saiu (B1): "não tem que gravar isso". O descanso continua
@@ -585,14 +491,11 @@ export function RunSession() {
   /* A demonstração fechou (acabou, ou ele saltou-a): as séries aparecem para marcar. */
   function endDemo(key: string) {
     if (key !== entry.key) return;
-    setDemoOver(key);
-    setReplayFor(null);
-    setSheetOpen(true);
+    closeDemo();
   }
 
-  /* "Ver demonstração", da folha: passa outra vez desde o princípio, e fecha no fim. */
+  /* "Ver demonstração", da folha ou do ▶ do palco: passa desde o princípio, e fecha no fim. */
   function replayDemo() {
-    setDemoOver(null);
     setReplayFor(entry.key);
     setReplay((n) => n + 1);
     setSheetOpen(false);
@@ -604,15 +507,11 @@ export function RunSession() {
   function goSet() {
     if (phase !== 'prep' || isGoing) return;
     const key = entry.key;
-    const hasClip = entry.clip !== null;
     setGoing(key);
     window.setTimeout(() => {
       setSetFor(key);
-      /* Sem clipe não há demonstração: as séries aparecem logo. */
-      if (!hasClip) {
-        setDemoOver(key);
-        setSheetOpen(true);
-      }
+      /* As séries aparecem logo: o vídeo não é passo do treino (B2). */
+      setSheetOpen(true);
     }, GO_MS);
   }
 
@@ -976,9 +875,9 @@ export function RunSession() {
                 <button
                   type="button"
                   className="btn btn-icon on-media"
-                  aria-label={r.quit}
-                  aria-haspopup="dialog"
-                  onClick={openQuit}
+                  aria-label={demoing ? r.demoClose : r.quit}
+                  aria-haspopup={demoing ? undefined : 'dialog'}
+                  onClick={requestQuit}
                 >
                   <Icon name="x" size={19} strokeWidth={2.2} />
                 </button>
@@ -991,6 +890,17 @@ export function RunSession() {
                 estão desativadas porque ainda não têm para onde ir — a música é a fase 012.
               */}
               <div className="flex items-center gap-2">
+                {/* Ver o vídeo, quando ele quiser — nunca sozinho (B2). */}
+                {entry.clip && !demoing ? (
+                  <button
+                    type="button"
+                    className="btn btn-icon on-media"
+                    aria-label={r.replayDemo}
+                    onClick={replayDemo}
+                  >
+                    <Icon name="play" size={19} strokeWidth={2} />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="btn btn-icon on-media"

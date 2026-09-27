@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { dialAt } from './run-dial';
-import { COUNT_MS, GO_MS, countFrom, finishAction, shiftAnchor } from './run-pause';
+import { COUNT_MS, GO_MS, countFrom, demoOn, finishAction, quitAction, shiftAnchor } from './run-pause';
 
 describe('countFrom — a contagem retoma onde ia', () => {
   it('do princípio: 3 à vista, e os três passos por dar', () => {
@@ -55,5 +55,33 @@ describe('finishAction — "Terminar e guardar"', () => {
   });
   it('sem nenhuma, não houve treino: só sai', () => {
     expect(finishAction(0)).toBe('leave');
+  });
+});
+
+/*
+ * B2 de .claude/skills/demo-nao-marca-series/PLANO.md (skill demonstracao-separada-do-treino):
+ * ver o vídeo e fazer o treino não dependem um do outro.
+ */
+describe('quitAction — o ✕ do treino', () => {
+  it('sem nenhuma série marcada, sai logo: não há nada para guardar', () => {
+    expect(quitAction(0)).toBe('leave');
+  });
+  it('com séries marcadas, pergunta "Terminar treino?"', () => {
+    expect(quitAction(1)).toBe('ask');
+  });
+});
+
+describe('demoOn — o vídeo só passa quando ele o pede', () => {
+  it('entrar no treino não liga o vídeo', () => {
+    expect(demoOn(true, null, 'row')).toBe(false);
+  });
+  it('pedido para este exercício, com clipe, passa', () => {
+    expect(demoOn(true, 'row', 'row')).toBe(true);
+  });
+  it('pedido para outro exercício não passa neste', () => {
+    expect(demoOn(true, 'curl', 'row')).toBe(false);
+  });
+  it('sem clipe não há vídeo', () => {
+    expect(demoOn(false, 'row', 'row')).toBe(false);
   });
 });

@@ -857,6 +857,7 @@ export const en = {
     equipBodyweight: 'Bodyweight',
     demoSkip: 'Skip the demonstration and go to the sets',
     replayDemo: 'Watch demo',
+    demoClose: 'Close the demo',
     noDemo: 'No video demonstration for this variant yet.',
     coach: 'Session coach',
     pickWeight: 'Choose this set’s weight',
