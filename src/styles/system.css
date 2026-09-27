@@ -759,11 +759,10 @@ button.media-name::before {
 }
 
 /* O ECRÃ DA LADDER — skill clipes-como-a-ladder (.claude/skills/clipes-como-a-ladder/SKILL.md).
-   Pedido dele, 2026-09-23, com a imagem do Romanian Deadlift da Ladder: o clipe enche o
-   ecrã, e os números assentam no CHÃO LIVRE do próprio clipe. Não é o layout que protege
-   a execução — é o MOLDE de scripts/clips/make.mjs: todos os clipes são 720×1280, a
-   pessoa inteira dentro da caixa x 60–660 · y 24–880, e os 31% de baixo livres. As
-   margens de 60px aguentam o `cover` de um telefone até 390×844 sem cortar ninguém.
+   Pedido dele, 2026-09-23, com a imagem do Romanian Deadlift da Ladder, e 2026-09-27:
+   "tem que aparecer o corpo todo e a máquina de exercícios". Todos os clipes de
+   scripts/clips/make.mjs são 720×1280 e são a origem INTEIRA à volta do corpo, sem
+   margem — por isso, no Executar, nunca `cover`: ver "O clipe INTEIRO" mais abaixo.
 
    A foto (exercício sem clipe) é deitada, 1000×667: `.is-fit` põe-na inteira sobre a
    própria foto desfocada, porque cortar cabeças é o defeito. */
@@ -1221,12 +1220,18 @@ button.media-name { touch-action: none; }
    toda, e por trás o mesmo clipe desfocado a encher os lados. Os números e o cartão
    crescem, numa coluna de 680px ao centro. As séries abrem num painel de 420px à
    direita, e o vídeo encosta-se à esquerda e continua a correr. */
-.run-wide-bg { display: none; }
+/* O clipe INTEIRO em todas as larguras (ele, 2026-09-27: "tem que aparecer o corpo todo
+   e a máquina de exercícios"). Os clipes de scripts/clips/make.mjs deixaram de ter margem
+   de lado para o `cover` comer: são a origem inteira, de borda a borda, e um `cover` num
+   telefone 390×844 cortava 18% da largura — braços e máquina. Por isso `contain`, com o
+   mesmo clipe desfocado a encher o resto. No telefone o clipe encosta-se ao topo: a
+   folga fica em baixo, onde assentam os números, e não por cima dos pés. */
+.run-frame .media-screen > video.run-wide-bg {
+  display: block; object-fit: cover; filter: blur(34px) brightness(0.85); transform: scale(1.12);
+}
+.run-frame .media-screen > video:not(.run-wide-bg) { object-fit: contain; object-position: top; z-index: 1; }
 @media (min-width: 1024px) {
-  .run-frame .media-screen > video.run-wide-bg {
-    display: block; object-fit: cover; filter: blur(34px) brightness(0.85); transform: scale(1.12);
-  }
-  .run-frame .media-screen > video:not(.run-wide-bg) { object-fit: contain; z-index: 1; }
+  .run-frame .media-screen > video:not(.run-wide-bg) { object-position: center; }
   /* Sem transição na margem (animar layout dá solavancos): o painel é que desliza, com
      transform, e o vídeo encosta-se de uma vez. */
   .run-frame.is-panel .media-screen { margin-right: 420px; }
@@ -2096,3 +2101,34 @@ button.media-name { touch-action: none; }
 .demo-viewer > video { width: 100%; height: 100%; max-width: calc(100dvh * 9 / 16); object-fit: contain; }
 .demo-viewer-top { position: absolute; top: max(var(--sp-4), env(safe-area-inset-top)); left: var(--sp-4); right: var(--sp-4); display: flex; align-items: center; gap: var(--sp-3); }
 .demo-viewer-name { font-family: var(--font-ui); font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A demonstração inteira e com mostrador (skill demonstracao-inteira-e-com-mostrador,
+   como proto/v2/system.css): o clipe repete-se até ao ✕ e, por cima, o rodapé da Ladder —
+   reps · mostrador · peso e o cartão do nome — e os anéis a pulsar nas bordas. */
+.demo-viewer > video.run-wide-bg {
+  position: absolute; inset: 0; max-width: none; object-fit: cover;
+  filter: blur(24px) brightness(0.55); scale: 1.15;
+}
+.demo-viewer > video:not(.run-wide-bg) { position: relative; }
+.demo-viewer .media-bottom { z-index: 2; padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom)); }
+.demo-viewer .demo-viewer-top { z-index: 3; }
+.demo-viewer .media-name { width: 100%; }
+
+/* Os anéis nascem nas duas bordas, à altura dos números, e pulsam enquanto o vídeo
+   passa. Parado o vídeo, ficam quietos e esbatidos. */
+.demo-rings { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.demo-rings i {
+  position: absolute; bottom: 50px; width: 180px; height: 180px; border-radius: 50%;
+  border: 2px solid var(--ui-volt); opacity: 0.18;
+}
+.demo-rings i:nth-child(odd) { left: 0; translate: -50% 0; }
+.demo-rings i:nth-child(even) { right: 0; translate: 50% 0; }
+.is-demo .demo-rings i { animation: demo-ring 2.4s var(--ease-out) infinite both; }
+.is-demo .demo-rings i:nth-child(n + 3) { animation-delay: 1.2s; }
+@keyframes demo-ring {
+  0% { scale: 0.55; opacity: 0.7; }
+  100% { scale: 1.35; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-demo .demo-rings i { animation: none; opacity: 0.3; }
+}

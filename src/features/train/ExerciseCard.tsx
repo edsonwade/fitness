@@ -163,7 +163,14 @@ export function ExerciseCard({
 
       {open && entry.exercise ? <Technique exercise={entry.exercise} /> : null}
       {watching && entry.clip ? (
-        <DemoViewer clip={entry.clip} name={entry.name} onClose={() => setWatching(false)} />
+        <DemoViewer
+          clip={entry.clip}
+          name={entry.name}
+          sets={p.s}
+          reps={p.r}
+          load={filled(p.l)}
+          onClose={() => setWatching(false)}
+        />
       ) : null}
 
     </article>

@@ -46,6 +46,7 @@ import { EntryThumb, SetSheet, type HistoryLine } from './SetSheet';
 import { useDayEditing } from './use-day-editing';
 import { EQUIP_NAMES, variantsOf } from './variants';
 import { Demo } from './DemoClip';
+import { DialTicks } from './DialTicks';
 import { MusicBar, MusicSheet } from './MusicPlayer';
 import { useSuggestions } from './suggestion';
 import { useRestDefault } from '../profile/rest-default';
@@ -139,44 +140,6 @@ function PrepCount({ label, onGo, paused }: { label: string; onGo: () => void; p
 function clock(seconds: number): string {
   const safe = Math.max(0, Math.round(seconds));
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`;
-}
-
-/**
- * O mostrador de traços — um calibre, e não um anel liso.
- *
- * Trinta e três traços radiais, copiados de `proto/v2/04-executar.html` frame 4, que é
- * o desenho que ele aprovou no Passo A. Acendem-se a volt da ponta de baixo à esquerda
- * no sentido dos ponteiros: na série à medida que ela sobe, no descanso à medida que
- * ele passa — `litTicks` em `run-dial.ts`.
- */
-function DialTicks({ lit }: { lit: number }) {
-  const ticks: readonly (readonly [number, number, number, number])[] = [
-    [21.8, 80.5, 13.1, 85.5], [19.3, 75.5, 10.0, 79.3], [17.5, 70.1, 7.8, 72.7],
-    [16.4, 64.6, 6.5, 65.9], [16.0, 59.0, 6.0, 59.0], [16.4, 53.4, 6.5, 52.1],
-    [17.5, 47.9, 7.8, 45.3], [19.3, 42.5, 10.0, 38.7], [21.8, 37.5, 13.1, 32.5],
-    [24.9, 32.8, 17.0, 26.7], [28.6, 28.6, 21.5, 21.5], [32.8, 24.9, 26.7, 17.0],
-    [37.5, 21.8, 32.5, 13.1], [42.5, 19.3, 38.7, 10.0], [47.9, 17.5, 45.3, 7.8],
-    [53.4, 16.4, 52.1, 6.5], [59.0, 16.0, 59.0, 6.0], [64.6, 16.4, 65.9, 6.5],
-    [70.1, 17.5, 72.7, 7.8], [75.5, 19.3, 79.3, 10.0], [80.5, 21.8, 85.5, 13.1],
-    [85.2, 24.9, 91.3, 17.0], [89.4, 28.6, 96.5, 21.5], [93.1, 32.8, 101.0, 26.7],
-    [96.2, 37.5, 104.9, 32.5], [98.7, 42.5, 108.0, 38.7], [100.5, 47.9, 110.2, 45.3],
-    [101.6, 53.4, 111.5, 52.1], [102.0, 59.0, 112.0, 59.0], [101.6, 64.6, 111.5, 65.9],
-    [100.5, 70.1, 110.2, 72.7], [98.7, 75.5, 108.0, 79.3], [96.2, 80.5, 104.9, 85.5],
-  ];
-  return (
-    <svg className="dial-ticks" width="118" height="118" viewBox="0 0 118 118" aria-hidden="true">
-      {ticks.map(([x1, y1, x2, y2], i) => (
-        <line
-          key={`${x1}-${y1}`}
-          className={i < lit ? 'is-on' : undefined}
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-        />
-      ))}
-    </svg>
-  );
 }
 
 /**
@@ -353,7 +316,7 @@ export function RunSession() {
     setQuit(null);
   }
 
-  /* O vídeo fechou (acabou, ele saltou-o, ou tocou no ✕): as séries voltam onde estavam. */
+  /* O vídeo fechou (ele saltou-o, ou tocou no ✕): as séries voltam onde estavam. */
   function closeDemo() {
     setReplayFor(null);
     setSheetOpen(true);
@@ -461,8 +424,8 @@ export function RunSession() {
   }
   /* Um vídeo pedido para outro exercício não fica pendurado neste. */
   if (replayFor !== null && replayFor !== entry.key) setReplayFor(null);
-  /* A demonstração a passar: só quando ele a pediu para este exercício, até ao fim do
-     clipe, uma vez só (B2). Entrar no treino não a liga. */
+  /* A demonstração a passar: só quando ele a pediu para este exercício (B2), e em loop
+     até ao ✕ (skill demonstracao-inteira-e-com-mostrador). Entrar no treino não a liga. */
   const demoing = demoOn(entry.clip !== null, replayFor, entry.key);
   const playing = demoing;
   /*
@@ -488,13 +451,13 @@ export function RunSession() {
     );
   }
 
-  /* A demonstração fechou (acabou, ou ele saltou-a): as séries aparecem para marcar. */
+  /* A demonstração fechou (ele saltou-a com um toque no ecrã): as séries aparecem para marcar. */
   function endDemo(key: string) {
     if (key !== entry.key) return;
     closeDemo();
   }
 
-  /* "Ver demonstração", da folha ou do ▶ do palco: passa desde o princípio, e fecha no fim. */
+  /* "Ver demonstração", da folha ou do ▶ do palco: passa desde o princípio, e repete-se até ao ✕. */
   function replayDemo() {
     setReplayFor(entry.key);
     setReplay((n) => n + 1);
@@ -824,11 +787,12 @@ export function RunSession() {
         <div
           className={clsx(
             'media-screen media-run',
-            /* O clipe é do molde de scripts/clips/make.mjs (9:16, chão livre em baixo) e
-               enche o ecrã; a foto é deitada e fica inteira. */
+            /* O clipe é do molde de scripts/clips/make.mjs (9:16, a origem inteira) e fica
+               inteiro pelo CSS do .run-frame; a foto é deitada e fica inteira. */
             !entry.clip && 'is-fit',
             phase === 'set' && 'is-set',
             isGoing && 'is-going',
+            demoing && 'is-demo',
           )}
           style={{ borderRadius: 0, boxShadow: 'none' }}
         >
@@ -841,6 +805,7 @@ export function RunSession() {
                 hold={paused}
                 label={photoAlt}
                 backdrop
+                loop
               />
               <Demo
                 key={demoKey}
@@ -848,7 +813,7 @@ export function RunSession() {
                 playing={playing}
                 hold={paused}
                 label={photoAlt}
-                onEnded={() => endDemo(entry.key)}
+                loop
                 onProgress={(t, d) => followDemo(demoKey, t, d)}
               />
             </>
@@ -863,6 +828,15 @@ export function RunSession() {
             /* Uma variante sem vídeo próprio diz isso, e não mostra o de outro exercício (B4). */
             <p className="run-nodemo">{r.noDemo}</p>
           )}
+
+          {/* Os anéis a pulsar nas bordas enquanto a demonstração passa (skill
+              demonstracao-inteira-e-com-mostrador, como proto/v2/04-executar.html). */}
+          <div className="demo-rings" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </div>
 
           {/*
             O topo é UMA linha: ✕ e relógio à esquerda, música e definições à direita. A
