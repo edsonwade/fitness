@@ -451,12 +451,6 @@ export function RunSession() {
     );
   }
 
-  /* A demonstração fechou (ele saltou-a com um toque no ecrã): as séries aparecem para marcar. */
-  function endDemo(key: string) {
-    if (key !== entry.key) return;
-    closeDemo();
-  }
-
   /* "Ver demonstração", da folha ou do ▶ do palco: passa desde o princípio, e repete-se até ao ✕. */
   function replayDemo() {
     setReplayFor(entry.key);
@@ -798,15 +792,9 @@ export function RunSession() {
         >
           {entry.clip ? (
             <>
-              <Demo
-                key={`${entry.key}-bg-${replay}`}
-                clip={entry.clip}
-                playing={playing}
-                hold={paused}
-                label={photoAlt}
-                backdrop
-                loop
-              />
+              {/* O fundo é a foto do clipe, desfocada: uma imagem parada, nunca um segundo
+                  vídeo a descodificar (T5, ele 2026-09-27: "alguns vídeos estão a travar"). */}
+              <img className="run-wide-bg" src={entry.clip.poster} alt="" aria-hidden="true" />
               <Demo
                 key={demoKey}
                 clip={entry.clip}
@@ -898,15 +886,8 @@ export function RunSession() {
 
           </div>
 
-          {/* Durante a demonstração, tocar no ecrã salta-a e abre as séries. */}
-          {demoing ? (
-            <button
-              type="button"
-              className="prep-skip demo-skip"
-              aria-label={r.demoSkip}
-              onClick={() => endDemo(entry.key)}
-            />
-          ) : null}
+          {/* Um toque no ecrã não fecha a demonstração: só o ✕ e o Esc (T6, ele 2026-09-27:
+              "terminam quando o usuário fechar isso e não com tempo"). */}
 
           <div className="media-prep">
             {/*

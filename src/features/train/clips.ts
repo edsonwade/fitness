@@ -43,6 +43,34 @@ export const CLIP_STEMS: ReadonlySet<string> = new Set([
   'strarm',
 ]);
 
+/**
+ * Clips the quality gate of `scripts/clips/make.mjs` failed — upscaled more than 1.5× or
+ * soft (skill `demonstracao-inteira-e-com-mostrador`, T5; his words, 2026-09-27 21:30:
+ * "não podemos ter vídeos com má qualidade"). They stay in the folder but are never
+ * offered: the exercise shows its photo, with no play button and no demonstration chip,
+ * until a replacement he approves passes the gate. `clips.test.ts` holds this list
+ * against the manifest.
+ */
+export const HELD_FOR_QUALITY: ReadonlySet<string> = new Set([
+  'cablecurl',
+  'calfs',
+  'cgbench',
+  'dbbench',
+  'dbcurl',
+  'incldb',
+  'ohext',
+  'seatedrow',
+  'skull',
+]);
+
+/**
+ * A velocidade a que passa a demonstração: metade da real. T6 da skill
+ * `demonstracao-inteira-e-com-mostrador` (ele, 2026-09-27): "não podem ser muito rápidos
+ * porque senão não se aprende nada". Os clipes não são recodificados — é o leitor que
+ * abranda, por isso a qualidade da imagem não muda.
+ */
+export const DEMO_RATE = 0.5;
+
 export type Clip = {
   webm: string;
   mp4: string;
@@ -69,7 +97,7 @@ export function clipStem(exKey: string): string {
 
 export function clipFor(exKey: string): Clip | null {
   const stem = clipStem(exKey);
-  if (!CLIP_STEMS.has(stem)) return null;
+  if (!CLIP_STEMS.has(stem) || HELD_FOR_QUALITY.has(stem)) return null;
   const base = `${import.meta.env.BASE_URL}video/ex-${stem}`;
   return { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}.jpg` };
 }

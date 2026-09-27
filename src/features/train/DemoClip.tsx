@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import type { Clip } from './clips';
+import { DEMO_RATE, type Clip } from './clips';
 
 /**
  * A demonstração: o clipe local, parado no primeiro frame enquanto a contagem corre, e
@@ -11,13 +11,17 @@ import type { Clip } from './clips';
  * `playing` é o único interruptor, e parado volta ao primeiro frame. O `<video>` é
  * remontado com a chave do exercício, por isso começa sempre do princípio. Com
  * movimento reduzido não arranca sozinho.
+ *
+ * T6 (ele, 2026-09-27): passa a `DEMO_RATE` (metade da velocidade) — "não podem ser muito
+ * rápidos porque senão não se aprende nada" —, e ao desmontar larga o ficheiro e o
+ * descodificador, para trocar de exercício muitas vezes não ir acumulando vídeos presos
+ * em memória ("tem muitos leaks os vídeos").
  */
 export function Demo({
   clip,
   playing,
   hold,
   label,
-  backdrop = false,
   loop = false,
   onEnded,
   onProgress,
@@ -27,11 +31,6 @@ export function Demo({
   /** Em pausa ("Terminar treino?" aberto): para onde está, sem voltar ao princípio. */
   hold: boolean;
   label: string;
-  /**
-   * A cópia desfocada que enche o ecrã por trás do clipe inteiro, em todas as larguras:
-   * o clipe fica sempre em `contain`, nunca cortado. Não se anuncia: é o mesmo vídeo.
-   */
-  backdrop?: boolean;
   /** Repete-se até ao ✕: nunca chega ao fim, e o mostrador dá uma volta por passagem. */
   loop?: boolean;
   /** O clipe chegou ao fim (só sem `loop`). */
@@ -47,6 +46,39 @@ export function Demo({
   useEffect(() => {
     progressRef.current = onProgress;
   });
+  /*
+   * Abrandado, e largado ao desmontar. Quem larga as fontes é quem as repõe: no
+   * StrictMode o React monta, desmonta e volta a montar, e não repõe o `src` que o
+   * cleanup tirou, porque para ele o atributo não mudou. Sem isto ficava só o poster
+   * (B1 de `.claude/skills/demonstracao-inteira-e-com-mostrador/PLANO.md`, "os vídeos não
+   * se movem, está imagem parada").
+   */
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    let restored = false;
+    for (const source of video.querySelectorAll('source')) {
+      const want = source.dataset.src;
+      if (want && source.getAttribute('src') !== want) {
+        source.setAttribute('src', want);
+        restored = true;
+      }
+    }
+    if (restored) video.load();
+    const slow = () => {
+      video.defaultPlaybackRate = DEMO_RATE;
+      video.playbackRate = DEMO_RATE;
+    };
+    slow();
+    video.addEventListener('loadedmetadata', slow);
+    return () => {
+      video.removeEventListener('loadedmetadata', slow);
+      video.pause();
+      for (const source of video.querySelectorAll('source')) source.removeAttribute('src');
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, []);
   const follows = onProgress !== undefined;
   useEffect(() => {
     const video = ref.current;
@@ -85,6 +117,7 @@ export function Demo({
     const video = ref.current;
     if (!video) return;
     if (playing && !hold) {
+      video.playbackRate = DEMO_RATE;
       video.play().catch(() => {});
     } else if (hold) {
       video.pause();
@@ -100,19 +133,17 @@ export function Demo({
   return (
     <video
       ref={ref}
-      className={backdrop ? 'run-wide-bg' : undefined}
       muted
       playsInline
       loop={loop}
       onEnded={onEnded}
-      preload={backdrop ? 'metadata' : 'auto'}
+      preload="auto"
       poster={clip.poster || undefined}
-      aria-label={backdrop ? undefined : label}
-      aria-hidden={backdrop || undefined}
+      aria-label={label}
     >
       {/* An uploaded clip has no webm twin, and may be a .mov: no type, the browser sniffs it. */}
-      {clip.webm ? <source src={clip.webm} type="video/webm" /> : null}
-      <source src={clip.mp4} type={clip.webm ? 'video/mp4' : undefined} />
+      {clip.webm ? <source src={clip.webm} data-src={clip.webm} type="video/webm" /> : null}
+      <source src={clip.mp4} data-src={clip.mp4} type={clip.webm ? 'video/mp4' : undefined} />
     </video>
   );
 }

@@ -8,7 +8,8 @@ import { useDeleteRow, useUpsertRow } from '../../data/mutations';
 import { pendingWrites } from '../../data/outbox';
 import { useRows, useUserId } from '../../data/queries';
 import { supabase } from '../../data/supabase';
-import { INTL_LOCALE, LOCALES, LOCALE_NAMES } from '../../i18n';
+import { INTL_LOCALE } from '../../i18n';
+import { LocalePicker } from '../../i18n/LocalePicker';
 import { useLocale } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 import { Sheet } from '../../ui/Sheet';
@@ -289,8 +290,7 @@ function SyncCard() {
 }
 
 function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { locale, setLocale, t: copy } = useLocale();
-  const t = copy.profile;
+  const t = useLocale().t.profile;
   const { theme, setTheme } = useThemeState();
   const rest = useRestDefault();
   const themes: [ThemePreference, string][] = [
@@ -312,18 +312,7 @@ function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           </div>
           <p className="body-2 muted mt-1.5">{t.themeHint}</p>
         </div>
-        <div>
-          <p className="label mb-2">{t.language}</p>
-          {/* B8: quatro nomes em colunas iguais não cabem a 320–390 px ("Português" precisa
-              de 63 px e tinha 44). Presets que partem em linhas, como a refeição. */}
-          <div className="presetrow" role="radiogroup" aria-label={t.language}>
-            {LOCALES.map((l) => (
-              <button key={l} type="button" className="preset" role="radio" lang={l} aria-checked={locale === l} aria-pressed={locale === l} onClick={() => setLocale(l)}>
-                {LOCALE_NAMES[l]}
-              </button>
-            ))}
-          </div>
-        </div>
+        <LocalePicker />
         <div>
           <p className="label mb-2">{t.restDefault}</p>
           <ValuePill scale="rest" title={t.restDefault} value={rest} onChange={setRestDefault} />

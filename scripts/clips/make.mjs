@@ -16,7 +16,8 @@
  * Uso:  node scripts/clips/make.mjs [stem ...]          (sem argumentos: todos)
  *       node scripts/clips/make.mjs --frame [stem ...]  corre frame.py e grava a janela
  *       node scripts/clips/make.mjs --check             todos têm janela? quais chumbam?
- * Lê    scripts/clips/manifest.json (start/end, window, gate)
+ *       node scripts/clips/make.mjs --quality [stem ...] mede a nitidez sem refazer (T5)
+ * Lê    scripts/clips/manifest.json (start/end, window, gate, quality)
  * Grava public/video/ex-<stem>.{mp4,webm,jpg}
  * Cache scripts/clips/.cache/ (as fontes descarregadas; fora do git)
  */
@@ -83,6 +84,41 @@ export function frame(clip) {
 
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 
+/*
+ * O portão de qualidade (T5 da skill demonstracao-inteira-e-com-mostrador; ele, 2026-09-27
+ * 21:30: "não podemos ter vídeos com má qualidade"). Chumba o clipe que amplia a origem
+ * mais de 1,5× ou cuja parte que vem da origem é mole. Calibrado a olho, a 1:1: hammer
+ * (45), dbcurl (34) e legraise (1,78×) moles; pulldown (66), csrow, lateral e strarm
+ * nítidos. As origens 606×1080 ampliadas 1,19× passam quando são nítidas.
+ */
+export const QUALITY = { maxUpscale: 1.5, minSharp: 50 };
+
+function sourceHeight(file) {
+  return parseInt(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=height', '-of', 'csv=p=0', file]).toString(), 10);
+}
+
+/** A parte do 720×1280 que vem da origem, em píxeis: o resto é fundo desfocado. */
+function sourceRect(clip) {
+  const [wx, wy, ww, wh] = clip.window;
+  const ix0 = Math.max(wx, 0), iy0 = Math.max(wy, 0);
+  const ix1 = Math.min(wx + ww, 1), iy1 = Math.min(wy + wh, 1);
+  return [((ix0 - wx) / ww) * FRAME.w, ((iy0 - wy) / wh) * FRAME.h,
+    ((ix1 - ix0) / ww) * FRAME.w, ((iy1 - iy0) / wh) * FRAME.h].map((n) => Math.round(n));
+}
+
+/** Mede o clipe feito e grava `quality` no manifest: ampliação, nitidez e veredicto. */
+export function quality(clip) {
+  const upscale = +(FRAME.h / (clip.window[3] * sourceHeight(sourceFile(clip)))).toFixed(2);
+  const sharp = Number(execFileSync(PY, [join(HERE, 'quality.py'), join(OUT, `ex-${clip.stem}.mp4`),
+    ...sourceRect(clip).map(String)], { stdio: ['ignore', 'pipe', 'inherit'] }).toString().trim());
+  const fails = [];
+  if (upscale > QUALITY.maxUpscale) fails.push(`amplia a origem ${upscale}×`);
+  if (sharp < QUALITY.minSharp) fails.push(`mole (nitidez ${sharp} < ${QUALITY.minSharp})`);
+  clip.quality = { upscale, sharp, verdict: fails.length ? fails.join('; ') : 'ok' };
+  return clip.quality;
+}
+
 function filter(clip) {
   // A janela é em FRAÇÕES da origem [x, y, largura, altura], e pode sair de [0, 1].
   const [wx, wy, ww, wh] = clip.window;
@@ -117,14 +153,18 @@ function make(clip) {
   const src = sourceFile(clip);
   const base = join(OUT, `ex-${clip.stem}`);
   const common = ['-v', 'error', '-y', '-i', src, '-filter_complex', filter(clip), '-map', '[v]', '-an'];
-  run('ffmpeg', [...common, '-c:v', 'libx264', '-preset', 'slow', '-crf', '20',
+  // Um keyframe por segundo (T5): o loop e os saltos não esperam pela descodificação do
+  // clipe todo desde o princípio.
+  run('ffmpeg', [...common, '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-g', '30',
     '-movflags', '+faststart', `${base}.mp4`]);
-  run('ffmpeg', [...common, '-c:v', 'libvpx-vp9', '-crf', '30', '-b:v', '0', '-row-mt', '1',
+  run('ffmpeg', [...common, '-c:v', 'libvpx-vp9', '-crf', '30', '-b:v', '0', '-row-mt', '1', '-g', '30',
     '-deadline', 'good', '-cpu-used', '4',
     `${base}.webm`]);
   // O poster é o primeiro frame do próprio clipe: é o que se vê durante a contagem.
   run('ffmpeg', ['-v', 'error', '-y', '-i', `${base}.mp4`, '-frames:v', '1', '-q:v', '2', `${base}.jpg`]);
-  console.log(`ex-${clip.stem}  ${(clip.end - clip.start) / (clip.speed ?? 1)}s`);
+  const q = quality(clip);
+  writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
+  console.log(`ex-${clip.stem}  ${(clip.end - clip.start) / (clip.speed ?? 1)}s  qualidade ${q.verdict}`);
 }
 
 const args = process.argv.slice(2);
@@ -139,8 +179,16 @@ if (mode === '--check') {
   const cut = manifest.clips.filter((c) => c.gate && c.gate !== 'ok' && !c.seen);
   for (const c of cut) console.log(`CHUMBA ${c.stem}: ${c.gate}`);
   for (const c of missing) console.log(`SEM JANELA ${c.stem}`);
-  console.log(`${manifest.clips.length - missing.length - cut.length}/${manifest.clips.length} passam`);
-  process.exit(missing.length || cut.length ? 1 : 0);
+  const soft = manifest.clips.filter((c) => c.quality?.verdict !== 'ok');
+  for (const c of soft) console.log(`QUALIDADE ${c.stem}: ${c.quality?.verdict ?? 'nunca medido'}`);
+  const bad = new Set([...missing, ...cut, ...soft]);
+  console.log(`${manifest.clips.length - bad.size}/${manifest.clips.length} passam`);
+  process.exit(bad.size ? 1 : 0);
+}
+if (mode === '--quality') {
+  for (const clip of picked) console.log(`${clip.stem.padEnd(12)} ${JSON.stringify(quality(clip))}`);
+  writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
+  process.exit(0);
 }
 for (const clip of picked) {
   if (mode === '--frame' || !clip.window) {

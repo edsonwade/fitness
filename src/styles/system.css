@@ -847,7 +847,6 @@ button.media-name::before {
 .prep-skip:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: -6px; }
 /* A demonstração a passar (B1 de .claude/skills/executar-demo-equipamento-ordem/PLANO.md):
    tocar no ecrã salta-a. Por baixo do topo e do fundo, que são 2. */
-.demo-skip { z-index: 1; }
 /* Uma variante sem vídeo próprio (B4): diz-se, ao centro, e nunca o vídeo de outro exercício. */
 .run-nodemo {
   position: absolute; inset: 0; display: grid; place-items: center; padding: var(--sp-7);
@@ -1217,16 +1216,16 @@ button.media-name { touch-action: none; }
 /* O EXECUTAR NO BROWSER — a partir de 1024px (erro 3 de
    .claude/skills/executar-quatro-erros-do-browser/PLANO.md; proto/v2/system.css "4 · O
    executar no browser", frame 4d). A janela inteira: o clipe inteiro (contain) à altura
-   toda, e por trás o mesmo clipe desfocado a encher os lados. Os números e o cartão
+   toda, e por trás a foto do clipe desfocada a encher os lados (T5: nunca um segundo vídeo). Os números e o cartão
    crescem, numa coluna de 680px ao centro. As séries abrem num painel de 420px à
    direita, e o vídeo encosta-se à esquerda e continua a correr. */
 /* O clipe INTEIRO em todas as larguras (ele, 2026-09-27: "tem que aparecer o corpo todo
    e a máquina de exercícios"). Os clipes de scripts/clips/make.mjs deixaram de ter margem
    de lado para o `cover` comer: são a origem inteira, de borda a borda, e um `cover` num
    telefone 390×844 cortava 18% da largura — braços e máquina. Por isso `contain`, com o
-   mesmo clipe desfocado a encher o resto. No telefone o clipe encosta-se ao topo: a
+   foto do clipe desfocada a encher o resto (T5: um segundo vídeo fazia travar). No telefone o clipe encosta-se ao topo: a
    folga fica em baixo, onde assentam os números, e não por cima dos pés. */
-.run-frame .media-screen > video.run-wide-bg {
+.run-frame .media-screen > img.run-wide-bg {
   display: block; object-fit: cover; filter: blur(34px) brightness(0.85); transform: scale(1.12);
 }
 .run-frame .media-screen > video:not(.run-wide-bg) { object-fit: contain; object-position: top; z-index: 1; }
@@ -1606,6 +1605,20 @@ button.media-name { touch-action: none; }
 .auth-hint[hidden] { display: none; }
 .auth-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-size: 12.5px; }
 .auth-row .switch { transform: scale(0.8); transform-origin: left center; }
+/* O interruptor do Lembrar-me, como .switch de proto/v2/system.css, sobre a foto. */
+.auth-row .switch {
+  position: relative; flex: 0 0 auto; width: 50px; height: 30px; padding: 0; cursor: pointer;
+  border-radius: 999px; border: 1.5px solid rgb(255 255 255 / 0.3); background: rgb(255 255 255 / 0.12);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.auth-row .switch::before { content: ''; position: absolute; inset: -7px -3px; }
+.auth-row .switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; transition: translate 160ms ease, background 160ms ease;
+}
+.auth-row .switch[aria-checked='true'] { background: var(--ui-volt); border-color: transparent; }
+.auth-row .switch[aria-checked='true']::after { translate: 20px 0; background: var(--ui-volt-ink); }
+.auth-row .switch:focus-visible { outline: 2px solid var(--ui-volt); outline-offset: 2px; }
 .auth-row label { display: flex; align-items: center; gap: var(--sp-2); color: rgb(255 255 255 / 0.8); }
 .auth-link { color: var(--ui-volt); font-weight: 700; text-decoration: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .auth-link.is-quiet { color: rgb(255 255 255 / 0.75); font-weight: 500; }
@@ -2105,8 +2118,8 @@ button.media-name { touch-action: none; }
 /* A demonstração inteira e com mostrador (skill demonstracao-inteira-e-com-mostrador,
    como proto/v2/system.css): o clipe repete-se até ao ✕ e, por cima, o rodapé da Ladder —
    reps · mostrador · peso e o cartão do nome — e os anéis a pulsar nas bordas. */
-.demo-viewer > video.run-wide-bg {
-  position: absolute; inset: 0; max-width: none; object-fit: cover;
+.demo-viewer > img.run-wide-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   filter: blur(24px) brightness(0.55); scale: 1.15;
 }
 .demo-viewer > video:not(.run-wide-bg) { position: relative; }
@@ -2132,3 +2145,22 @@ button.media-name { touch-action: none; }
 @media (prefers-reduced-motion: reduce) {
   .is-demo .demo-rings i { animation: none; opacity: 0.3; }
 }
+
+/* T6 (ele, 2026-09-27: "os vídeos não podem estar sempre a bugar"). Por cima de um vídeo a
+   passar, o vidro com backdrop-filter obriga a refazer o desfoque em cada imagem do vídeo.
+   Aí o vidro passa a um fundo escuro translúcido, sem desfoque ao vivo. */
+.demo-viewer .btn-icon.on-media, .demo-viewer .media-name, .demo-viewer .chip,
+.is-demo .btn-icon.on-media, .is-demo .media-name, .is-demo .chip {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.demo-viewer .media-name, .is-demo .media-name { background: rgb(0 0 0 / 0.45); }
+
+/* A língua no Entrar/Criar conta (skill lingua-na-entrada-e-definicoes, ele 2026-09-27:
+   "quando é que as pessoas escolhem a língua?"). Quatro palavras discretas por baixo do
+   rodapé; a escolhida em volt. Cada uma no nome da própria língua. Igual a proto/v2/system.css. */
+.auth-lang { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px var(--sp-1); padding-top: var(--sp-3); }
+.auth-lang button {
+  min-height: 36px; padding: 0 var(--sp-2); border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 500; color: rgb(255 255 255 / 0.6);
+}
+.auth-lang button[aria-checked='true'] { color: var(--ui-volt); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
