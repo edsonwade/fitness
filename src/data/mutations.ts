@@ -598,6 +598,23 @@ export function useDeleteRow<T extends TableName>(table: T) {
  * are the same instant; through the outbox they are an hour apart, and the one the
  * merge has to compare is the first.
  */
+/**
+ * The tick's stamp, on the optimistic row, until the server's arrives.
+ *
+ * The screens only count a tick made today (`ticksOfToday`, `features/train/logs.ts`).
+ * A tick written over a row last stamped a week ago would otherwise read as stale until
+ * the server answered — hidden for a moment, and the next tick, built from what is on
+ * screen, would write the first one away. Only a write that carries `sets_done` moves it.
+ */
+export function stampTicks(
+  current: Pick<ExerciseLog, 'field_updated_at'> | undefined,
+  fields: LogFields,
+  changedAt: string,
+): { field_updated_at?: Record<string, string> } {
+  if (!('sets_done' in fields)) return {};
+  return { field_updated_at: { ...(current?.field_updated_at ?? {}), sets_done: changedAt } };
+}
+
 export function useMergeExerciseLog() {
   const client = useQueryClient();
   const userId = useUserId();
@@ -618,13 +635,12 @@ export function useMergeExerciseLog() {
            the row already has, and not spread over it — spreading would put the patch
            object where the array was. */
         const { sets, ...fields } = variables.fields;
-        const merged = sets
-          ? { sets: mergeSets(findRow(rows, 'exercise_logs', where)?.sets ?? [], sets) }
-          : {};
+        const current = findRow(rows, 'exercise_logs', where);
+        const merged = sets ? { sets: mergeSets(current?.sets ?? [], sets) } : {};
         return applyOptimistic(
           rows,
           'exercise_logs',
-          { ...where, ...fields, ...merged },
+          { ...where, ...fields, ...merged, ...stampTicks(current, fields, variables.changedAt) },
           /*
            * What the row is worth the first time it is written. An exercise gets
            * its log row on the edit that creates it, and until the server answers

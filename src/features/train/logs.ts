@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useRows } from '../../data/queries';
 import type { ExerciseLog, SetValue } from '../../data/entities';
 import type { BlockKey } from '../../content';
 import type { DayEntry } from './day-entries';
 import { parseLoadKg, parseReps } from './metrics';
+import { localDate } from './sessions';
 
 /**
  * The block order lives with the day resolver, because that is what needs it first.
@@ -27,15 +28,34 @@ export function logId(dayNo: number, block: BlockKey, exKey: string): string {
  */
 export function useExerciseLogs() {
   const query = useRows('exercise_logs');
+  const [today] = useState(() => localDate(new Date()));
   const byKey = useMemo(() => {
     const map = new Map<string, ExerciseLog>();
     for (const row of query.data ?? []) {
-      map.set(logId(row.day_no, row.block as BlockKey, row.ex_key), row);
+      map.set(logId(row.day_no, row.block as BlockKey, row.ex_key), ticksOfToday(row, today));
     }
     return map;
-  }, [query.data]);
+  }, [query.data, today]);
 
   return { ...query, byKey };
+}
+
+/**
+ * A tick belongs to the day it was made on, and to no other.
+ *
+ * `exercise_logs` has no date (`sessions.ts`): without this, the sets ticked the last
+ * time this day was trained stayed ticked forever, and the set sheet — which only opens
+ * after the demonstration — showed them all done before he had lifted anything (B1 of
+ * `.claude/skills/demo-nao-marca-series/PLANO.md`). The day's record is `sessions`; the
+ * numbers stay, because they are the load the cards read back.
+ *
+ * The stamp is the server's per-field one for `sets_done`, and the row's own date for a
+ * row written before per-field stamps existed.
+ */
+export function ticksOfToday(row: ExerciseLog, today: string): ExerciseLog {
+  if (!row.sets_done.some(Boolean)) return row;
+  const stamp = row.field_updated_at?.sets_done ?? row.updated_at;
+  return localDate(new Date(stamp)) === today ? row : { ...row, sets_done: [] };
 }
 
 /**
