@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 
 import { useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
 import { Sheet } from '../../ui/Sheet';
-import { fmtTime, seek, skipBy, toggle, useMusic } from './music';
+import { addFiles, fmtTime, playAt, removeTrack, seek, skipBy, toggle, useMusic } from './music';
 
 const NOTE = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" aria-hidden="true">
@@ -62,14 +62,36 @@ export function MusicBar({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-/** A folha "Música": com faixas, o leitor; sem faixas, onde pô-las e porque não há Spotify. */
+/**
+ * A folha "Música": com faixas, o leitor e a lista; sem faixas, "Escolher músicas" e
+ * porque não há Spotify. B1, 2026-09-27: as músicas escolhem-se no telemóvel.
+ */
 export function MusicSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const t = useT().music;
   const m = useMusic();
   const track = m.tracks[m.index];
+  const input = useRef<HTMLInputElement>(null);
+  const [confirming, setConfirming] = useState(-1);
+
+  const picker = (
+    <input
+      ref={input}
+      type="file"
+      accept="audio/*"
+      multiple
+      hidden
+      data-testid="music-input"
+      onChange={(e) => {
+        const files = e.currentTarget.files;
+        if (files?.length) void addFiles(Array.from(files));
+        e.currentTarget.value = '';
+      }}
+    />
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={t.title}>
+      {picker}
       {track ? (
         <div>
           <div className="nowplaying">
@@ -132,6 +154,67 @@ export function MusicSheet({ open, onOpenChange }: { open: boolean; onOpenChange
             </div>
           </div>
           {m.ducked ? <p className="body-2 mt-3" style={{ color: 'var(--ui-accent)' }}>{t.ducking}</p> : null}
+
+          <section className="mt-6">
+            <p className="label">{t.yours}</p>
+            <div className="mt-2">
+              {m.tracks.map((tr, i) =>
+                confirming === i ? (
+                  <div key={tr.id ?? tr.file} className="list-row" style={{ gap: 'var(--sp-3)' }}>
+                    <span className="body-1" style={{ flex: '1 1 auto', minWidth: 0 }}>
+                      {t.removeAsk} <strong>{tr.title}</strong>?
+                    </span>
+                    <button type="button" className="btn btn-ghost btn-quiet" onClick={() => setConfirming(-1)}>
+                      {t.cancel}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-quiet"
+                      onClick={() => {
+                        setConfirming(-1);
+                        void removeTrack(i);
+                      }}
+                    >
+                      {t.removeYes}
+                    </button>
+                  </div>
+                ) : (
+                  <div key={tr.id ?? tr.file} className="list-row" style={{ gap: 'var(--sp-3)' }}>
+                    <button
+                      type="button"
+                      className="body-1"
+                      aria-current={i === m.index ? 'true' : undefined}
+                      onClick={() => playAt(i)}
+                      style={{
+                        flex: '1 1 auto',
+                        minWidth: 0,
+                        textAlign: 'left',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontWeight: i === m.index ? 700 : undefined,
+                      }}
+                    >
+                      {tr.title}
+                    </button>
+                    {tr.id ? (
+                      <button
+                        type="button"
+                        className="btn btn-icon"
+                        aria-label={`${t.remove}: ${tr.title}`}
+                        onClick={() => setConfirming(i)}
+                      >
+                        <Icon name="x" size={18} strokeWidth={2} />
+                      </button>
+                    ) : null}
+                  </div>
+                ),
+              )}
+            </div>
+            <button type="button" className="btn btn-secondary btn-block mt-3" onClick={() => input.current?.click()}>
+              {t.add}
+            </button>
+          </section>
         </div>
       ) : (
         <div>
@@ -140,6 +223,14 @@ export function MusicSheet({ open, onOpenChange }: { open: boolean; onOpenChange
             <p className="title-2">{t.emptyTitle}</p>
             <p>{t.emptyBody}</p>
           </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-block btn-lg"
+            style={{ marginBottom: 'var(--sp-5)' }}
+            onClick={() => input.current?.click()}
+          >
+            {t.pick}
+          </button>
           <div className="notice">
             <Icon name="info" size={20} strokeWidth={2} />
             <div>

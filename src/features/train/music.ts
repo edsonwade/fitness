@@ -1,5 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
+import { idbTrackStore, isAudioFile, titleFromFile, type StoredTrack, type TrackStore } from './music-store';
+
 /**
  * A música do treino — fase 012, `proto/v2/04-executar.html` (`.musicbar`, folha Música).
  *
@@ -11,8 +13,20 @@ import { useEffect, useSyncExternalStore } from 'react';
  *
  * Um só `<audio>` para a app inteira, fora do React: a música não pode parar quando o
  * ecrã muda de exercício, nem quando a folha abre e fecha.
+ *
+ * B1, 2026-09-27: num telemóvel não há como pôr ficheiros em `public/audio/`, e a barra
+ * nunca aparecia. As músicas passam a escolher-se no telemóvel (`addFiles`) e ficam em
+ * IndexedDB, só no aparelho (`music-store.ts`). O `tracks.json` continua a valer.
  */
-export type Track = { file: string; title: string; artist: string; art?: string };
+export type Track = {
+  file: string;
+  title: string;
+  artist: string;
+  art?: string;
+  /** Só nas escolhidas no telemóvel: a chave no IndexedDB e o object URL do ficheiro. */
+  id?: string;
+  src?: string;
+};
 
 export type MusicState = {
   tracks: Track[];
@@ -57,6 +71,33 @@ let state: MusicState = { tracks: [], index: 0, playing: false, time: 0, duratio
 const listeners = new Set<() => void>();
 let audio: HTMLAudioElement | null = null;
 let loaded = false;
+let store: TrackStore = idbTrackStore;
+
+/** Para os testes: outro armazenamento e o estado do princípio. */
+export function __resetMusic(next: TrackStore = idbTrackStore) {
+  audio?.pause();
+  state.tracks.forEach(revoke);
+  store = next;
+  loaded = false;
+  audio = null;
+  state = { tracks: [], index: 0, playing: false, time: 0, duration: 0, ducked: false };
+  listeners.forEach((l) => l());
+}
+
+function fromStored(t: StoredTrack): Track {
+  const src = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(t.blob) : '';
+  return { id: t.id, file: t.title, title: t.title, artist: t.artist, src };
+}
+
+function revoke(t: Track) {
+  if (t.id && t.src && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(t.src);
+}
+
+function newId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 function set(patch: Partial<MusicState>) {
   state = { ...state, ...patch };
@@ -97,31 +138,110 @@ function load(index: number) {
   const el = ensureAudio();
   const track = state.tracks[index];
   if (!el || !track) return;
-  el.src = `${base()}${track.file}`;
+  el.src = track.src ?? `${base()}${track.file}`;
   set({ index, time: 0, duration: 0 });
   mediaSession(track);
 }
 
-/** Lê a lista uma vez. Sem ficheiro de lista, fica vazia — e isso não é um erro. */
+async function folderTracks(): Promise<Track[]> {
+  try {
+    const res = await fetch(`${base()}tracks.json`, { cache: 'no-cache' });
+    return res.ok ? parseTracks(await res.json()) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function deviceTracks(): Promise<Track[]> {
+  try {
+    return (await store.all()).map(fromStored);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Lê as duas fontes uma vez: a pasta (`tracks.json`) e as escolhidas no telemóvel.
+ * Sem nenhuma, fica vazia — e isso não é um erro: a barra não aparece.
+ */
 export async function loadTracks(): Promise<void> {
   if (loaded) return;
   loaded = true;
-  try {
-    const res = await fetch(`${base()}tracks.json`, { cache: 'no-cache' });
-    if (!res.ok) return;
-    const tracks = parseTracks(await res.json());
-    set({ tracks });
-    if (tracks.length) load(0);
-  } catch {
-    /* Sem lista não há música, e a barra não aparece. */
+  const [folder, device] = await Promise.all([folderTracks(), deviceTracks()]);
+  // Se ele juntou músicas antes de a lista chegar, essas ficam à frente e sem repetir.
+  const have = new Set(state.tracks.map((t) => t.id));
+  device.filter((t) => have.has(t.id)).forEach(revoke);
+  const tracks = [...state.tracks, ...folder, ...device.filter((t) => !have.has(t.id))];
+  if (!tracks.length) return;
+  set({ tracks });
+  if (!audio?.src) load(state.index < tracks.length ? state.index : 0);
+}
+
+/**
+ * Juntar as músicas escolhidas no telemóvel. Ficam guardadas no aparelho; se o
+ * browser não deixar guardar (janela privada), tocam na mesma até fechar a app.
+ */
+export async function addFiles(files: ArrayLike<File>): Promise<void> {
+  const picked = Array.from(files).filter(isAudioFile);
+  if (!picked.length) return;
+  const added: Track[] = [];
+  for (const f of picked) {
+    const row: StoredTrack = { id: newId(), title: titleFromFile(f.name), artist: '', blob: f, addedAt: Date.now() };
+    try {
+      await store.put(row);
+    } catch {
+      /* Não ficou guardada, mas toca nesta sessão. */
+    }
+    added.push(fromStored(row));
   }
+  const wasEmpty = state.tracks.length === 0;
+  set({ tracks: [...state.tracks, ...added] });
+  if (wasEmpty) load(0);
+}
+
+/** Tirar uma música da lista e do aparelho. A que está a tocar passa à seguinte. */
+export async function removeTrack(i: number): Promise<void> {
+  const track = state.tracks[i];
+  if (!track) return;
+  if (track.id) {
+    try {
+      await store.remove(track.id);
+    } catch {
+      /* Sai da lista na mesma. */
+    }
+  }
+  revoke(track);
+  const tracks = state.tracks.filter((_, k) => k !== i);
+  const wasPlaying = state.playing;
+  if (!tracks.length) {
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+    }
+    set({ tracks, index: 0, time: 0, duration: 0, playing: false });
+    return;
+  }
+  if (i === state.index) {
+    set({ tracks });
+    load(Math.min(i, tracks.length - 1));
+    if (wasPlaying) void play();
+  } else {
+    set({ tracks, index: i < state.index ? state.index - 1 : state.index });
+  }
+}
+
+/** Tocar uma faixa da lista, a partir do toque nela. */
+export function playAt(i: number) {
+  if (!state.tracks[i]) return;
+  load(i);
+  void play();
 }
 
 /** Tocar só depois de um gesto: é o que os browsers exigem, e é daqui que é chamado. */
 export async function play() {
   const el = ensureAudio();
   if (!el || !state.tracks.length) return;
-  if (!el.src) load(state.index);
+  if (!el.getAttribute('src')) load(state.index);
   try {
     await el.play();
   } catch {
