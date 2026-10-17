@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '../../i18n/locale-context';
 import { Icon } from '../../ui/Icon';
+import { notifyRestOver } from '../profile/notifications';
 import { duck, shouldDuck } from './music';
 
 
@@ -64,6 +65,22 @@ export function RestTimer({
     duck(!paused && shouldDuck(remaining));
   }, [remaining, paused]);
   useEffect(() => () => duck(false), []);
+
+  /*
+   * phase-026-notificacoes: "Descanso acabou" com a app fora do ecrã. O relógio pode ser
+   * travado em segundo plano, por isso o aviso marca-se para a hora de fim e volta a
+   * marcar-se a cada segundo que passa, e dispara uma vez só por descanso.
+   */
+  const n = useT().notify;
+  const notified = useRef(false);
+  useEffect(() => {
+    if (paused || notified.current) return;
+    const id = window.setTimeout(() => {
+      notified.current = true;
+      void notifyRestOver(`${n.restOverNotif} · ${exerciseName}`, n.restOverNotifBody);
+    }, remaining * 1000);
+    return () => window.clearTimeout(id);
+  }, [remaining, paused, exerciseName, n]);
 
   const mm = Math.floor(remaining / 60);
   const ss = remaining % 60;

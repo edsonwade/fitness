@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router';
 import { Catalog } from '../features/catalog/Catalog';
 import { Nutrition } from '../features/nutrition/Nutrition';
 import { Profile } from '../features/profile/Profile';
+import { Notifications } from '../features/profile/Notifications';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { Team } from '../features/team/Team';
 import { DayView } from '../features/train/DayView';
@@ -80,6 +81,7 @@ export const router = createBrowserRouter(
             { path: 'progresso', element: <Progress /> },
             { path: 'calendario', element: <Calendar /> },
             { path: 'evolucao', element: <Evolution /> },
+            { path: 'perfil/notificacoes', element: <Notifications /> },
             { path: 'treino/:dia', element: <DayView /> },
             /*
              * O Executar está fora do <AppShell> pela mesma razão que o dia está, e

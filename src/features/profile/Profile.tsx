@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 
 import { useThemeState } from '../../app/theme-context';
 import type { ThemePreference } from '../../app/theme';
@@ -291,6 +292,8 @@ function SyncCard() {
 
 function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const t = useLocale().t.profile;
+  const n = useLocale().t.notify;
+  const navigate = useNavigate();
   const { theme, setTheme } = useThemeState();
   const rest = useRestDefault();
   const themes: [ThemePreference, string][] = [
@@ -318,6 +321,21 @@ function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           <ValuePill scale="rest" title={t.restDefault} value={rest} onChange={setRestDefault} />
           <p className="body-2 muted mt-2">{t.restHint}</p>
         </div>
+        {/* phase-026-notificacoes: a entrada das Notificações, como proto/v2/08-perfil.html. */}
+        <button
+          type="button"
+          className="list-row w-full text-left"
+          onClick={() => {
+            onOpenChange(false);
+            navigate('/perfil/notificacoes');
+          }}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="body-1 block font-600">{n.row}</span>
+            <span className="body-2 muted block">{n.rowHint}</span>
+          </span>
+          <Icon name="forward" size={20} strokeWidth={2} />
+        </button>
       </div>
     </Sheet>
   );

@@ -50,6 +50,8 @@ export default defineConfig({
         // Supabase is never served from the cache. Stale sets and stale weights are
         // worse than none, and the outbox is what makes writes survive being offline.
         navigateFallbackDenylist: [/^\/api/],
+        // Tocar no aviso "Descanso acabou" traz a app para a frente (phase-026-notificacoes).
+        importScripts: ['sw-notify.js'],
       },
       devOptions: { enabled: false },
     }),
